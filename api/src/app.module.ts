@@ -6,6 +6,7 @@ import { DatabaseModule } from './infra/database/database.module.js';
 import { InfraJwtModule } from './infra/auth/jwt.module.js';
 import { RedisModule } from './infra/cache/redis.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { ProdutoModule } from './modules/produto/produto.module.js';
 
 @Module({
   imports: [
@@ -15,7 +16,8 @@ import { AuthModule } from './modules/auth/auth.module.js';
     }),
     DatabaseModule,
     RedisModule,
-    AuthModule
+    AuthModule,
+    ProdutoModule,
   ],
   controllers: [AppController],
   providers: [AppService],
