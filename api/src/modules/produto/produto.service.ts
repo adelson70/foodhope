@@ -1,9 +1,10 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 
 import { PrismaWriteService } from '../../infra/database/prisma-write.service.js';
 
 import { JwtServiceCustom } from '../../infra/auth/jwt.service.js';
 import { CreateDto } from './dto/create.dto.js';
+import { Prisma } from '../../../generated/prisma/client.js';
 
 @Injectable()
 export class ProdutoService {
@@ -53,6 +54,20 @@ export class ProdutoService {
       console.error('Erro na transação de produto:', erro);
       
       throw new InternalServerErrorException('Não foi possível criar o produto. Tente novamente.');
+    }
+  }
+
+  async deletarProduto(id: string) {
+    try {
+      await this.prismaWrite.produto.delete({where: {id}})
+      return {mensagem: "Produto deletado com sucesso"}
+    } catch (erro) {
+      console.log('erro', erro)
+      if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2025') {
+        throw new NotFoundException('Produto não encontrado.');
+      }
+      
+      throw new InternalServerErrorException('Não foi possível deletar o produto. Tente novamente.');
     }
   }
 }

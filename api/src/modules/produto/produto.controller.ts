@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 
 import { ProdutoService } from './produto.service.js';
@@ -14,10 +14,21 @@ export class ProdutoController {
   @UseGuards(JwtGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Criação de Produto' })
-  async logout(
+  async criar(
     @Body() dto: CreateDto
   ) {
     return this.produto.criarProduto(dto);
   }
+
+  @Delete(':id')
+  @UseGuards(JwtGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Deleção de Produto' })
+  async deletar(
+    @Param("id") id: string
+  ) {
+    return this.produto.deletarProduto(id);
+  }
+
 
 }
