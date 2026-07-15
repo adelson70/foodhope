@@ -3,8 +3,9 @@ import { Injectable, InternalServerErrorException, NotFoundException } from '@ne
 import { PrismaWriteService } from '../../infra/database/prisma-write.service.js';
 
 import { JwtServiceCustom } from '../../infra/auth/jwt.service.js';
-import { CreateDto } from './dto/create.dto.js';
+import { CriarDto } from './dto/criar.dto.js';
 import { Prisma } from '../../../generated/prisma/client.js';
+import { EditarDto } from './dto/editar.dto.js';
 
 @Injectable()
 export class ProdutoService {
@@ -14,7 +15,7 @@ export class ProdutoService {
     private readonly jwt: JwtServiceCustom,
   ) {}
 
-  async criarProduto(dto: CreateDto) {
+  async criarProduto(dto: CriarDto) {
     try {
       const temAdicionais = dto.adicionais && dto.adicionais.length > 0;
       
@@ -43,12 +44,26 @@ export class ProdutoService {
         return tx.produto.findUnique({
           where: { id: novoProduto.id },
           omit: {createdAt: true, updatedAt: true},
-          include: { adicionais: {select: {id: true, nome: true, preco: true, produto_id: true}} },
+          include: { adicionais: {select: {id: true, nome: true, preco: true}} },
         });
       });
   
       return {dados: produtoCompleto, mensagem: "Produto criado com sucesso"};
   
+    }catch (erro) {
+      
+      console.error('Erro na transação de produto:', erro);
+      
+      throw new InternalServerErrorException('Não foi possível criar o produto. Tente novamente.');
+    }
+  }
+
+  async editarProduto(id: string, dto: EditarDto) {
+    try {
+      const produtoEditado = await this.prismaWrite.produto.update({where: {id}, data: dto})
+
+      return {mensagem: "Produto editado com sucesso", dados: produtoEditado}
+      
     }catch (erro) {
       
       console.error('Erro na transação de produto:', erro);

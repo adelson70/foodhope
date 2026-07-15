@@ -3,19 +3,9 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsString, MinLength, Max, Min, IsNumber, IsObject, IsOptional, ValidateNested, IsArray } from 'class-validator';
 import { IsObrigatorio } from '../../../common/decorator/is-obrigatorio.decorator.js';
+import { AdicionalDto } from './adicional.dto.js';
 
-export class AdicionalDto {
-  @ApiProperty({ example: 'ovo', description: 'Nome do adicional' })
-  @IsString({ message: 'O nome do adicional deve ser um texto' })
-  nome: string;
-
-  @ApiProperty({ example: 2.50, description: 'Valor cobrado pelo adicional' })
-  @IsNumber({ maxDecimalPlaces: 2 }, { message: 'O valor deve ser numérico com até 2 casas decimais' })
-  @Min(0, { message: 'O valor não pode ser negativo' })
-  preco: number;
-}
-
-export class CreateDto {
+export class CriarDto {
   @ApiProperty({
     description: 'Nome do Produto',
     example: 'X Burguer',

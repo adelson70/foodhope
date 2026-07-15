@@ -1,9 +1,10 @@
-import { Body, Controller, Delete, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Req, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 
 import { ProdutoService } from './produto.service.js';
 import { JwtGuard } from '../../infra/auth/jwt.guard.js';
-import { CreateDto } from './dto/create.dto.js';
+import { CriarDto } from './dto/criar.dto.js';
+import { EditarDto } from './dto/editar.dto.js';
 
 @ApiTags('Produtos')
 @Controller('produto')
@@ -15,9 +16,21 @@ export class ProdutoController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Criação de Produto' })
   async criar(
-    @Body() dto: CreateDto
+    @Body() dto: CriarDto
   ) {
     return this.produto.criarProduto(dto);
+  }
+
+  @Put(':id')
+  @UseGuards(JwtGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Edição de Produto' })
+  async editar(
+    @Param("id") id: string,
+    @Body() dto: EditarDto
+  ) {
+    if (!dto.nome && !dto.descricao && !dto.preco) return {mensagem: "Nada para editar :)"}
+    return this.produto.editarProduto(id, dto);
   }
 
   @Delete(':id')
