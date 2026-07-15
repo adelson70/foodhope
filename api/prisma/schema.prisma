@@ -1,0 +1,90 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Operador {
+  id        String   @id @default(uuid())
+  nome      String
+  senha     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("operador")
+}
+
+model Lead {
+  id            String   @id @default(uuid())
+  primeiro_nome String
+  sobrenome     String
+  contato       String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([id])
+  @@index([primeiro_nome])
+  @@index([primeiro_nome, sobrenome])
+  @@map("lead")
+}
+
+model Pedido {
+  id            String @id @default(uuid())
+  numero        String @unique
+  nome_completo String
+
+  itens PedidoItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([numero])
+  @@index([nome_completo])
+  @@map("pedido")
+}
+
+model Produto {
+  id        String  @id @default(uuid())
+  nome      String
+  descricao String?
+  preco     Decimal @db.Decimal(10, 2)
+  adicional Json?
+
+  itens PedidoItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("produto")
+}
+
+model PedidoItem {
+  id String @id @default(uuid())
+
+  pedidoId  String
+  produtoId String
+
+  quantidade Int @default(1)
+
+  preco_venda Decimal @db.Decimal(10, 2)
+
+  pedido Pedido @relation(fields: [pedidoId], references: [id])
+
+  produto Produto @relation(fields: [produtoId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([pedidoId])
+  @@index([produtoId])
+  @@map("pedido_item")
+}
