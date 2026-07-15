@@ -4,6 +4,7 @@ import { AppService } from './app.service.js';
 import { ConfigModule } from '@nestjs/config';
 import { DatabaseModule } from './infra/database/database.module.js';
 import { InfraJwtModule } from './infra/auth/jwt.module.js';
+import { RedisModule } from './infra/cache/redis.module.js';
 
 @Module({
   imports: [
@@ -12,7 +13,8 @@ import { InfraJwtModule } from './infra/auth/jwt.module.js';
       envFilePath: '.env'
     }),
     DatabaseModule,
-    InfraJwtModule
+    InfraJwtModule,
+    RedisModule
   ],
   controllers: [AppController],
   providers: [AppService],

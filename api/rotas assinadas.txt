@@ -1,0 +1,84 @@
+Mas como provar no primeiro cadastro?
+
+Você pode fazer um desafio inicial.
+
+Fluxo mais seguro:
+
+1. Browser manda public key
+POST /visitor/register
+{
+ "publicKey":"abc"
+}
+
+Servidor responde:
+
+{
+ "visitorId":"uuid",
+ "challenge":"982173"
+}
+2. Browser assina o challenge
+
+Usa a private key:
+
+assinatura =
+sign(
+  "982173"
+)
+
+Envia:
+
+{
+ "visitorId":"uuid",
+ "signature":"xyz"
+}
+3. Servidor valida
+
+Com:
+
+publicKey salva
+
+Ele verifica:
+
+assinatura bate?
+       |
+       +-- sim
+             dispositivo confirmado
+
+Agora você sabe:
+
+essa chave privada existe
+quem registrou possui ela
+Nas próximas requisições
+
+Exemplo:
+
+GET /menu
+
+X-Visitor-ID:
+uuid
+
+X-Signature:
+abc123
+
+X-Timestamp:
+1752530400
+
+Assinatura:
+
+signature =
+privateKey(
+ method +
+ path +
+ timestamp +
+ body
+)
+
+Servidor:
+
+visitor_id
+      |
+      |
+publicKey
+      |
+      |
+verify(signature)
