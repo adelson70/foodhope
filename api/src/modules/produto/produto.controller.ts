@@ -1,15 +1,36 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 
 import { ProdutoService } from './produto.service.js';
 import { JwtGuard } from '../../infra/auth/jwt.guard.js';
 import { CriarDto } from './dto/criar.dto.js';
 import { EditarDto } from './dto/editar.dto.js';
+import { ListarDto } from './dto/listar.dto.js';
 
 @ApiTags('Produtos')
 @Controller('produto')
 export class ProdutoController {
   constructor(private readonly produto: ProdutoService) {}
+
+  @Get()
+  @UseGuards(JwtGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Listagem de Produto' })
+  async listar(
+    @Param() dto: ListarDto
+  ) {
+    return this.produto.listarProduto(dto);
+  }
+
+  @Get(':params')
+  @UseGuards(JwtGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Buscar Produto' })
+  async buscar(
+    @Param("params") params: string
+  ) {
+    return this.produto.buscarProduto(params);
+  }
 
   @Post()
   @UseGuards(JwtGuard)
