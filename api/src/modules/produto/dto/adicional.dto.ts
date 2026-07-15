@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsNotEmpty, IsNumber, IsString, Min } from "class-validator";
+import { IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString, Min, ValidateIf } from "class-validator";
 
 export class AdicionalDto {
     @ApiProperty({ example: 'ovo', description: 'Nome do adicional' })
@@ -12,9 +12,27 @@ export class AdicionalDto {
     preco: number;
 }
 
-export class AdicionalEditarDto extends AdicionalDto {
-    @ApiProperty({ example: "65dadeca-26a6-4e72-9386-c85d874f07e9", description: 'ID do adicional' })
-    @IsNumber()
-    @IsNotEmpty({ message: 'O ID do adicional é obrigatório na edição' })
-    id: number;
+export class AdicionalEditarDto {
+    @ApiProperty({ example: "65dadeca...", description: 'ID do adicional', required: false })
+    @ValidateIf(o => o.foiDeletado === true || o.id !== undefined)
+    @IsString()
+    @IsNotEmpty({ message: 'O ID é obrigatório para deletar ou editar um adicional.' })
+    id?: string;
+
+    @ApiProperty({ example: true, description: 'Flag de adicional deletado', required: false })
+    @IsBoolean()
+    @IsOptional()
+    foiDeletado?: boolean;
+
+    @ApiProperty({ example: 'Ovo', description: 'Nome do adicional', required: false })
+    @ValidateIf(o => (!o.foiDeletado && !o.id) || o.nome !== undefined)
+    @IsString()
+    @IsNotEmpty({ message: 'O nome é obrigatório para novos adicionais.' })
+    nome?: string;
+
+    @ApiProperty({ example: 2.50, description: 'Valor', required: false })
+    @ValidateIf(o => (!o.foiDeletado && !o.id) || o.preco !== undefined)
+    @IsNumber({ maxDecimalPlaces: 2 }, { message: 'O valor deve ser numérico.' })
+    @Min(0, { message: 'O valor não pode ser negativo.' })
+    preco?: number;
 }

@@ -17,15 +17,14 @@ export class EditarDto {
   @IsNumber({ maxDecimalPlaces: 2 })
   preco?: number;
 
-// VALIDANDO REGRA DE NEGOCIO PARA EDIÇÃO DE ADICIONAIS
-  // @ApiProperty({
-  //   description: 'Lista de adicionais (Se enviar, o ID de cada um é obrigatório)',
-  //   type: [AdicionalEditarDto],
-  //   required: false
-  // })
-  // @IsOptional()
-  // @IsArray()
-  // @ValidateNested({ each: true }) 
-  // @Type(() => AdicionalEditarDto)
-  // adicionais?: AdicionalEditarDto[];
+  @ApiProperty({
+    description: 'Lista de adicionais (Se enviar, o ID de cada um é obrigatório)',
+    type: [AdicionalEditarDto],
+    required: false
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true }) 
+  @Type(() => AdicionalEditarDto)
+  adicionais?: AdicionalEditarDto[];
 } 

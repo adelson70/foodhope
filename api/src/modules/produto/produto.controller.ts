@@ -50,7 +50,7 @@ export class ProdutoController {
     @Param("id") id: string,
     @Body() dto: EditarDto
   ) {
-    if (!dto.nome && !dto.descricao && !dto.preco) return {mensagem: "Nada para editar :)"}
+    if (!dto.nome && !dto.descricao && !dto.preco && dto.adicionais?.length === 0) return {mensagem: "Nada para editar :)"}
     return this.produto.editarProduto(id, dto);
   }
 
