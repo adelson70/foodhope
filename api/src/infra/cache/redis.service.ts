@@ -1,126 +1,60 @@
-import {
-    Injectable,
-    Logger,
-    OnModuleDestroy,
-    OnModuleInit,
-} from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import { Redis } from 'ioredis';
 
-
 @Injectable()
-export class RedisService
-    implements OnModuleInit, OnModuleDestroy {
+export class RedisService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(RedisService.name);
 
+  private client: Redis;
 
-    private readonly logger =
-        new Logger(RedisService.name);
+  constructor() {
+    this.client = new Redis({
+      host: process.env.REDIS_HOST,
 
+      port: Number(process.env.REDIS_PORT ?? 6379),
 
-    private client: Redis;
+      password: process.env.REDIS_PASSWORD || undefined,
 
+      maxRetriesPerRequest: 3,
+    });
+  }
 
-    constructor() {
+  async onModuleInit() {
+    await this.client.ping();
 
-        this.client = new Redis({
+    this.logger.log('Redis conectado: OK');
+  }
 
-            host: process.env.REDIS_HOST,
+  async onModuleDestroy() {
+    await this.client.quit();
 
-            port: Number(
-                process.env.REDIS_PORT ?? 6379
-            ),
+    this.logger.log('Redis desconectado');
+  }
 
-            password:
-                process.env.REDIS_PASSWORD || undefined,
+  getClient(): Redis {
+    return this.client;
+  }
 
-            maxRetriesPerRequest: 3,
-
-        });
-
+  async set(key: string, value: string, ttl?: number) {
+    if (ttl) {
+      return this.client.set(key, value, 'EX', ttl);
     }
 
+    return this.client.set(key, value);
+  }
 
-    async onModuleInit() {
+  async get<T = string>(key: string): Promise<T | null> {
+    const value = await this.client.get(key);
 
-        await this.client.ping();
-
-        this.logger.log(
-            'Redis conectado: OK'
-        );
-
+    if (!value) {
+      return null;
     }
 
+    return value as T;
+  }
 
-    async onModuleDestroy() {
-
-        await this.client.quit();
-
-        this.logger.log(
-            'Redis desconectado'
-        );
-
-    }
-
-
-    getClient(): Redis {
-
-        return this.client;
-
-    }
-
-
-    async set(
-        key: string,
-        value: string,
-        ttl?: number
-    ) {
-
-        if (ttl) {
-
-            return this.client.set(
-                key,
-                value,
-                'EX',
-                ttl
-            );
-
-        }
-
-
-        return this.client.set(
-            key,
-            value
-        );
-
-    }
-
-
-    async get<T = string>(
-        key: string
-    ): Promise<T | null> {
-
-
-        const value =
-            await this.client.get(key);
-
-
-        if (!value) {
-            return null;
-        }
-
-
-        return value as T;
-
-    }
-
-
-    async delete(
-        key: string
-    ) {
-
-        return this.client.del(key);
-
-    }
-
-
+  async delete(key: string) {
+    return this.client.del(key);
+  }
 }

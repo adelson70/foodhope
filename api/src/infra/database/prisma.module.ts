@@ -5,11 +5,7 @@ import { PrismaService } from './prisma.service.js';
 
 @Global()
 @Module({
-  providers: [
-    PrismaReadService,
-    PrismaWriteService,
-    PrismaService,
-  ],
-  exports: [PrismaService],
+  providers: [PrismaReadService, PrismaWriteService, PrismaService],
+  exports: [PrismaService, PrismaReadService, PrismaWriteService],
 })
 export class PrismaModule {}

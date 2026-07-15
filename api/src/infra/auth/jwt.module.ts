@@ -5,7 +5,6 @@ import { JwtServiceCustom } from './jwt.service.js';
 import { JwtStrategy } from './jwt.strategy.js';
 import { JwtGuard } from './jwt.guard.js';
 
-
 @Module({
   imports: [
     JwtModule.register({
@@ -16,15 +15,8 @@ import { JwtGuard } from './jwt.guard.js';
     }),
   ],
 
-  providers: [
-    JwtServiceCustom,
-    JwtStrategy,
-    JwtGuard,
-  ],
+  providers: [JwtServiceCustom, JwtStrategy, JwtGuard],
 
-  exports: [
-    JwtServiceCustom,
-    JwtGuard,
-  ],
+  exports: [JwtServiceCustom, JwtGuard],
 })
 export class InfraJwtModule {}

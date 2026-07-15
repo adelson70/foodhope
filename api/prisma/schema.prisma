@@ -54,7 +54,7 @@ model Pedido {
 
 model Produto {
   id        String  @id @default(uuid())
-  nome      String
+  nome      String @unique
   descricao String?
   preco     Decimal @db.Decimal(10, 2)
   adicional Json?
