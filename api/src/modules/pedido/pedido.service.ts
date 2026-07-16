@@ -89,43 +89,81 @@ export class PedidoService {
 
   async buscarPedido(params: string) {
     try {
-      if (params.length === 0) {
-        return { mensagem: 'Nenhum produto encontrado', dados: { produtos: [] } };
+      if (!params || params.trim().length === 0) {
+        return { mensagem: 'Nenhum pedido encontrado', dados: { pedidos: [] } };
       }
 
-      const produtos = await this.prismaRead.produto.findMany({
+      const orConditions: any[] = [
+        {
+          nome_completo: {
+            contains: params,
+            mode: 'insensitive',
+          },
+        },
+        {
+          itens: {
+            some: {
+              produto: {
+                nome: {
+                  contains: params,
+                  mode: 'insensitive',
+                },
+              },
+            },
+          },
+        },
+        {
+          itens: {
+            some: {
+              produto: {
+                descricao: {
+                  contains: params,
+                  mode: 'insensitive',
+                },
+              },
+            },
+          },
+        },
+      ];
+
+      try {
+        const numeroBuscado = BigInt(params);
+        orConditions.push({ numero: numeroBuscado });
+      } catch (e) {}
+
+      const pedidos = await this.prismaRead.pedido.findMany({
         where: {
-          OR: [
-            {
-              nome: {
-                contains: params,
-                mode: 'insensitive',
-              },
+          OR: orConditions,
+        },
+        include: {
+          itens: {
+            include: {
+              produto: true,
             },
-            {
-              descricao: {
-                contains: params,
-                mode: 'insensitive',
-              },
-            },
-          ],
+          },
         },
       });
 
-      if (!produtos || produtos.length === 0) {
-        return { mensagem: 'Nenhum produto encontrado', dados: { produtos: [] } };
+      if (!pedidos || pedidos.length === 0) {
+        return { mensagem: 'Nenhum pedido encontrado', dados: { pedidos: [] } };
       }
 
-      return { dados: { produtos } };
+      const pedidosFormatados = pedidos.map((pedido) => ({
+        ...pedido,
+        numero: pedido.numero.toString(),
+      }));
+
+      return { dados: { pedidos: pedidosFormatados } };
+
     } catch (erro) {
-      console.log('erro', erro);
+      console.error('Erro ao buscar pedido:', erro);
 
       if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2025') {
-        throw new NotFoundException('Produto não encontrado.');
+        throw new NotFoundException('Pedido não encontrado.');
       }
 
       throw new InternalServerErrorException(
-        'Não foi possível listar os produtos. Tente novamente.',
+        'Não foi possível listar os pedidos. Tente novamente.',
       );
     }
   }
