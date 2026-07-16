@@ -39,7 +39,7 @@ model Lead {
 
 model Pedido {
   id            String @id @default(uuid())
-  numero        String @unique
+  numero BigInt @default(autoincrement()) @unique  
   nome_completo String
 
   itens PedidoItem[]
