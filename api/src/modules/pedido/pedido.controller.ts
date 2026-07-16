@@ -14,21 +14,22 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PedidoService } from './pedido.service.js';
 import { JwtGuard } from '../../infra/auth/jwt.guard.js';
 import { CriarPedidoDto } from './dto/criar.dto.js';
+import { ListarDto } from './dto/listar.dto.js';
 
 @ApiTags('Pedidos')
 @Controller('pedido')
 export class PedidoController {
     constructor(private readonly pedido: PedidoService) { }
 
-    // @Get()
-    // @UseGuards(JwtGuard)
-    // @ApiBearerAuth()
-    // @ApiOperation({ summary: 'Listagem de Produto' })
-    // async listar(
-    //     @Param() dto: ListarDto
-    // ) {
-    //     return this.produto.listarProduto(dto);
-    // }
+    @Get()
+    @UseGuards(JwtGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Listagem de Pedidos' })
+    async listar(
+        @Param() dto: ListarDto
+    ) {
+        return this.pedido.listarPedido(dto);
+    }
 
     @Get(':params')
     @UseGuards(JwtGuard)

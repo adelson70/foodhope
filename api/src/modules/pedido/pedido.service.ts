@@ -41,23 +41,27 @@ export class PedidoService {
         }
       }
 
-      const produtos = await this.prismaRead.produto.findMany({
+      const pedidos = await this.prismaRead.pedido.findMany({
         take: limit + 1,
-
         cursor: decodedCursor ? { id: decodedCursor.id } : undefined,
-
         skip: decodedCursor ? 1 : 0,
-
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        include: {
+          itens: {
+            include: {
+              produto: true,
+            },
+          },
+        },
       });
 
       let nextCursor: string | null = null;
-      const hasNextPage = produtos.length > limit;
+      const hasNextPage = pedidos.length > limit;
 
       if (hasNextPage) {
-        produtos.pop();
+        pedidos.pop();
 
-        const lastItem = produtos[produtos.length - 1];
+        const lastItem = pedidos[pedidos.length - 1];
 
         const cursorPayload = JSON.stringify({
           id: lastItem.id,
@@ -67,22 +71,27 @@ export class PedidoService {
         nextCursor = Buffer.from(cursorPayload).toString('base64');
       }
 
+      const pedidosFormatados = pedidos.map((pedido) => ({
+        ...pedido,
+        numero: pedido.numero.toString(),
+      }));
+
       return {
-        data: produtos,
+        pedidos: pedidosFormatados,
         meta: {
           hasNextPage,
           nextCursor,
         },
       };
     } catch (erro) {
-      console.log('erro', erro);
+      console.error('Erro ao listar pedidos:', erro);
 
       if (erro instanceof BadRequestException) {
         throw erro;
       }
 
       throw new InternalServerErrorException(
-        'Não foi possível listar os produtos. Tente novamente.',
+        'Não foi possível listar os pedidos. Tente novamente.',
       );
     }
   }
