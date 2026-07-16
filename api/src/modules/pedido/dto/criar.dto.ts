@@ -64,6 +64,12 @@ export class ItemPedidoDto {
   @ValidateNested({ each: true })
   @Type(() => AdicionalPedidoDto)
   adicional?: AdicionalPedidoDto[];
+
+  @ApiProperty({ example: 'Retirar carne', description: 'Observação do item do pedido' })
+  @IsString()
+  @IsOptional()
+  observacao: string;
+
 }
 
 export class CriarPedidoDto {

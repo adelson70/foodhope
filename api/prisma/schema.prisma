@@ -93,6 +93,8 @@ model PedidoItem {
 
   adicional_venda Json?
 
+  observacao String? @db.VarChar(140)
+
   pedido Pedido @relation(fields: [pedido_id], references: [id], onDelete: Cascade)
 
   produto Produto @relation(fields: [produto_id], references: [id], onDelete: Cascade)

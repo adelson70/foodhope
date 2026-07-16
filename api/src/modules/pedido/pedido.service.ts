@@ -11,7 +11,6 @@ import { PrismaReadService } from '../../infra/database/prisma-read.service.js';
 
 import { ClientePedido, CriarPedidoDto } from './dto/criar.dto.js';
 import { Prisma } from '../../../generated/prisma/client.js';
-import { ImpressoraService } from '../impressora/impressora.service.js';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 
@@ -20,7 +19,6 @@ export class PedidoService {
   constructor(
     private readonly prismaWrite: PrismaWriteService,
     private readonly prismaRead: PrismaReadService,
-    private readonly impressora: ImpressoraService,
     @InjectQueue('fila-impressao') private filaImpressao: Queue,
 
   ) { }
@@ -241,6 +239,7 @@ export class PedidoService {
             quantidade: itemDto.qtd,
             preco_produto: produto.preco,
             adicional_venda: adicionaisVenda,
+            observacao: itemDto.observacao,
           });
         }
 
@@ -348,6 +347,10 @@ export class PedidoService {
 
           impressao += alinharLinha(textoEsqAdic, textoDirAdic, '.') + '\n';
         });
+      }
+
+      if (item.observacao && item.observacao.trim() !== '') {
+        impressao += `  OBS: ${item.observacao}\n`;
       }
 
       impressao += '\n';
