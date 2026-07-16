@@ -23,7 +23,7 @@ export class PedidoService {
     private readonly impressora: ImpressoraService,
     @InjectQueue('fila-impressao') private filaImpressao: Queue,
 
-  ) {}
+  ) { }
 
   async listarPedido(dto: ListarDto) {
     try {
@@ -129,7 +129,7 @@ export class PedidoService {
       try {
         const numeroBuscado = BigInt(params);
         orConditions.push({ numero: numeroBuscado });
-      } catch (e) {}
+      } catch (e) { }
 
       const pedidos = await this.prismaRead.pedido.findMany({
         where: {
@@ -351,17 +351,17 @@ export class PedidoService {
     return impressao;
   }
 
-  //   async deletarPedido(id: string) {
-  //     try {
-  //       await this.prismaWrite.produto.delete({ where: { id } })
-  //       return { mensagem: "Produto deletado com sucesso" }
-  //     } catch (erro) {
-  //       console.log('erro', erro)
-  //       if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2025') {
-  //         throw new NotFoundException('Produto não encontrado.');
-  //       }
+  async deletarPedido(id: string) {
+    try {
+      await this.prismaWrite.pedido.delete({ where: { id } })
+      return { mensagem: "Pedido deletado com sucesso", dados: {} }
+    } catch (erro) {
+      console.log('erro', erro)
+      if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2025') {
+        throw new NotFoundException('Pedido não encontrado.');
+      }
 
-  //       throw new InternalServerErrorException('Não foi possível deletar o produto. Tente novamente.');
-  //     }
-  //   }
+      throw new InternalServerErrorException('Não foi possível deletar o pedido. Tente novamente.');
+    }
+  }
 }

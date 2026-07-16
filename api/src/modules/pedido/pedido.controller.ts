@@ -48,4 +48,12 @@ export class PedidoController {
     async criar(@Body() dto: CriarPedidoDto) {
         return this.pedido.criarPedido(dto);
     }
+
+    @Delete(':id')
+    @UseGuards(JwtGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Deleção de Pedido' })
+    async deletar(@Param('id') id: string) {
+      return this.pedido.deletarPedido(id);
+    }
 }
