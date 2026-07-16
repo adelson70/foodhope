@@ -1,5 +1,10 @@
 import { ListarDto } from './dto/listar.dto.js';
-import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { PrismaWriteService } from '../../infra/database/prisma-write.service.js';
 import { PrismaReadService } from '../../infra/database/prisma-read.service.js';
@@ -16,7 +21,7 @@ export class ProdutoService {
     private readonly prismaRead: PrismaReadService,
 
     private readonly jwt: JwtServiceCustom,
-  ) { }
+  ) {}
 
   async listarProduto(dto: ListarDto) {
     try {
@@ -41,10 +46,7 @@ export class ProdutoService {
 
         skip: decodedCursor ? 1 : 0,
 
-        orderBy: [
-          { createdAt: 'desc' },
-          { id: 'desc' },
-        ],
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       });
 
       let nextCursor: string | null = null;
@@ -70,7 +72,6 @@ export class ProdutoService {
           nextCursor,
         },
       };
-
     } catch (erro) {
       console.log('erro', erro);
 
@@ -78,13 +79,17 @@ export class ProdutoService {
         throw erro;
       }
 
-      throw new InternalServerErrorException('Não foi possível listar os produtos. Tente novamente.');
+      throw new InternalServerErrorException(
+        'Não foi possível listar os produtos. Tente novamente.',
+      );
     }
   }
 
   async buscarProduto(params: string) {
     try {
-      if (params.length === 0) { return { mensagem: 'Nenhum produto encontrado', dados: { produtos: [] } } }
+      if (params.length === 0) {
+        return { mensagem: 'Nenhum produto encontrado', dados: { produtos: [] } };
+      }
 
       const produtos = await this.prismaRead.produto.findMany({
         where: {
@@ -92,32 +97,34 @@ export class ProdutoService {
             {
               nome: {
                 contains: params,
-                mode: 'insensitive'
-              }
+                mode: 'insensitive',
+              },
             },
             {
               descricao: {
                 contains: params,
-                mode: 'insensitive'
-              }
-            }
-          ]
-        }
-      })
+                mode: 'insensitive',
+              },
+            },
+          ],
+        },
+      });
 
-      if (!produtos || produtos.length === 0) { return { mensagem: 'Nenhum produto encontrado', dados: { produtos: [] } } }
+      if (!produtos || produtos.length === 0) {
+        return { mensagem: 'Nenhum produto encontrado', dados: { produtos: [] } };
+      }
 
-      return { dados: { produtos } }
-
+      return { dados: { produtos } };
     } catch (erro) {
       console.log('erro', erro);
-
 
       if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2025') {
         throw new NotFoundException('Produto não encontrado.');
       }
 
-      throw new InternalServerErrorException('Não foi possível listar os produtos. Tente novamente.');
+      throw new InternalServerErrorException(
+        'Não foi possível listar os produtos. Tente novamente.',
+      );
     }
   }
 
@@ -126,13 +133,12 @@ export class ProdutoService {
       const temAdicionais = dto.adicionais && dto.adicionais.length > 0;
 
       const produtoCompleto = await this.prismaWrite.$transaction(async (tx) => {
-
         const novoProduto = await tx.produto.create({
           data: {
             nome: dto.nome,
             descricao: dto.descricao,
             preco: dto.preco,
-          }
+          },
         });
 
         if (temAdicionais && dto.adicionais) {
@@ -143,7 +149,7 @@ export class ProdutoService {
           }));
 
           await tx.adicionalProduto.createMany({
-            data: adicionaisMapeados
+            data: adicionaisMapeados,
           });
         }
 
@@ -154,10 +160,8 @@ export class ProdutoService {
         });
       });
 
-      return { dados: produtoCompleto, mensagem: "Produto criado com sucesso" };
-
+      return { dados: produtoCompleto, mensagem: 'Produto criado com sucesso' };
     } catch (erro) {
-
       console.error('Erro na transação de produto:', erro);
 
       throw new InternalServerErrorException('Não foi possível criar o produto. Tente novamente.');
@@ -169,44 +173,41 @@ export class ProdutoService {
       const dadosUpdate: any = {
         nome: dto.nome,
         descricao: dto.descricao,
-        preco: dto.preco
+        preco: dto.preco,
       };
 
       if (dto.adicionais && dto.adicionais.length > 0) {
-        
-        const deletados = dto.adicionais.filter(a => a.foiDeletado && a.id);
-        
-        const editados = dto.adicionais.filter(a => 
-          !a.foiDeletado && 
-          a.id && 
-          (a.nome !== undefined || a.preco !== undefined)
+        const deletados = dto.adicionais.filter((a) => a.foiDeletado && a.id);
+
+        const editados = dto.adicionais.filter(
+          (a) => !a.foiDeletado && a.id && (a.nome !== undefined || a.preco !== undefined),
         );
-        
-        const novos = dto.adicionais.filter(a => !a.foiDeletado && !a.id);
+
+        const novos = dto.adicionais.filter((a) => !a.foiDeletado && !a.id);
 
         dadosUpdate.adicionais = {};
 
         if (deletados.length > 0) {
-          dadosUpdate.adicionais.delete = deletados.map(a => ({ id: a.id }));
+          dadosUpdate.adicionais.delete = deletados.map((a) => ({ id: a.id }));
         }
 
         if (editados.length > 0) {
-          dadosUpdate.adicionais.update = editados.map(a => {
+          dadosUpdate.adicionais.update = editados.map((a) => {
             const dadosParaAtualizar: any = {};
             if (a.nome !== undefined) dadosParaAtualizar.nome = a.nome;
             if (a.preco !== undefined) dadosParaAtualizar.preco = a.preco;
 
             return {
               where: { id: a.id },
-              data: dadosParaAtualizar
+              data: dadosParaAtualizar,
             };
           });
         }
 
         if (novos.length > 0) {
-          dadosUpdate.adicionais.create = novos.map(a => ({
+          dadosUpdate.adicionais.create = novos.map((a) => ({
             nome: a.nome!,
-            preco: a.preco!
+            preco: a.preco!,
           }));
         }
       }
@@ -215,19 +216,17 @@ export class ProdutoService {
         where: { id },
         data: dadosUpdate,
         include: {
-          adicionais: true
-        }
+          adicionais: true,
+        },
       });
 
-      return { mensagem: "Produto editado com sucesso", dados: produtoEditadoCompleto }
-
+      return { mensagem: 'Produto editado com sucesso', dados: produtoEditadoCompleto };
     } catch (erro) {
-
       console.error('Erro na transação de produto:', erro);
 
       if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2025') {
         throw new NotFoundException(
-          'O produto ou um dos adicionais informados não foi encontrado no banco de dados.'
+          'O produto ou um dos adicionais informados não foi encontrado no banco de dados.',
         );
       }
 
@@ -237,15 +236,17 @@ export class ProdutoService {
 
   async deletarProduto(id: string) {
     try {
-      await this.prismaWrite.produto.delete({ where: { id } })
-      return { mensagem: "Produto deletado com sucesso" }
+      await this.prismaWrite.produto.delete({ where: { id } });
+      return { mensagem: 'Produto deletado com sucesso' };
     } catch (erro) {
-      console.log('erro', erro)
+      console.log('erro', erro);
       if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2025') {
         throw new NotFoundException('Produto não encontrado.');
       }
 
-      throw new InternalServerErrorException('Não foi possível deletar o produto. Tente novamente.');
+      throw new InternalServerErrorException(
+        'Não foi possível deletar o produto. Tente novamente.',
+      );
     }
   }
 }

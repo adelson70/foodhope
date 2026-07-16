@@ -3,7 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 
 import { AuthService } from './auth.service.js';
 import { JwtGuard } from '../../infra/auth/jwt.guard.js';
-import { LoginDto } from './dto/login.dto.js'; 
+import { LoginDto } from './dto/login.dto.js';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -12,9 +12,7 @@ export class AuthController {
 
   @Post('login')
   @ApiOperation({ summary: 'Realiza o login do usuário' })
-  async login(
-    @Body() dto: LoginDto,
-  ) {
+  async login(@Body() dto: LoginDto) {
     return this.auth.login(dto);
   }
 

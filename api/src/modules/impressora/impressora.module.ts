@@ -1,4 +1,3 @@
-// src/modules/printer/printer.module.ts
 import { Global, Module } from '@nestjs/common';
 import { ImpressoraService } from './impressora.service.js';
 

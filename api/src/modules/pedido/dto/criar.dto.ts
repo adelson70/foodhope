@@ -1,25 +1,35 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsString, IsNumber, Min, IsOptional, ValidateNested, IsArray, IsNotEmpty, Matches } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  Min,
+  IsOptional,
+  ValidateNested,
+  IsArray,
+  IsNotEmpty,
+  Matches,
+} from 'class-validator';
 
 export class ClientePedido {
-    @ApiProperty({ example: 'Adelson', description: 'Nome do cliente' })
-    @IsString()
-    @IsNotEmpty({ message: 'Nome é obrigatório' })
-    primeiro_nome: string;
+  @ApiProperty({ example: 'Adelson', description: 'Nome do cliente' })
+  @IsString()
+  @IsNotEmpty({ message: 'Nome é obrigatório' })
+  primeiro_nome: string;
 
-    @ApiProperty({ example: 'Bittencourt Jr', description: 'Sobrenome do cliente' })
-    @IsString()
-    @IsNotEmpty({ message: 'Sobrenome é obrigatório' })
-    sobrenome: string;
-    
-    @ApiProperty({ example: '5548991802334', description: 'Contato do cliente (DDI + DDD + Número)' })
-    @IsString()
-    @IsNotEmpty({ message: 'Contato é obrigatório' })
-    @Matches(/^\d{11,15}$/, {
-      message: 'O contato deve conter apenas números e incluir o Código do País + DDD + Número (Ex: 5548991802334)',
-    })
-    contato: string;
+  @ApiProperty({ example: 'Bittencourt Jr', description: 'Sobrenome do cliente' })
+  @IsString()
+  @IsNotEmpty({ message: 'Sobrenome é obrigatório' })
+  sobrenome: string;
+
+  @ApiProperty({ example: '5548991802334', description: 'Contato do cliente (DDI + DDD + Número)' })
+  @IsString()
+  @IsNotEmpty({ message: 'Contato é obrigatório' })
+  @Matches(/^\d{11,15}$/, {
+    message:
+      'O contato deve conter apenas números e incluir o Código do País + DDD + Número (Ex: 5548991802334)',
+  })
+  contato: string;
 }
 
 export class AdicionalPedidoDto {
@@ -51,20 +61,20 @@ export class ItemPedidoDto {
   })
   @IsOptional()
   @IsArray({ message: 'Os adicionais devem ser enviados em formato de lista (array)' })
-  @ValidateNested({ each: true }) 
+  @ValidateNested({ each: true })
   @Type(() => AdicionalPedidoDto)
   adicional?: AdicionalPedidoDto[];
 }
 
 export class CriarPedidoDto {
-    @ApiProperty({ type: [ItemPedidoDto], description: 'Lista de itens do pedido' })
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => ItemPedidoDto)
-    itens: ItemPedidoDto[];
+  @ApiProperty({ type: [ItemPedidoDto], description: 'Lista de itens do pedido' })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ItemPedidoDto)
+  itens: ItemPedidoDto[];
 
-    @ApiProperty({description: 'Informações do cliente', type: ClientePedido})
-    @IsNotEmpty({ message: 'Sobrenome é obrigatório' })
-    @Type(() => ClientePedido)
-    cliente: ClientePedido;
-  }
+  @ApiProperty({ description: 'Informações do cliente', type: ClientePedido })
+  @IsNotEmpty({ message: 'Sobrenome é obrigatório' })
+  @Type(() => ClientePedido)
+  cliente: ClientePedido;
+}

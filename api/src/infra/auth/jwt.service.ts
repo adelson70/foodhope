@@ -6,7 +6,7 @@ export class JwtServiceCustom {
   constructor(private readonly jwt: JwtService) {}
 
   generate(payload: { id: string }) {
-    return this.jwt.sign(payload, {secret: process.env.JWT_SECRET});
+    return this.jwt.sign(payload, { secret: process.env.JWT_SECRET });
   }
 
   verify(token: string) {

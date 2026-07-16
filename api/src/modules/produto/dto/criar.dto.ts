@@ -1,7 +1,17 @@
 import { Optional } from '@nestjs/common';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsString, MinLength, Max, Min, IsNumber, IsObject, IsOptional, ValidateNested, IsArray } from 'class-validator';
+import {
+  IsString,
+  MinLength,
+  Max,
+  Min,
+  IsNumber,
+  IsObject,
+  IsOptional,
+  ValidateNested,
+  IsArray,
+} from 'class-validator';
 import { IsObrigatorio } from '../../../common/decorator/is-obrigatorio.decorator.js';
 import { AdicionalDto } from './adicional.dto.js';
 
@@ -11,8 +21,8 @@ export class CriarDto {
     example: 'X Burguer',
   })
   @IsString()
-  @MinLength(5, {message: "Nome do produto deve ser no minimo de 5 letras"})
-  @IsObrigatorio({ message: "Você esqueceu de escolher o nome do produto"})
+  @MinLength(5, { message: 'Nome do produto deve ser no minimo de 5 letras' })
+  @IsObrigatorio({ message: 'Você esqueceu de escolher o nome do produto' })
   nome: string;
 
   @ApiProperty({
@@ -37,7 +47,7 @@ export class CriarDto {
   })
   @IsOptional()
   @IsArray()
-  @ValidateNested({ each: true }) 
+  @ValidateNested({ each: true })
   @Type(() => AdicionalDto)
   adicionais?: AdicionalDto[];
 }

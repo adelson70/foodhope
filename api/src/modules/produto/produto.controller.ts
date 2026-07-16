@@ -16,9 +16,7 @@ export class ProdutoController {
   @UseGuards(JwtGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Listagem de Produto' })
-  async listar(
-    @Param() dto: ListarDto
-  ) {
+  async listar(@Param() dto: ListarDto) {
     return this.produto.listarProduto(dto);
   }
 
@@ -26,9 +24,7 @@ export class ProdutoController {
   @UseGuards(JwtGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Buscar Produto' })
-  async buscar(
-    @Param("params") params: string
-  ) {
+  async buscar(@Param('params') params: string) {
     return this.produto.buscarProduto(params);
   }
 
@@ -36,9 +32,7 @@ export class ProdutoController {
   @UseGuards(JwtGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Criação de Produto' })
-  async criar(
-    @Body() dto: CriarDto
-  ) {
+  async criar(@Body() dto: CriarDto) {
     return this.produto.criarProduto(dto);
   }
 
@@ -46,11 +40,9 @@ export class ProdutoController {
   @UseGuards(JwtGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Edição de Produto' })
-  async editar(
-    @Param("id") id: string,
-    @Body() dto: EditarDto
-  ) {
-    if (!dto.nome && !dto.descricao && !dto.preco && dto.adicionais?.length === 0) return {mensagem: "Nada para editar :)"}
+  async editar(@Param('id') id: string, @Body() dto: EditarDto) {
+    if (!dto.nome && !dto.descricao && !dto.preco && dto.adicionais?.length === 0)
+      return { mensagem: 'Nada para editar :)' };
     return this.produto.editarProduto(id, dto);
   }
 
@@ -58,11 +50,7 @@ export class ProdutoController {
   @UseGuards(JwtGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Deleção de Produto' })
-  async deletar(
-    @Param("id") id: string
-  ) {
+  async deletar(@Param('id') id: string) {
     return this.produto.deletarProduto(id);
   }
-
-
 }

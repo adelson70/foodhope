@@ -3,8 +3,8 @@ import { Type } from 'class-transformer';
 import { IsOptional, IsString, IsInt, Min, Max } from 'class-validator';
 
 export class ListarDto {
-  @ApiPropertyOptional({ 
-    description: 'Cursor para a próxima página (Recebido no retorno da requisição anterior)' 
+  @ApiPropertyOptional({
+    description: 'Cursor para a próxima página (Recebido no retorno da requisição anterior)',
   })
   @IsOptional()
   @IsString()
@@ -16,5 +16,5 @@ export class ListarDto {
   @IsInt()
   @Min(1)
   @Max(100)
-  limit?: number = 10; 
+  limit?: number = 10;
 }
