@@ -26,7 +26,7 @@ export class PrismaWriteService extends PrismaClient implements OnModuleInit, On
   }
 
   private feedbackDatabase(status: 'OK' | 'ERROR') {
-    if (status === 'OK') this.logger.log(`Banco de Dados Escrita: ${status}`);
-    else if (status === 'ERROR') this.logger.log(`Banco de Dados Escrita: ${status}`);
+    if (status === 'OK') this.logger.debug(`Banco de Dados Escrita: ${status}`);
+    else if (status === 'ERROR') this.logger.debug(`Banco de Dados Escrita: ${status}`);
   }
 }

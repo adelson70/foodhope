@@ -26,7 +26,7 @@ export class PrismaReadService extends PrismaClient implements OnModuleInit, OnM
   }
 
   private feedbackDatabase(status: 'OK' | 'ERROR') {
-    if (status === 'OK') this.logger.log(`Banco de Dados Leitura: ${status}`);
-    else if (status === 'ERROR') this.logger.log(`Banco de Dados Leitura: ${status}`);
+    if (status === 'OK') this.logger.debug(`Banco de Dados Leitura: ${status}`);
+    else if (status === 'ERROR') this.logger.debug(`Banco de Dados Leitura: ${status}`);
   }
 }

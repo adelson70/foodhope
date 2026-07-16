@@ -13,6 +13,7 @@ import { ClientePedido, CriarPedidoDto } from './dto/criar.dto.js';
 import { Prisma } from '../../../generated/prisma/client.js';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { WebsocketGateway } from '../../infra/websocket/websocket.gateway.js';
 
 @Injectable()
 export class PedidoService {
@@ -20,7 +21,7 @@ export class PedidoService {
     private readonly prismaWrite: PrismaWriteService,
     private readonly prismaRead: PrismaReadService,
     @InjectQueue('fila-impressao') private filaImpressao: Queue,
-
+    private readonly websocket: WebsocketGateway
   ) { }
 
   async listarPedido(dto: ListarDto) {
@@ -263,6 +264,8 @@ export class PedidoService {
       await this.filaImpressao.add('imprimir-pedido', {
         texto: textoParaImprimir
       })
+
+      this.websocket.emitirEvento('novo-pedido', pedidoCompleto)
 
       //this.impressora.print(textoParaImprimir);
 

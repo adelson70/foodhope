@@ -30,7 +30,7 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
       const isConnected = await this.impressora.isPrinterConnected();
 
       if (isConnected) {
-        this.logger.log(`Impressora conectada com sucesso no IP: ${printerIp}`);
+        this.logger.debug(`Impressora conectada com sucesso no IP: ${printerIp}`);
       } else {
         this.logger.error(
           `A impressora no IP ${printerIp} não está respondendo. Verifique se ela está ligada e na mesma rede.`,

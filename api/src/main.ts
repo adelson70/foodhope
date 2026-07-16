@@ -8,6 +8,8 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
 async function bootstrap() {
   const port = process.env.PORT;
   const app = await NestFactory.create(AppModule);
+  const log = new Logger()
+  const logger = new Logger("APP");
 
   setupSwagger(app);
 
@@ -25,6 +27,6 @@ async function bootstrap() {
   app.useGlobalInterceptors(new TransformInterceptor());
 
   await app.listen(port ?? 5000);
-  Logger.log(`API ON em http://localhost:${port}`);
+  logger.debug(`API ON em http://localhost:${port}`);
 }
 bootstrap();
