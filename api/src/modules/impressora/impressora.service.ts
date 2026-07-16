@@ -22,8 +22,8 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
       this.impressora = new ThermalPrinter({
         type: PrinterTypes.EPSON,
         interface: `tcp://${printerIp}`,
-        characterSet: CharacterSet.PC858_EURO,
-        removeSpecialCharacters: false,
+        characterSet: CharacterSet.PC860_PORTUGUESE,
+        removeSpecialCharacters: true,
         breakLine: BreakLine.WORD,
       });
 

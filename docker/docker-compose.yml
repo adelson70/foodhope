@@ -1,0 +1,7 @@
+services:
+  escpos:
+    image: ghcr.io/lezram/escpos-emulator:latest
+    container_name: escpos
+    ports:
+      - "9100:9100"
+      - "3000:3000"

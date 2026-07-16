@@ -288,7 +288,10 @@ export class PedidoService {
 
   private formatarParaImpressora(pedido: any, cliente: ClientePedido) {
     const formatarMoeda = (valor: number | string) => {
-      return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+      return Number(valor)
+        .toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+        .replace(/\u00A0/g, ' ')
+        .replace(/\u202F/g, ' ');
     };
 
     const alinharLinha = (
@@ -314,10 +317,10 @@ export class PedidoService {
 
     let impressao = '';
 
-    impressao += '================================\n';
+    impressao += `${"=".repeat(48)}\n`;;
     impressao += `PEDIDO #${pedido.numero}\n`;
     impressao += `CLIENTE: ${cliente.primeiro_nome} ${cliente.sobrenome}\n`;
-    impressao += '================================\n\n';
+    impressao += `${"=".repeat(48)}\n\n`;
 
     let valorTotalPedido = 0;
 
@@ -350,10 +353,14 @@ export class PedidoService {
       impressao += '\n';
     });
 
-    impressao += '--------------------------------\n';
+    impressao += `${"-".repeat(48)}\n`;;
+
 
     impressao += alinharLinha('TOTAL A PAGAR:', formatarMoeda(valorTotalPedido), ' ') + '\n';
-    impressao += '================================\n';
+    // impressao += '================================\n';
+    impressao += `${"=".repeat(48)}\n`;;
+
+    
 
     impressao += '\n\n\n';
 
