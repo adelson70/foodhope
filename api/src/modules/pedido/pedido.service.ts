@@ -9,10 +9,11 @@ import {
 import { PrismaWriteService } from '../../infra/database/prisma-write.service.js';
 import { PrismaReadService } from '../../infra/database/prisma-read.service.js';
 
-import { JwtServiceCustom } from '../../infra/auth/jwt.service.js';
-import { ClientePedido, CriarPedidoDto, ItemPedidoDto } from './dto/criar.dto.js';
+import { ClientePedido, CriarPedidoDto } from './dto/criar.dto.js';
 import { Prisma } from '../../../generated/prisma/client.js';
 import { ImpressoraService } from '../impressora/impressora.service.js';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 
 @Injectable()
 export class PedidoService {
@@ -20,8 +21,8 @@ export class PedidoService {
     private readonly prismaWrite: PrismaWriteService,
     private readonly prismaRead: PrismaReadService,
     private readonly impressora: ImpressoraService,
+    @InjectQueue('fila-impressao') private filaImpressao: Queue,
 
-    private readonly jwt: JwtServiceCustom,
   ) {}
 
   async listarPedido(dto: ListarDto) {
@@ -213,7 +214,11 @@ export class PedidoService {
 
       const textoParaImprimir = this.formatarParaImpressora(pedidoCompleto, dto.cliente);
 
-      this.impressora.print(textoParaImprimir);
+      await this.filaImpressao.add('imprimir-pedido', {
+        texto: textoParaImprimir
+      })
+
+      //this.impressora.print(textoParaImprimir);
 
       return {
         mensagem: 'Pedido criado com sucesso',

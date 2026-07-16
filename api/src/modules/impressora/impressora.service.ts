@@ -67,6 +67,8 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
       this.logger.error('Erro durante a impressão do cupom:', error);
 
       this.impressora.clear();
+
+      throw error
     }
   }
 }
