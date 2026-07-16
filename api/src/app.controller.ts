@@ -1,12 +1,15 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Res } from '@nestjs/common';
 import { AppService } from './app.service.js';
+import type { Response } from 'express'; 
 
 @Controller()
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
   @Get()
-  getHello(): string {
-    return this.appService.getHello();
+  redirect(@Res() res: Response) {
+    const targetUrl = process.env.APP || 'https://www.google.com';
+    
+    return res.redirect(targetUrl);
   }
 }
