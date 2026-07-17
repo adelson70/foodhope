@@ -114,6 +114,9 @@ export class ProdutoService {
             },
           ],
         },
+        include: {
+          adicionais: { select: { id: true, nome: true, preco: true } },
+        },
       });
 
       if (!produtos || produtos.length === 0) {

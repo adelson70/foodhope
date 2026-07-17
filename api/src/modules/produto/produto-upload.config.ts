@@ -11,7 +11,7 @@ const MIME_TIPOS_PERMITIDOS = new Set([
 export const produtoImagemUploadOptions = {
   storage: memoryStorage(),
   limits: {
-    fileSize: 5 * 1024 * 1024,
+    fileSize: 50 * 1024 * 1024,
   },
   fileFilter: (
     _req: Express.Request,
