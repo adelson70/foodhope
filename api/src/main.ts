@@ -15,6 +15,19 @@ async function bootstrap() {
 
   setupSwagger(app);
 
+
+  app.enableCors({
+    origin: [
+      process.env.APP,
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'http://127.0.0.1:5173',
+      'http://127.0.0.1:3000',
+    ].filter(Boolean) as string[],
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    credentials: true,
+  });
+
   app.useStaticAssets(join(process.cwd(), 'public'), {
     prefix: '/public',
   });
