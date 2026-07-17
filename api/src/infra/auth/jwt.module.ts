@@ -5,6 +5,8 @@ import { AuthGuard } from './auth.guard.js';
 import { JwtServiceCustom } from './jwt.service.js';
 import { JwtStrategy } from './jwt.strategy.js';
 import { JwtGuard } from './jwt.guard.js';
+import { RateLimitGuard } from './rate-limit.guard.js';
+import { RateLimitService } from './rate-limit.service.js';
 
 @Module({
   imports: [
@@ -16,8 +18,22 @@ import { JwtGuard } from './jwt.guard.js';
     }),
   ],
 
-  providers: [JwtServiceCustom, JwtStrategy, JwtGuard, AuthGuard],
+  providers: [
+    JwtServiceCustom,
+    JwtStrategy,
+    JwtGuard,
+    AuthGuard,
+    RateLimitService,
+    RateLimitGuard,
+  ],
 
-  exports: [JwtServiceCustom, JwtGuard, AuthGuard, JwtModule],
+  exports: [
+    JwtServiceCustom,
+    JwtGuard,
+    AuthGuard,
+    RateLimitService,
+    RateLimitGuard,
+    JwtModule,
+  ],
 })
 export class InfraJwtModule {}

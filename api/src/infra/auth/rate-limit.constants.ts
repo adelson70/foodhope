@@ -1,0 +1,15 @@
+export const RATE_LIMIT_WINDOW_SECONDS = 60;
+
+export const RATE_LIMIT_VISITOR_MAX = 120;
+
+export const RATE_LIMIT_VISITOR_PEDIDO_MAX = 15;
+
+export const RATE_LIMIT_VISITOR_REGISTER_MAX = 10;
+
+export const RATE_LIMIT_VISITOR_CONFIRM_MAX = 20;
+
+export const RATE_LIMIT_LOGIN_MAX = 20;
+
+export const RATE_LIMIT_OPERADOR_MAX = 180;
+
+export const RATE_LIMIT_OPERADOR_PEDIDO_MAX = 30;

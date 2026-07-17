@@ -49,6 +49,23 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return result === 'OK';
   }
 
+  async incrWithTtl(key: string, ttlSeconds: number): Promise<number> {
+    const result = await this.client.eval(
+      `
+      local count = redis.call('INCR', KEYS[1])
+      if count == 1 then
+        redis.call('EXPIRE', KEYS[1], ARGV[1])
+      end
+      return count
+      `,
+      1,
+      key,
+      String(ttlSeconds),
+    );
+
+    return Number(result);
+  }
+
   async get<T = string>(key: string): Promise<T | null> {
     const value = await this.client.get(key);
 

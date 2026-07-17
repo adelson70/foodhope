@@ -14,6 +14,7 @@ import { VisitorModule } from './modules/visitor/visitor.module.js';
 import { BullModule } from '@nestjs/bullmq';
 import { WebsocketModule } from './infra/websocket/websocket.module.js';
 import { AuthGuard } from './infra/auth/auth.guard.js';
+import { RateLimitGuard } from './infra/auth/rate-limit.guard.js';
 import { InfraJwtModule } from './infra/auth/jwt.module.js';
 
 @Module({
@@ -56,6 +57,10 @@ import { InfraJwtModule } from './infra/auth/jwt.module.js';
     {
       provide: APP_GUARD,
       useClass: AuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RateLimitGuard,
     },
   ],
 })
