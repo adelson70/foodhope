@@ -6,7 +6,7 @@ import { ProtectedRoute } from './ProtectedRoute';
 // Importação das Páginas
 import { Home } from '../pages/Home';
 import { Cardapio } from '../pages/Painel/Cardapio';
-import { Pedido } from '../pages/Painel/Pedido';
+import { Pedidos } from '../pages/Painel/Pedidos';
 import { Config } from '../pages/Painel/Config';
 import { Carrinho } from '../pages/Carrinho';
 import { PedidoConfirmado } from '../pages/PedidoConfirmado';
@@ -48,7 +48,7 @@ export const router = createBrowserRouter([
           { index: true, element: <Navigate to="dash" replace /> },
           { path: 'dash', element: <Dash /> },
           { path: 'cardapio', element: <Cardapio /> },
-          { path: 'pedido', element: <Pedido /> },
+          { path: 'pedido', element: <Pedidos /> },
           { path: 'configuracoes', element: <Config /> },
         ],
       }

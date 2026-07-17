@@ -49,6 +49,10 @@ export class ProdutoService {
         skip: decodedCursor ? 1 : 0,
 
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+
+        include: {
+          adicionais: { select: { id: true, nome: true, preco: true } },
+        },
       });
 
       let nextCursor: string | null = null;

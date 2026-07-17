@@ -1,6 +1,7 @@
 import { api, request } from './api';
 import { clearToken, setToken } from './cookie';
 import { withMutationToast } from './mutation-toast';
+import { connectSocket, disconnectSocket } from './socket';
 import type {
   ApiResponse,
   EditarOperadorInput,
@@ -19,6 +20,8 @@ export const authService = {
 
       if (response.dados?.access_token) {
         setToken(response.dados.access_token);
+        disconnectSocket();
+        connectSocket();
       }
 
       return response;
@@ -36,6 +39,7 @@ export const authService = {
         );
       } finally {
         clearToken();
+        disconnectSocket();
       }
     }, {
       success: 'Logout realizado com sucesso',

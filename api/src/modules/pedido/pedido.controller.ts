@@ -5,7 +5,7 @@ import {
     Get,
     Param,
     Post,
-    Put,
+    Query,
     UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -25,7 +25,7 @@ export class PedidoController {
     @ApiBearerAuth()
     @ApiOperation({ summary: 'Listagem de Pedidos' })
     async listar(
-        @Param() dto: ListarDto
+        @Query() dto: ListarDto
     ) {
         return this.pedido.listarPedido(dto);
     }

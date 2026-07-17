@@ -8,9 +8,18 @@ import type {
   ListarPedidosDados,
 } from './types';
 
+export type ListarPedidosParams = {
+  cursor?: string;
+  limit?: number;
+};
+
 export const pedidoService = {
-  async listar(): Promise<ApiResponse<ListarPedidosDados>> {
-    return request(api.get<ApiResponse<ListarPedidosDados>>('/pedido'));
+  async listar(
+    params: ListarPedidosParams = {},
+  ): Promise<ApiResponse<ListarPedidosDados>> {
+    return request(
+      api.get<ApiResponse<ListarPedidosDados>>('/pedido', { params }),
+    );
   },
 
   async buscar(params: string): Promise<ApiResponse<BuscarPedidosDados>> {

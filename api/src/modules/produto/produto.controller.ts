@@ -6,6 +6,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -35,7 +36,7 @@ export class ProdutoController {
   @UseGuards(JwtGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Listagem de Produto' })
-  async listar(@Param() dto: ListarDto) {
+  async listar(@Query() dto: ListarDto) {
     return this.produto.listarProduto(dto);
   }
 

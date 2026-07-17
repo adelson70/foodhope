@@ -37,9 +37,18 @@ function toProdutoFormData(
   return formData;
 }
 
+export type ListarProdutosParams = {
+  cursor?: string;
+  limit?: number;
+};
+
 export const produtoService = {
-  async listar(): Promise<ApiResponse<ListarProdutosDados>> {
-    return request(api.get<ApiResponse<ListarProdutosDados>>('/produto'));
+  async listar(
+    params: ListarProdutosParams = {},
+  ): Promise<ApiResponse<ListarProdutosDados>> {
+    return request(
+      api.get<ApiResponse<ListarProdutosDados>>('/produto', { params }),
+    );
   },
 
   async buscar(params: string): Promise<ApiResponse<BuscarProdutosDados>> {
