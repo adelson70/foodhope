@@ -529,6 +529,35 @@ export class ProdutoService {
     }
   }
 
+  async removerImagemProduto(id: string) {
+    try {
+      await this.prismaWrite.produto.findUniqueOrThrow({ where: { id } });
+
+      await this.produtoImagem.remover(id);
+
+      const produto = await this.prismaWrite.produto.update({
+        where: { id },
+        data: { imagemUrl: null },
+        include: produtoAdicionaisInclude,
+      });
+
+      return {
+        mensagem: 'Imagem do produto removida com sucesso',
+        dados: montarRespostaProduto(produto as ProdutoComAdicionais),
+      };
+    } catch (erro) {
+      console.error('Erro ao remover imagem do produto:', erro);
+
+      if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2025') {
+        throw new NotFoundException('Produto não encontrado.');
+      }
+
+      throw new InternalServerErrorException(
+        'Não foi possível remover a imagem do produto. Tente novamente.',
+      );
+    }
+  }
+
   async deletarProduto(id: string) {
     try {
       await this.prismaWrite.produto.delete({ where: { id } });

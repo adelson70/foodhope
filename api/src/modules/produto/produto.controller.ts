@@ -77,6 +77,13 @@ export class ProdutoController {
     return this.produto.editarImagemProduto(id, file);
   }
 
+  @Delete(':id/imagem')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Remoção da imagem do produto' })
+  async removerImagem(@Param('id') id: string) {
+    return this.produto.removerImagemProduto(id);
+  }
+
   @Put(':id')
   @ApiBearerAuth()
   @ApiBody({ type: EditarProdutoDto })

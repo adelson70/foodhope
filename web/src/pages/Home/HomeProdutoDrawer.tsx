@@ -44,7 +44,7 @@ export function HomeProdutoDrawer({
     );
   }, [produto]);
 
-  const imagem = urlImagemProduto(produto?.imagemUrl);
+  const imagem = urlImagemProduto(produto?.imagemUrl, produto?.updatedAt);
   const adicionaisDisponiveis = produto?.adicionais ?? [];
   const produtoIndisponivel = produto?.ativo === false;
 
@@ -139,7 +139,7 @@ export function HomeProdutoDrawer({
               : 'flex flex-col gap-4'
           }
         >
-          <div className="aspect-[4/3] overflow-hidden rounded-xl bg-operator-bg">
+          <div className="aspect-square overflow-hidden rounded-xl bg-operator-bg">
             {imagem ? (
               <img
                 src={imagem}

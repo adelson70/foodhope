@@ -9,7 +9,7 @@ type HomeProdutoCardProps = {
 };
 
 export function HomeProdutoCard({ produto, onSelect }: HomeProdutoCardProps) {
-  const imagem = urlImagemProduto(produto.imagemUrl);
+  const imagem = urlImagemProduto(produto.imagemUrl, produto.updatedAt);
   const indisponivel = produto.ativo === false;
 
   return (

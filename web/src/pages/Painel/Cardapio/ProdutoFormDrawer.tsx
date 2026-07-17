@@ -117,6 +117,7 @@ export function ProdutoFormDrawer({
 }: ProdutoFormDrawerProps) {
   const isEdicao = Boolean(produto);
   const [imagemFile, setImagemFile] = useState<File | null>(null);
+  const [removerImagem, setRemoverImagem] = useState(false);
   const [animarPrimeiroAdicional, setAnimarPrimeiroAdicional] = useState(false);
   const [adicionaisSaindo, setAdicionaisSaindo] = useState<Set<string>>(
     () => new Set(),
@@ -147,6 +148,7 @@ export function ProdutoFormDrawer({
     if (!open) return;
     reset(valoresIniciais(produto));
     setImagemFile(null);
+    setRemoverImagem(false);
     setAnimarPrimeiroAdicional(false);
     setAdicionaisSaindo(new Set());
 
@@ -251,6 +253,7 @@ export function ProdutoFormDrawer({
         adicionais: adicionais.length > 0 ? adicionais : undefined,
         adicionalGlobalIds: values.adicionalGlobalIds,
         imagem: imagemFile ?? undefined,
+        removerImagem: removerImagem && !imagemFile,
       });
 
       if (!response.sucesso || !response.dados) return;
@@ -292,8 +295,13 @@ export function ProdutoFormDrawer({
           <Label>Foto do produto</Label>
           <ProdutoImagemField
             file={imagemFile}
-            imagemUrlAtual={produto?.imagemUrl}
-            onChange={setImagemFile}
+            imagemUrlAtual={removerImagem ? null : produto?.imagemUrl}
+            imagemCacheKey={removerImagem ? null : produto?.updatedAt}
+            onChange={(proximo) => {
+              setImagemFile(proximo);
+              if (proximo) setRemoverImagem(false);
+            }}
+            onRemoverImagemAtual={() => setRemoverImagem(true)}
             disabled={isSubmitting}
           />
         </div>

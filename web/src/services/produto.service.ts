@@ -15,7 +15,11 @@ export type ListarProdutosParams = {
 };
 
 function toProdutoJson(input: CriarProdutoInput | EditarProdutoInput) {
-  const { imagem: _imagem, ...dados } = input;
+  const {
+    imagem: _imagem,
+    removerImagem: _removerImagem,
+    ...dados
+  } = input as EditarProdutoInput;
   return dados;
 }
 
@@ -34,6 +38,12 @@ async function enviarImagem(
       `/produto/${id}/imagem`,
       toImagemFormData(imagem),
     ),
+  );
+}
+
+async function apagarImagem(id: string): Promise<ApiResponse<Produto>> {
+  return request(
+    api.delete<ApiResponse<Produto>>(`/produto/${id}/imagem`),
   );
 }
 
@@ -92,16 +102,29 @@ export const produtoService = {
           ),
         );
 
-        if (!response.sucesso || !input.imagem) {
+        if (!response.sucesso) {
           return response;
         }
 
-        const imagemResponse = await enviarImagem(id, input.imagem);
-        if (!imagemResponse.sucesso) {
-          return imagemResponse;
+        if (input.imagem) {
+          const imagemResponse = await enviarImagem(id, input.imagem);
+          if (!imagemResponse.sucesso) {
+            return imagemResponse;
+          }
+
+          return { ...imagemResponse, mensagens: response.mensagens };
         }
 
-        return { ...imagemResponse, mensagens: response.mensagens };
+        if (input.removerImagem) {
+          const remocaoResponse = await apagarImagem(id);
+          if (!remocaoResponse.sucesso) {
+            return remocaoResponse;
+          }
+
+          return { ...remocaoResponse, mensagens: response.mensagens };
+        }
+
+        return response;
       },
       {
         success: 'Produto editado com sucesso',

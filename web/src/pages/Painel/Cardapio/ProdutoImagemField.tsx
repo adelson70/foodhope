@@ -4,6 +4,8 @@ import { Camera, ImagePlus, Trash2 } from 'lucide-react';
 import { Button } from '../../../components/ui';
 import { notifyError } from '../../../services';
 import { urlImagemProduto } from './produtoFormat';
+import { ProdutoImagemCameraDialog } from './ProdutoImagemCameraDialog';
+import { ProdutoImagemCropDialog } from './ProdutoImagemCropDialog';
 
 const MIME_PERMITIDOS = new Set([
   'image/jpeg',
@@ -17,21 +19,26 @@ const MAX_BYTES = 50 * 1024 * 1024;
 type ProdutoImagemFieldProps = {
   file: File | null;
   imagemUrlAtual?: string | null;
+  imagemCacheKey?: string | null;
   onChange: (file: File | null) => void;
+  onRemoverImagemAtual?: () => void;
   disabled?: boolean;
 };
 
 export function ProdutoImagemField({
   file,
   imagemUrlAtual,
+  imagemCacheKey,
   onChange,
+  onRemoverImagemAtual,
   disabled = false,
 }: ProdutoImagemFieldProps) {
   const galeriaId = useId();
-  const cameraId = useId();
   const galeriaRef = useRef<HTMLInputElement>(null);
-  const cameraRef = useRef<HTMLInputElement>(null);
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [cropOpen, setCropOpen] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   useEffect(() => {
     if (!file) {
@@ -44,7 +51,30 @@ export function ProdutoImagemField({
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
-  const previewSrc = objectUrl ?? urlImagemProduto(imagemUrlAtual);
+  useEffect(() => {
+    return () => {
+      if (cropSrc) URL.revokeObjectURL(cropSrc);
+    };
+  }, [cropSrc]);
+
+  const previewSrc =
+    objectUrl ?? urlImagemProduto(imagemUrlAtual, imagemCacheKey);
+  const podeRemover = Boolean(file || imagemUrlAtual);
+
+  function abrirCrop(arquivo: File) {
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    const url = URL.createObjectURL(arquivo);
+    setCropSrc(url);
+    setCropOpen(true);
+  }
+
+  function fecharCrop() {
+    setCropOpen(false);
+    if (cropSrc) {
+      URL.revokeObjectURL(cropSrc);
+      setCropSrc(null);
+    }
+  }
 
   function validarESelecionar(arquivo: File | undefined) {
     if (!arquivo) return;
@@ -62,13 +92,25 @@ export function ProdutoImagemField({
       return;
     }
 
-    onChange(arquivo);
+    abrirCrop(arquivo);
   }
 
   function onInputChange(event: ChangeEvent<HTMLInputElement>) {
     const arquivo = event.target.files?.[0];
     event.target.value = '';
     validarESelecionar(arquivo);
+  }
+
+  function handleRemover() {
+    if (file) {
+      onChange(null);
+      return;
+    }
+
+    onChange(null);
+    if (imagemUrlAtual) {
+      onRemoverImagemAtual?.();
+    }
   }
 
   return (
@@ -104,24 +146,20 @@ export function ProdutoImagemField({
           variant="secondary"
           disabled={disabled}
           className="flex-1"
-          onClick={() => cameraRef.current?.click()}
+          onClick={() => setCameraOpen(true)}
         >
           <Camera size={18} strokeWidth={1.75} />
           Tirar foto
         </Button>
-        {file || imagemUrlAtual ? (
+        {podeRemover ? (
           <Button
             type="button"
             variant="ghost"
-            disabled={disabled || !file}
-            aria-label="Remover imagem selecionada"
+            disabled={disabled}
+            aria-label="Remover imagem"
             className="size-12 shrink-0 px-0 py-0 text-danger hover:bg-danger/10 disabled:opacity-40"
-            onClick={() => onChange(null)}
-            title={
-              file
-                ? 'Remover seleção'
-                : 'A imagem atual só muda ao escolher outra'
-            }
+            onClick={handleRemover}
+            title="Remover imagem"
           >
             <Trash2 size={20} strokeWidth={1.75} />
           </Button>
@@ -138,16 +176,18 @@ export function ProdutoImagemField({
         disabled={disabled}
         onChange={onInputChange}
       />
-      <input
-        id={cameraId}
-        ref={cameraRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif"
-        capture="environment"
-        className="sr-only"
-        tabIndex={-1}
-        disabled={disabled}
-        onChange={onInputChange}
+
+      <ProdutoImagemCameraDialog
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onCapture={validarESelecionar}
+      />
+
+      <ProdutoImagemCropDialog
+        open={cropOpen}
+        imageSrc={cropSrc}
+        onClose={fecharCrop}
+        onConfirm={onChange}
       />
     </div>
   );

@@ -119,6 +119,7 @@ export type EditarProdutoInput = {
   adicionais?: AdicionalEditarInput[];
   adicionalGlobalIds?: string[];
   imagem?: File;
+  removerImagem?: boolean;
 };
 
 export type ListarProdutosDados = {

@@ -124,9 +124,14 @@ export function Cardapio() {
   }
 
   function handleSaved(produto: Produto) {
+    const atualizado: Produto = {
+      ...produto,
+      updatedAt: produto.updatedAt ?? new Date().toISOString(),
+    };
+
     if (produtoEditar) {
       setProdutos((atual) =>
-        atual.map((item) => (item.id === produto.id ? produto : item)),
+        atual.map((item) => (item.id === atualizado.id ? atualizado : item)),
       );
       return;
     }
@@ -137,8 +142,12 @@ export function Cardapio() {
     }
 
     setProdutos((atual) => {
-      if (atual.some((item) => item.id === produto.id)) return atual;
-      return [produto, ...atual];
+      if (atual.some((item) => item.id === atualizado.id)) {
+        return atual.map((item) =>
+          item.id === atualizado.id ? atualizado : item,
+        );
+      }
+      return [atualizado, ...atual];
     });
   }
 
