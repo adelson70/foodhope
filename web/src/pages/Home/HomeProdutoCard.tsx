@@ -4,19 +4,24 @@ import type { Produto } from '../../services/types';
 
 type HomeProdutoCardProps = {
   produto: Produto;
+  onSelect: (produto: Produto) => void;
 };
 
-export function HomeProdutoCard({ produto }: HomeProdutoCardProps) {
+export function HomeProdutoCard({ produto, onSelect }: HomeProdutoCardProps) {
   const imagem = urlImagemProduto(produto.imagemUrl);
 
   return (
-    <article className="overflow-hidden rounded-xl border border-operator-border bg-operator-card">
+    <button
+      type="button"
+      onClick={() => onSelect(produto)}
+      className="w-full overflow-hidden rounded-xl border border-operator-border bg-operator-card text-left transition-colors hover:border-primary-container/40"
+    >
       <div className="flex gap-3 p-3">
         <div className="size-24 shrink-0 overflow-hidden rounded-xl bg-operator-bg">
           {imagem ? (
             <img
               src={imagem}
-              alt={produto.nome}
+              alt=""
               className="size-full object-cover"
               loading="lazy"
             />
@@ -40,6 +45,6 @@ export function HomeProdutoCard({ produto }: HomeProdutoCardProps) {
           </p>
         </div>
       </div>
-    </article>
+    </button>
   );
 }

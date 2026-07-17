@@ -11,6 +11,7 @@ type HomeListaProps = {
   erro: string | null;
   buscaAtiva: boolean;
   sentinelRef: RefObject<HTMLDivElement | null>;
+  onSelect: (produto: Produto) => void;
 };
 
 const LOAD_MORE_SKELETON_COUNT = 2;
@@ -22,6 +23,7 @@ export function HomeLista({
   erro,
   buscaAtiva,
   sentinelRef,
+  onSelect,
 }: HomeListaProps) {
   if (erro) {
     return (
@@ -47,7 +49,7 @@ export function HomeLista({
     <ul className="flex flex-col gap-3">
       {produtos.map((produto) => (
         <li key={produto.id}>
-          <HomeProdutoCard produto={produto} />
+          <HomeProdutoCard produto={produto} onSelect={onSelect} />
         </li>
       ))}
       {loadingMore

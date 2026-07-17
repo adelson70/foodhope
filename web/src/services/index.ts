@@ -10,6 +10,7 @@ export { connectSocket, disconnectSocket, socket } from './socket';
 export {
   clearVisitorSession,
   ensureVisitor,
+  getVisitorId,
   signRequestHeaders,
 } from './visitor';
 export type * from './types';

@@ -1,10 +1,9 @@
-const DB_NAME = 'foodhope';
-const DB_VERSION = 1;
-const STORE_NAME = 'visitor';
+import { idbDelete, idbGet, idbPut, STORE_VISITOR } from '../lib/clientIdb';
+
 const SESSION_KEY = 'session';
 const LEGACY_LOCAL_STORAGE_KEY = 'foodhope_visitor';
 
-type VisitorSession = {
+export type VisitorSession = {
   visitorId: string;
   publicKey: string;
   privateKey: CryptoKey;
@@ -38,80 +37,6 @@ async function sha256Hex(data: ArrayBuffer | string): Promise<string> {
     .join('');
 }
 
-function openVisitorDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onerror = () => {
-      reject(request.error ?? new Error('Falha ao abrir IndexedDB'));
-    };
-
-    request.onsuccess = () => {
-      resolve(request.result);
-    };
-
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME);
-      }
-    };
-  });
-}
-
-async function idbGet(key: string): Promise<VisitorSession | undefined> {
-  const db = await openVisitorDb();
-  try {
-    return await new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, 'readonly');
-      const store = tx.objectStore(STORE_NAME);
-      const request = store.get(key);
-      request.onsuccess = () => {
-        resolve(request.result as VisitorSession | undefined);
-      };
-      request.onerror = () => {
-        reject(request.error ?? new Error('Falha ao ler IndexedDB'));
-      };
-    });
-  } finally {
-    db.close();
-  }
-}
-
-async function idbPut(key: string, value: VisitorSession): Promise<void> {
-  const db = await openVisitorDb();
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, 'readwrite');
-      const store = tx.objectStore(STORE_NAME);
-      const request = store.put(value, key);
-      request.onsuccess = () => resolve();
-      request.onerror = () => {
-        reject(request.error ?? new Error('Falha ao gravar IndexedDB'));
-      };
-    });
-  } finally {
-    db.close();
-  }
-}
-
-async function idbDelete(key: string): Promise<void> {
-  const db = await openVisitorDb();
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, 'readwrite');
-      const store = tx.objectStore(STORE_NAME);
-      const request = store.delete(key);
-      request.onsuccess = () => resolve();
-      request.onerror = () => {
-        reject(request.error ?? new Error('Falha ao limpar IndexedDB'));
-      };
-    });
-  } finally {
-    db.close();
-  }
-}
-
 function clearLegacyLocalStorage() {
   try {
     localStorage.removeItem(LEGACY_LOCAL_STORAGE_KEY);
@@ -124,7 +49,7 @@ async function loadSession(): Promise<VisitorSession | null> {
   clearLegacyLocalStorage();
 
   try {
-    const parsed = await idbGet(SESSION_KEY);
+    const parsed = await idbGet<VisitorSession>(STORE_VISITOR, SESSION_KEY);
     if (
       !parsed?.visitorId ||
       !parsed?.publicKey ||
@@ -141,16 +66,21 @@ async function loadSession(): Promise<VisitorSession | null> {
 
 async function saveSession(session: VisitorSession): Promise<void> {
   clearLegacyLocalStorage();
-  await idbPut(SESSION_KEY, session);
+  await idbPut(STORE_VISITOR, SESSION_KEY, session);
 }
 
 export async function clearVisitorSession(): Promise<void> {
   clearLegacyLocalStorage();
   try {
-    await idbDelete(SESSION_KEY);
+    await idbDelete(STORE_VISITOR, SESSION_KEY);
   } catch {
     return;
   }
+}
+
+export async function getVisitorId(): Promise<string | null> {
+  const session = await loadSession();
+  return session?.visitorId ?? null;
 }
 
 async function generateKeyPair(): Promise<{

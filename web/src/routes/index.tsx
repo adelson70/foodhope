@@ -3,41 +3,31 @@ import { MobileAppLayout } from '../components/layout/MobileLayout';
 import { PainelLayout } from '../components/layout/PainelLayout';
 import { ProtectedRoute } from './ProtectedRoute';
 
-// Importação das Páginas
 import { Home } from '../pages/Home';
 import { Cardapio } from '../pages/Painel/Cardapio';
 import { Pedidos } from '../pages/Painel/Pedidos';
 import { Config } from '../pages/Painel/Config';
 import { Carrinho } from '../pages/Carrinho';
 import { PedidoConfirmado } from '../pages/PedidoConfirmado';
+import { PedidosCliente } from '../pages/PedidosCliente';
 import { Login } from '../pages/Login';
 import { Dash } from '../pages/Painel/Dash';
 
 export const router = createBrowserRouter([
-  // ==========================================
-  // ROTA PÚBLICA (Operador)
-  // ==========================================
-  { 
-    path: '/login', 
-    element: <Login /> 
+  {
+    path: '/login',
+    element: <Login />,
   },
-
-  // ==========================================
-  // REFERENTE AO CLIENTE (Público)
-  // ==========================================
   {
     path: '/',
     element: <MobileAppLayout />,
     children: [
       { path: '/', element: <Home /> },
+      { path: 'pedidos', element: <PedidosCliente /> },
       { path: 'carrinho', element: <Carrinho /> },
       { path: 'confirmado', element: <PedidoConfirmado /> },
     ],
   },
-
-  // ==========================================
-  // REFERENTE AO OPERADOR (Protegido)
-  // ==========================================
   {
     path: '/painel',
     element: <ProtectedRoute />,
@@ -51,7 +41,7 @@ export const router = createBrowserRouter([
           { path: 'pedido', element: <Pedidos /> },
           { path: 'configuracoes', element: <Config /> },
         ],
-      }
+      },
     ],
   },
 ]);

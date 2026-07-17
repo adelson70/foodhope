@@ -6,6 +6,7 @@ import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
 import { getApiErrorMensagens, produtoService } from '../../services';
 import type { Produto } from '../../services/types';
 import { HomeLista } from './HomeLista';
+import { HomeProdutoDrawer } from './HomeProdutoDrawer';
 import { HomeSearch } from './HomeSearch';
 import { HomeSkeleton } from './HomeSkeleton';
 
@@ -19,6 +20,9 @@ export function Home() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [produtoSelecionado, setProdutoSelecionado] = useState<Produto | null>(
+    null,
+  );
   const initialPending = loading && produtos.length === 0;
   const showSkeleton = useDeferredLoading(initialPending);
   const showMoreSkeleton = useDeferredLoading(loadingMore);
@@ -120,8 +124,15 @@ export function Home() {
           erro={erro}
           buscaAtiva={Boolean(busca)}
           sentinelRef={sentinelRef}
+          onSelect={setProdutoSelecionado}
         />
       )}
+
+      <HomeProdutoDrawer
+        produto={produtoSelecionado}
+        open={Boolean(produtoSelecionado)}
+        onClose={() => setProdutoSelecionado(null)}
+      />
     </div>
   );
 }
