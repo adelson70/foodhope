@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { ProdutoController } from './produto.controller.js';
 import { ProdutoService } from './produto.service.js';
+import { ProdutoImagemService } from './produto-imagem.service.js';
 
 import { InfraJwtModule } from '../../infra/auth/jwt.module.js';
 
@@ -10,7 +11,7 @@ import { InfraJwtModule } from '../../infra/auth/jwt.module.js';
 
   controllers: [ProdutoController],
 
-  providers: [ProdutoService],
+  providers: [ProdutoService, ProdutoImagemService],
 
   exports: [ProdutoService],
 })

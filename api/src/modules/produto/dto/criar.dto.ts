@@ -7,7 +7,6 @@ import {
   Max,
   Min,
   IsNumber,
-  IsObject,
   IsOptional,
   ValidateNested,
   IsArray,
@@ -50,4 +49,12 @@ export class CriarDto {
   @ValidateNested({ each: true })
   @Type(() => AdicionalDto)
   adicionais?: AdicionalDto[];
+
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'binary',
+    description: 'Imagem opcional do produto',
+  })
+  @IsOptional()
+  imagem?: Express.Multer.File;
 }

@@ -1,11 +1,8 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
-  IsNotEmpty,
   IsNumber,
   IsOptional,
-  IsString,
-  MinLength,
   ValidateNested,
 } from 'class-validator';
 import { AdicionalEditarDto } from './adicional.dto.js';
@@ -39,4 +36,12 @@ export class EditarDto {
   @ValidateNested({ each: true })
   @Type(() => AdicionalEditarDto)
   adicionais?: AdicionalEditarDto[];
+
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'binary',
+    description: 'Imagem opcional do produto',
+  })
+  @IsOptional()
+  imagem?: Express.Multer.File;
 }

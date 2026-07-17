@@ -1,11 +1,30 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiBody,
+} from '@nestjs/swagger';
 
 import { ProdutoService } from './produto.service.js';
 import { JwtGuard } from '../../infra/auth/jwt.guard.js';
 import { CriarDto } from './dto/criar.dto.js';
 import { EditarDto } from './dto/editar.dto.js';
 import { ListarDto } from './dto/listar.dto.js';
+import { produtoImagemUploadOptions } from './produto-upload.config.js';
 
 @ApiTags('Produtos')
 @Controller('produto')
@@ -31,19 +50,40 @@ export class ProdutoController {
   @Post()
   @UseGuards(JwtGuard)
   @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: CriarDto })
   @ApiOperation({ summary: 'Criação de Produto' })
-  async criar(@Body() dto: CriarDto) {
-    return this.produto.criarProduto(dto);
+  @UseInterceptors(FileInterceptor('imagem', produtoImagemUploadOptions))
+  async criar(
+    @Body() dto: CriarDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    return this.produto.criarProduto(dto, file);
   }
 
   @Put(':id')
   @UseGuards(JwtGuard)
   @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: EditarDto })
   @ApiOperation({ summary: 'Edição de Produto' })
-  async editar(@Param('id') id: string, @Body() dto: EditarDto) {
-    if (!dto.nome && !dto.descricao && !dto.preco && dto.adicionais?.length === 0)
+  @UseInterceptors(FileInterceptor('imagem', produtoImagemUploadOptions))
+  async editar(
+    @Param('id') id: string,
+    @Body() dto: EditarDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    if (
+      !dto.nome &&
+      !dto.descricao &&
+      dto.preco === undefined &&
+      (!dto.adicionais || dto.adicionais.length === 0) &&
+      !file
+    ) {
       return { mensagem: 'Nada para editar :)' };
-    return this.produto.editarProduto(id, dto);
+    }
+
+    return this.produto.editarProduto(id, dto, file);
   }
 
   @Delete(':id')

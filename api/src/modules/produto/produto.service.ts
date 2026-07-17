@@ -13,6 +13,7 @@ import { JwtServiceCustom } from '../../infra/auth/jwt.service.js';
 import { CriarDto } from './dto/criar.dto.js';
 import { Prisma } from '../../../generated/prisma/client.js';
 import { EditarDto } from './dto/editar.dto.js';
+import { ProdutoImagemService } from './produto-imagem.service.js';
 
 @Injectable()
 export class ProdutoService {
@@ -21,6 +22,7 @@ export class ProdutoService {
     private readonly prismaRead: PrismaReadService,
 
     private readonly jwt: JwtServiceCustom,
+    private readonly produtoImagem: ProdutoImagemService,
   ) {}
 
   async listarProduto(dto: ListarDto) {
@@ -128,11 +130,11 @@ export class ProdutoService {
     }
   }
 
-  async criarProduto(dto: CriarDto) {
+  async criarProduto(dto: CriarDto, file?: Express.Multer.File) {
     try {
       const temAdicionais = dto.adicionais && dto.adicionais.length > 0;
 
-      const produtoCompleto = await this.prismaWrite.$transaction(async (tx) => {
+      const produtoCriado = await this.prismaWrite.$transaction(async (tx) => {
         const novoProduto = await tx.produto.create({
           data: {
             nome: dto.nome,
@@ -153,22 +155,41 @@ export class ProdutoService {
           });
         }
 
-        return tx.produto.findUnique({
-          where: { id: novoProduto.id },
+        return novoProduto;
+      });
+
+      if (file) {
+        const imagemUrl = await this.produtoImagem.salvar(produtoCriado.id, file);
+
+        const produtoComImagem = await this.prismaWrite.produto.update({
+          where: { id: produtoCriado.id },
+          data: { imagemUrl },
           omit: { createdAt: true, updatedAt: true },
           include: { adicionais: { select: { id: true, nome: true, preco: true } } },
         });
+
+        return { dados: produtoComImagem, mensagem: 'Produto criado com sucesso' };
+      }
+
+      const produtoCompleto = await this.prismaWrite.produto.findUnique({
+        where: { id: produtoCriado.id },
+        omit: { createdAt: true, updatedAt: true },
+        include: { adicionais: { select: { id: true, nome: true, preco: true } } },
       });
 
       return { dados: produtoCompleto, mensagem: 'Produto criado com sucesso' };
     } catch (erro) {
       console.error('Erro na transação de produto:', erro);
 
+      if (erro instanceof BadRequestException) {
+        throw erro;
+      }
+
       throw new InternalServerErrorException('Não foi possível criar o produto. Tente novamente.');
     }
   }
 
-  async editarProduto(id: string, dto: EditarDto) {
+  async editarProduto(id: string, dto: EditarDto, file?: Express.Multer.File) {
     try {
       const dadosUpdate: any = {
         nome: dto.nome,
@@ -212,6 +233,11 @@ export class ProdutoService {
         }
       }
 
+      if (file) {
+        const imagemUrl = await this.produtoImagem.salvar(id, file);
+        dadosUpdate.imagemUrl = imagemUrl;
+      }
+
       const produtoEditadoCompleto = await this.prismaWrite.produto.update({
         where: { id },
         data: dadosUpdate,
@@ -223,6 +249,10 @@ export class ProdutoService {
       return { mensagem: 'Produto editado com sucesso', dados: produtoEditadoCompleto };
     } catch (erro) {
       console.error('Erro na transação de produto:', erro);
+
+      if (erro instanceof BadRequestException) {
+        throw erro;
+      }
 
       if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2025') {
         throw new NotFoundException(
@@ -237,6 +267,7 @@ export class ProdutoService {
   async deletarProduto(id: string) {
     try {
       await this.prismaWrite.produto.delete({ where: { id } });
+      await this.produtoImagem.remover(id);
       return { mensagem: 'Produto deletado com sucesso' };
     } catch (erro) {
       console.log('erro', erro);
