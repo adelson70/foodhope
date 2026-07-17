@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import {
   Button,
@@ -221,6 +221,24 @@ export function Carrinho() {
                 </p>
               ) : null}
             </div>
+
+            <p className="text-center text-caption text-on-surface-variant">
+              Ao finalizar o pedido, você concorda com os{' '}
+              <Link
+                to="/termos"
+                className="text-primary underline-offset-2 hover:underline"
+              >
+                Termos de Uso
+              </Link>{' '}
+              e a{' '}
+              <Link
+                to="/privacidade"
+                className="text-primary underline-offset-2 hover:underline"
+              >
+                Política de Privacidade
+              </Link>
+              .
+            </p>
 
             <Button
               type="submit"

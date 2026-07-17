@@ -11,6 +11,8 @@ import { ConfigCozinha } from '../pages/Painel/Config/ConfigCozinha';
 import { Carrinho } from '../pages/Carrinho';
 import { PedidoConfirmado } from '../pages/PedidoConfirmado';
 import { PedidosCliente } from '../pages/PedidosCliente';
+import { Privacidade } from '../pages/Privacidade';
+import { Termos } from '../pages/Termos';
 import { Login } from '../pages/Login';
 import { Dash } from '../pages/Painel/Dash';
 
@@ -27,6 +29,8 @@ export const router = createBrowserRouter([
       { path: 'pedidos', element: <PedidosCliente /> },
       { path: 'carrinho', element: <Carrinho /> },
       { path: 'confirmado', element: <PedidoConfirmado /> },
+      { path: 'privacidade', element: <Privacidade /> },
+      { path: 'termos', element: <Termos /> },
     ],
   },
   {

@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 
 import { FoodHopeLogo } from '../../components/brand/FoodHopeLogo';
 import { getToken } from '../../services';
@@ -28,6 +28,22 @@ export function Login() {
         </div>
 
         <LoginForm />
+
+        <p className="text-center text-caption text-on-surface-variant">
+          <Link
+            to="/termos"
+            className="text-primary underline-offset-2 hover:underline"
+          >
+            Termos de Uso
+          </Link>
+          {' · '}
+          <Link
+            to="/privacidade"
+            className="text-primary underline-offset-2 hover:underline"
+          >
+            Política de Privacidade
+          </Link>
+        </p>
       </div>
     </main>
   );

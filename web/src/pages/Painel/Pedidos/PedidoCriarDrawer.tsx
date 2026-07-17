@@ -129,6 +129,42 @@ export function PedidoCriarDrawer({
 
   const produtoSelecionado = produtos.find((p) => p.id === produtoSelecionadoId);
 
+  function totalItemDraft(field: {
+    produtoId: string;
+    qtd: number;
+    adicional?: { id: string; qtd: number }[];
+  }) {
+    const produto = produtos.find((p) => p.id === field.produtoId);
+    if (!produto) return 0;
+    const base = Number(produto.preco) * field.qtd;
+    const extras = (field.adicional ?? []).reduce((acc, adic) => {
+      const info = produto.adicionais?.find((a) => a.id === adic.id);
+      return acc + (info ? Number(info.preco) * adic.qtd : 0);
+    }, 0);
+    return base + extras;
+  }
+
+  function nomesAdicionais(field: {
+    produtoId: string;
+    adicional?: { id: string; qtd: number }[];
+  }) {
+    const produto = produtos.find((p) => p.id === field.produtoId);
+    if (!produto || !field.adicional?.length) return [];
+    return field.adicional.map((adic) => {
+      const info = produto.adicionais?.find((a) => a.id === adic.id);
+      return {
+        nome: info?.nome ?? 'Adicional',
+        qtd: adic.qtd,
+        preco: info ? Number(info.preco) * adic.qtd : 0,
+      };
+    });
+  }
+
+  const total = useMemo(
+    () => fields.reduce((soma, field) => soma + totalItemDraft(field), 0),
+    [fields, produtos],
+  );
+
   function toggleAdicional(adicionalId: string) {
     setAdicionaisDraft((atual) => {
       const existe = atual.find((a) => a.id === adicionalId);
@@ -205,16 +241,26 @@ export function PedidoCriarDrawer({
       title="Novo pedido"
       onClose={onClose}
       footer={
-        <Button
-          type="submit"
-          form="form-criar-pedido"
-          variant="primary"
-          fullWidth
-          disabled={isSubmitting || fields.length === 0}
-          className="py-4"
-        >
-          {isSubmitting ? 'Criando…' : 'Criar pedido'}
-        </Button>
+        <div className="flex flex-col gap-3">
+          {fields.length > 0 ? (
+            <div className="flex items-center justify-between rounded-xl border border-operator-border bg-operator-card px-4 py-3">
+              <span className="text-subtitle-md text-on-surface">Total</span>
+              <span className="text-title-md text-primary">
+                {formatarMoeda(total)}
+              </span>
+            </div>
+          ) : null}
+          <Button
+            type="submit"
+            form="form-criar-pedido"
+            variant="primary"
+            fullWidth
+            disabled={isSubmitting || fields.length === 0}
+            className="py-4"
+          >
+            {isSubmitting ? 'Criando…' : 'Criar pedido'}
+          </Button>
+        </div>
       }
     >
       <form
@@ -467,37 +513,57 @@ export function PedidoCriarDrawer({
             </p>
           ) : (
             <ul className="flex flex-col gap-2">
-              {fields.map((field, index) => (
-                <li
-                  key={field.id}
-                  className="flex items-start justify-between gap-3 rounded-xl border border-operator-border bg-operator-card px-3 py-3"
-                >
-                  <div className="min-w-0">
-                    <p className="text-body-md text-on-surface">
-                      {field.qtd}× {nomeProduto(field.produtoId)}
-                    </p>
-                    {field.adicional && field.adicional.length > 0 ? (
-                      <p className="text-caption text-on-surface-variant">
-                        {field.adicional.length} adicional(is)
-                      </p>
-                    ) : null}
-                    {field.observacao ? (
-                      <p className="text-caption text-on-surface-variant">
-                        {field.observacao}
-                      </p>
-                    ) : null}
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="size-10 shrink-0 px-0 py-0 text-danger hover:bg-danger/10"
-                    aria-label="Remover item"
-                    onClick={() => remove(index)}
+              {fields.map((field, index) => {
+                const adicionais = nomesAdicionais(field);
+                return (
+                  <li
+                    key={field.id}
+                    className="rounded-xl border border-operator-border bg-operator-card px-3 py-3"
                   >
-                    <Trash2 size={18} strokeWidth={1.75} />
-                  </Button>
-                </li>
-              ))}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-body-md text-on-surface">
+                            {field.qtd}× {nomeProduto(field.produtoId)}
+                          </p>
+                          <p className="shrink-0 text-body-md font-medium text-primary">
+                            {formatarMoeda(totalItemDraft(field))}
+                          </p>
+                        </div>
+                        {adicionais.length > 0 ? (
+                          <ul className="mt-1 flex flex-col gap-0.5">
+                            {adicionais.map((adic, adicIndex) => (
+                              <li
+                                key={`${field.id}-adic-${adicIndex}`}
+                                className="text-caption text-on-surface-variant"
+                              >
+                                + {adic.qtd}× {adic.nome}
+                                {adic.preco > 0
+                                  ? ` (${formatarMoeda(adic.preco)})`
+                                  : ''}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                        {field.observacao ? (
+                          <p className="mt-1 text-caption text-on-surface-variant">
+                            Obs.: {field.observacao}
+                          </p>
+                        ) : null}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="size-10 shrink-0 px-0 py-0 text-danger hover:bg-danger/10"
+                        aria-label="Remover item"
+                        onClick={() => remove(index)}
+                      >
+                        <Trash2 size={18} strokeWidth={1.75} />
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
