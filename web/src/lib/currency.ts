@@ -27,3 +27,10 @@ export function formatBrlFromCents(cents: number): string {
 export function formatBrlFromNumber(value: number): string {
   return formatBrlFromCents(numberToCents(value));
 }
+
+export function formatarMoeda(valor: number): string {
+  return valor.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  });
+}

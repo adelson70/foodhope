@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ConfirmDialog } from '../../../components/ui';
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { useDeferredLoading } from '../../../hooks/useDeferredLoading';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import {
@@ -15,11 +16,10 @@ import { PedidosLista } from './PedidosLista';
 import { PedidosSearch } from './PedidosSearch';
 
 const LISTAR_LIMIT = 20;
-const BUSCA_DEBOUNCE_MS = 300;
 
 export function Pedidos() {
   const [buscaInput, setBuscaInput] = useState('');
-  const [busca, setBusca] = useState('');
+  const busca = useDebouncedValue(buscaInput.trim());
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -33,13 +33,6 @@ export function Pedidos() {
   const buscaRef = useRef(busca);
   buscaRef.current = busca;
   const nextCursorRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setBusca(buscaInput.trim());
-    }, BUSCA_DEBOUNCE_MS);
-    return () => window.clearTimeout(timer);
-  }, [buscaInput]);
 
   const carregar = useCallback(async (termo: string) => {
     setLoading(true);

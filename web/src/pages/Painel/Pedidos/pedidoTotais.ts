@@ -1,11 +1,7 @@
 import type { Pedido, PedidoItem } from '../../../services/types';
+import { formatarMoeda } from '../../../lib/currency';
 
-export function formatarMoeda(valor: number): string {
-  return valor.toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  });
-}
+export { formatarMoeda };
 
 export function totalItem(item: PedidoItem): number {
   const base = Number(item.preco_produto) * item.quantidade;
@@ -19,6 +15,7 @@ export function totalItem(item: PedidoItem): number {
 export function totalPedido(pedido: Pedido): number {
   return (pedido.itens ?? []).reduce((soma, item) => soma + totalItem(item), 0);
 }
+
 
 export function formatarDataPedido(iso?: string): string {
   if (!iso) return '—';

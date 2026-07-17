@@ -33,16 +33,12 @@ export class ProdutoController {
   constructor(private readonly produto: ProdutoService) {}
 
   @Get()
-  @UseGuards(JwtGuard)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Listagem de Produto' })
   async listar(@Query() dto: ListarDto) {
     return this.produto.listarProduto(dto);
   }
 
   @Get(':params')
-  @UseGuards(JwtGuard)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Buscar Produto' })
   async buscar(@Param('params') params: string) {
     return this.produto.buscarProduto(params);
