@@ -18,7 +18,7 @@ export function LegalDocLayout({
   const navigate = useNavigate();
 
   return (
-    <div className="flex flex-col gap-4 p-4 pb-28">
+    <div className="flex flex-col gap-4 p-4">
       <button
         type="button"
         onClick={() => navigate(-1)}

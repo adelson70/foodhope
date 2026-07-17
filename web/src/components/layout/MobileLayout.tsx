@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 
 import { useHideOnScrollDown } from '../../hooks/useHideOnScrollDown';
 import { useScrollFocusedIntoView } from '../../hooks/useScrollFocusedIntoView';
+import { cn } from '../../lib/cn';
 import { markScrollRoot } from '../../lib/scrollLock';
 import { useCarrinhoStore } from '../../stores/carrinho.store';
 import { ensureVisitor } from '../../services/visitor';
@@ -10,10 +11,17 @@ import { Button } from '../ui';
 import { FoodHopeLogo } from '../brand/FoodHopeLogo';
 import { ClienteBottomNav } from './ClienteBottomNav';
 
-const MAIN_PB =
+function isLegalDoc(pathname: string) {
+  return pathname === '/termos' || pathname === '/privacidade';
+}
+
+const MAIN_PB_NAV =
   'pb-[max(7rem,calc(7rem+env(safe-area-inset-bottom)))]';
+const MAIN_PB_PLAIN =
+  'pb-[max(1.5rem,calc(1.5rem+env(safe-area-inset-bottom)))]';
 
 export function MobileAppLayout() {
+  const { pathname } = useLocation();
   const hydrate = useCarrinhoStore((state) => state.hydrate);
   const [visitorReady, setVisitorReady] = useState(false);
   const [visitorErro, setVisitorErro] = useState<string | null>(null);
@@ -21,6 +29,7 @@ export function MobileAppLayout() {
   const mainRef = useRef<HTMLElement>(null);
   const navHidden = useHideOnScrollDown(mainRef);
   useScrollFocusedIntoView(mainRef);
+  const semBottomNav = isLegalDoc(pathname);
 
   useEffect(() => {
     markScrollRoot(mainRef.current);
@@ -80,7 +89,10 @@ export function MobileAppLayout() {
         <main
           ref={mainRef}
           data-scroll-root=""
-          className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain ${MAIN_PB}`}
+          className={cn(
+            'min-h-0 flex-1 overflow-y-auto overscroll-y-contain',
+            semBottomNav ? MAIN_PB_PLAIN : MAIN_PB_NAV,
+          )}
         >
           {visitorErro ? (
             <div className="flex flex-col gap-3 p-4">
@@ -104,7 +116,9 @@ export function MobileAppLayout() {
             </div>
           )}
         </main>
-        {visitorReady ? <ClienteBottomNav hidden={navHidden} /> : null}
+        {visitorReady && !semBottomNav ? (
+          <ClienteBottomNav hidden={navHidden} />
+        ) : null}
       </div>
     </div>
   );
