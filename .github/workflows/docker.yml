@@ -91,6 +91,15 @@ jobs:
           fi
           echo "value=$url" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve VITE_SITE_URL
+        id: site
+        run: |
+          url="${{ vars.VITE_SITE_URL }}"
+          if [ -z "$url" ]; then
+            url="https://foodhope.abjr.dev"
+          fi
+          echo "value=$url" >> "$GITHUB_OUTPUT"
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
@@ -101,5 +110,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             VITE_API_URL=${{ steps.vite.outputs.value }}
+            VITE_SITE_URL=${{ steps.site.outputs.value }}
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web

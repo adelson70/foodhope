@@ -9,7 +9,9 @@ COPY index.html vite.config.ts tsconfig.json tsconfig.app.json tsconfig.node.jso
 COPY public ./public
 COPY src ./src
 ARG VITE_API_URL
+ARG VITE_SITE_URL
 ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_SITE_URL=$VITE_SITE_URL
 RUN npx vite build
 
 FROM nginx:1.27-alpine AS runner

@@ -65,6 +65,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL}
+        VITE_SITE_URL: ${VITE_SITE_URL}
     image: foodhope-web:local
     container_name: foodhope-web
     restart: unless-stopped
