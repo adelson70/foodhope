@@ -6,18 +6,15 @@ import { formatarMoeda } from '../../lib/currency';
 import { urlImagemProduto } from '../../lib/produtoImagem';
 import type { Produto } from '../../services/types';
 import { useCarrinhoStore } from '../../stores/carrinho.store';
+import {
+  HomeProdutoAdicionais,
+  type AdicionalDraft,
+} from './HomeProdutoAdicionais';
 
 type HomeProdutoDrawerProps = {
   produto: Produto | null;
   open: boolean;
   onClose: () => void;
-};
-
-type AdicionalDraft = {
-  id: string;
-  nome: string;
-  preco: number;
-  qtd: number;
 };
 
 export function HomeProdutoDrawer({
@@ -61,16 +58,13 @@ export function HomeProdutoDrawer({
     onClose();
   }
 
-  function toggleAdicional(adicional: {
+  function addAdicional(adicional: {
     id: string;
     nome: string;
     preco: string | number;
   }) {
     setAdicionais((atual) => {
-      const existe = atual.find((item) => item.id === adicional.id);
-      if (existe) {
-        return atual.filter((item) => item.id !== adicional.id);
-      }
+      if (atual.some((item) => item.id === adicional.id)) return atual;
       return [
         ...atual,
         {
@@ -170,66 +164,12 @@ export function HomeProdutoDrawer({
             </div>
           </div>
 
-          {adicionaisDisponiveis.length > 0 ? (
-            <div className="flex flex-col gap-2">
-              <p className="text-subtitle-md text-on-surface">Adicionais</p>
-              <ul className="flex flex-col gap-2">
-                {adicionaisDisponiveis.map((adicional) => {
-                  const draft = adicionais.find((item) => item.id === adicional.id);
-                  const ativo = Boolean(draft);
-                  return (
-                    <li
-                      key={adicional.id}
-                      className="rounded-xl border border-operator-border bg-operator-card p-3"
-                    >
-                      <button
-                        type="button"
-                        className="flex w-full items-center justify-between gap-2 text-left"
-                        onClick={() => toggleAdicional(adicional)}
-                      >
-                        <span className="text-body-md text-on-surface">
-                          {adicional.nome}
-                        </span>
-                        <span className="text-caption text-on-surface-variant">
-                          {formatarMoeda(Number(adicional.preco))}
-                          {ativo ? ' · ativo' : ''}
-                        </span>
-                      </button>
-                      {draft ? (
-                        <div className="mt-2 flex items-center justify-end gap-2">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            className="size-9 px-0 py-0"
-                            aria-label={`Diminuir ${adicional.nome}`}
-                            onClick={() =>
-                              setAdicionalQtd(adicional.id, draft.qtd - 1)
-                            }
-                          >
-                            <Minus size={16} />
-                          </Button>
-                          <span className="min-w-6 text-center text-caption text-on-surface">
-                            {draft.qtd}
-                          </span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            className="size-9 px-0 py-0"
-                            aria-label={`Aumentar ${adicional.nome}`}
-                            onClick={() =>
-                              setAdicionalQtd(adicional.id, draft.qtd + 1)
-                            }
-                          >
-                            <Plus size={16} />
-                          </Button>
-                        </div>
-                      ) : null}
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ) : null}
+          <HomeProdutoAdicionais
+            disponiveis={adicionaisDisponiveis}
+            selecionados={adicionais}
+            onAdd={addAdicional}
+            onChangeQtd={setAdicionalQtd}
+          />
 
           <div className="flex flex-col gap-2">
             <label

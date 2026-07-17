@@ -78,21 +78,24 @@ export function Carrinho() {
       contato: onlyDigits(values.contato),
     };
 
-    const response = await pedidoService.criar({
-      cliente,
-      itens: itens.map((item) => ({
-        id: item.produtoId,
-        qtd: item.qtd,
-        adicional:
-          item.adicionais.length > 0
-            ? item.adicionais.map((adic) => ({
-                id: adic.id,
-                qtd: adic.qtd,
-              }))
-            : undefined,
-        observacao: item.observacao,
-      })),
-    });
+    const response = await pedidoService.criar(
+      {
+        cliente,
+        itens: itens.map((item) => ({
+          id: item.produtoId,
+          qtd: item.qtd,
+          adicional:
+            item.adicionais.length > 0
+              ? item.adicionais.map((adic) => ({
+                  id: adic.id,
+                  qtd: adic.qtd,
+                }))
+              : undefined,
+          observacao: item.observacao,
+        })),
+      },
+      { silentSuccess: true },
+    );
 
     if (!response.sucesso || !response.dados?.pedido) return;
 

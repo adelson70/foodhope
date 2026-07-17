@@ -1,7 +1,7 @@
-import { Check } from 'lucide-react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 
 import { Button } from '../../components/ui';
+import { PedidoConfirmadoCheck } from './PedidoConfirmadoCheck';
 
 type ConfirmadoLocationState = {
   numero?: string;
@@ -18,9 +18,7 @@ export function PedidoConfirmado() {
 
   return (
     <div className="flex flex-col items-center gap-6 p-6 text-center">
-      <div className="flex size-20 items-center justify-center rounded-full bg-success/15 text-success">
-        <Check size={40} strokeWidth={2.25} aria-hidden />
-      </div>
+      <PedidoConfirmadoCheck />
 
       <div className="flex flex-col gap-2">
         <h2 className="text-headline-lg-mobile text-on-surface">

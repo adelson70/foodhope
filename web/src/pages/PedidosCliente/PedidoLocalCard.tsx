@@ -14,12 +14,25 @@ function formatarData(iso: string): string {
   });
 }
 
+function tituloItens(pedido: PedidoLocal): string {
+  const nomes = pedido.itens.map((item) =>
+    item.qtd > 1 ? `${item.qtd}× ${item.nome}` : item.nome,
+  );
+  if (nomes.length <= 2) return nomes.join(', ');
+  return `${nomes.slice(0, 2).join(', ')} +${nomes.length - 2}`;
+}
+
+function resumoObservacoes(pedido: PedidoLocal): string | null {
+  const obs = pedido.itens
+    .map((item) => item.observacao?.trim())
+    .filter((valor): valor is string => Boolean(valor));
+  if (obs.length === 0) return null;
+  return obs.join(' · ');
+}
+
 export function PedidoLocalCard({ pedido, onSelect }: PedidoLocalCardProps) {
-  const resumo = pedido.itens
-    .slice(0, 2)
-    .map((item) => `${item.qtd}× ${item.nome}`)
-    .join(', ');
-  const restantes = pedido.itens.length - Math.min(pedido.itens.length, 2);
+  const titulo = tituloItens(pedido);
+  const observacao = resumoObservacoes(pedido);
 
   return (
     <button
@@ -36,12 +49,11 @@ export function PedidoLocalCard({ pedido, onSelect }: PedidoLocalCardProps) {
         </span>
       </div>
       <p className="mt-1 truncate text-subtitle-md text-on-surface">
-        {pedido.nome_completo}
+        {titulo || 'Pedido'}
       </p>
-      {resumo ? (
-        <p className="mt-1 text-caption text-on-surface-variant">
-          {resumo}
-          {restantes > 0 ? ` +${restantes}` : ''}
+      {observacao ? (
+        <p className="mt-1 truncate text-caption text-on-surface-variant">
+          {observacao}
         </p>
       ) : null}
     </button>

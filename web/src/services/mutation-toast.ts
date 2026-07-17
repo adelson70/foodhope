@@ -4,7 +4,7 @@ import { notifyError, notifyMessages } from './notify';
 import type { ApiErrorBody, ApiResponse } from './types';
 
 type MutationToastFallbacks = {
-  success?: string;
+  success?: string | false;
   error?: string;
 };
 
@@ -16,17 +16,14 @@ export async function withMutationToast<T>(
 ): Promise<ApiResponse<T>> {
   try {
     const response = await action();
-    const tone = response.sucesso ? 'success' : 'error';
-
-    notifyMessages(
-      tone,
-      response.mensagens,
-      response.sucesso
-        ? (fallbacks.success ?? 'Operação realizada com sucesso')
-        : (fallbacks.error ?? 'Não foi possível concluir a operação.'),
-    );
 
     if (!response.sucesso) {
+      notifyMessages(
+        'error',
+        response.mensagens,
+        fallbacks.error ?? 'Não foi possível concluir a operação.',
+      );
+
       const error: ToastNotifiedError = new Error(
         response.mensagens.find((item) => item.trim().length > 0) ??
           fallbacks.error ??
@@ -34,6 +31,14 @@ export async function withMutationToast<T>(
       );
       error.__toastNotified = true;
       throw error;
+    }
+
+    if (fallbacks.success !== false) {
+      notifyMessages(
+        'success',
+        response.mensagens,
+        fallbacks.success ?? 'Operação realizada com sucesso',
+      );
     }
 
     return response;

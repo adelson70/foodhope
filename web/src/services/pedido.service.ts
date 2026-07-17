@@ -13,6 +13,10 @@ export type ListarPedidosParams = {
   limit?: number;
 };
 
+export type CriarPedidoOptions = {
+  silentSuccess?: boolean;
+};
+
 export const pedidoService = {
   async listar(
     params: ListarPedidosParams = {},
@@ -30,12 +34,17 @@ export const pedidoService = {
     );
   },
 
-  async criar(input: CriarPedidoInput): Promise<ApiResponse<CriarPedidoDados>> {
+  async criar(
+    input: CriarPedidoInput,
+    options: CriarPedidoOptions = {},
+  ): Promise<ApiResponse<CriarPedidoDados>> {
     return withMutationToast(
       () =>
         request(api.post<ApiResponse<CriarPedidoDados>>('/pedido', input)),
       {
-        success: 'Pedido criado com sucesso',
+        success: options.silentSuccess
+          ? false
+          : 'Pedido criado com sucesso',
         error: 'Não foi possível criar o pedido',
       },
     );
