@@ -1,7 +1,10 @@
 import { z } from 'zod';
 
 const adicionalSchema = z.object({
-  id: z.string().optional(),
+  id: z
+    .union([z.string(), z.literal('')])
+    .optional()
+    .transform((value) => (value && value.trim() !== '' ? value : undefined)),
   nome: z.string().min(1, 'Informe o nome do adicional'),
   preco: z.coerce
     .number({ error: 'Informe o preço do adicional' })
@@ -25,4 +28,13 @@ export const produtoSchema = z.object({
   adicionais: z.array(adicionalSchema).default([]),
 });
 
-export type ProdutoFormValues = z.infer<typeof produtoSchema>;
+export type ProdutoFormValues = {
+  nome: string;
+  descricao: string;
+  preco: number;
+  adicionais: Array<{
+    id?: string;
+    nome: string;
+    preco: number;
+  }>;
+};

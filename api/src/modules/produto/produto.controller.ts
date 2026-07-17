@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -47,39 +48,50 @@ export class ProdutoController {
 
   @Post()
   @ApiBearerAuth()
+  @ApiOperation({ summary: 'Criação de Produto (JSON)' })
+  async criar(@Body() dto: CriarDto) {
+    return this.produto.criarProduto(dto);
+  }
+
+  @Put(':id/imagem')
+  @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ type: CriarDto })
-  @ApiOperation({ summary: 'Criação de Produto' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['imagem'],
+      properties: {
+        imagem: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @ApiOperation({ summary: 'Upload/substituição da imagem do produto' })
   @UseInterceptors(FileInterceptor('imagem', produtoImagemUploadOptions))
-  async criar(
-    @Body() dto: CriarDto,
+  async editarImagem(
+    @Param('id') id: string,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.produto.criarProduto(dto, file);
+    if (!file) {
+      throw new BadRequestException('Envie uma imagem no campo "imagem".');
+    }
+    return this.produto.editarImagemProduto(id, file);
   }
 
   @Put(':id')
   @ApiBearerAuth()
-  @ApiConsumes('multipart/form-data')
   @ApiBody({ type: EditarProdutoDto })
-  @ApiOperation({ summary: 'Edição de Produto' })
-  @UseInterceptors(FileInterceptor('imagem', produtoImagemUploadOptions))
-  async editar(
-    @Param('id') id: string,
-    @Body() dto: EditarProdutoDto,
-    @UploadedFile() file?: Express.Multer.File,
-  ) {
+  @ApiOperation({ summary: 'Edição de Produto (JSON)' })
+  async editar(@Param('id') id: string, @Body() dto: EditarProdutoDto) {
     if (
       !dto.nome &&
       !dto.descricao &&
       dto.preco === undefined &&
-      (!dto.adicionais || dto.adicionais.length === 0) &&
-      !file
+      (!dto.adicionais || dto.adicionais.length === 0)
     ) {
       return { mensagem: 'Nada para editar :)' };
     }
 
-    return this.produto.editarProduto(id, dto, file);
+    return this.produto.editarProduto(id, dto);
   }
 
   @Delete(':id')

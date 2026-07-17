@@ -1,12 +1,12 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import {
   IsArray,
   IsNumber,
   IsOptional,
   ValidateNested,
 } from 'class-validator';
-import { AdicionalEditarDto } from './adicional.dto.js';
 import { Type } from 'class-transformer';
+import { AdicionalEditarDto } from './adicional.dto.js';
 
 export class EditarProdutoDto {
   @ApiProperty({ example: 'X Salada', description: 'Nome do produto', required: false })
@@ -23,11 +23,13 @@ export class EditarProdutoDto {
 
   @ApiProperty({ example: 150.55, description: 'Preço do produto', required: false })
   @IsOptional()
+  @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   preco?: number;
 
   @ApiProperty({
-    description: 'Lista de adicionais (Se enviar, o ID de cada um é obrigatório)',
+    description:
+      'Lista de alterações de adicionais (criar sem id, editar/deletar com id)',
     type: [AdicionalEditarDto],
     required: false,
   })
@@ -36,12 +38,4 @@ export class EditarProdutoDto {
   @ValidateNested({ each: true })
   @Type(() => AdicionalEditarDto)
   adicionais?: AdicionalEditarDto[];
-
-  @ApiPropertyOptional({
-    type: 'string',
-    format: 'binary',
-    description: 'Imagem opcional do produto',
-  })
-  @IsOptional()
-  imagem?: Express.Multer.File;
 }

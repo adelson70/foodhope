@@ -1,4 +1,3 @@
-import { Optional } from '@nestjs/common';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
@@ -27,13 +26,15 @@ export class CriarDto {
   @ApiProperty({
     description: 'Descrição do Produto',
     example: '2 hamburguers no meio do pão',
+    required: false,
   })
+  @IsOptional()
   @IsString()
-  @Optional()
   @MinLength(10)
-  descricao: string;
+  descricao?: string;
 
   @ApiProperty({ example: 150.55, description: 'Preço do produto (Máximo 10,2)' })
+  @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 }, { message: 'O valor deve ter no máximo 2 casas decimais' })
   @Max(99999999.99, { message: 'O valor excede o limite permitido' })
   @Min(0)
@@ -49,12 +50,4 @@ export class CriarDto {
   @ValidateNested({ each: true })
   @Type(() => AdicionalDto)
   adicionais?: AdicionalDto[];
-
-  @ApiPropertyOptional({
-    type: 'string',
-    format: 'binary',
-    description: 'Imagem opcional do produto',
-  })
-  @IsOptional()
-  imagem?: Express.Multer.File;
 }

@@ -137,7 +137,7 @@ export class ProdutoService {
     }
   }
 
-  async criarProduto(dto: CriarDto, file?: Express.Multer.File) {
+  async criarProduto(dto: CriarDto) {
     try {
       const temAdicionais = dto.adicionais && dto.adicionais.length > 0;
 
@@ -165,19 +165,6 @@ export class ProdutoService {
         return novoProduto;
       });
 
-      if (file) {
-        const imagemUrl = await this.produtoImagem.salvar(produtoCriado.id, file);
-
-        const produtoComImagem = await this.prismaWrite.produto.update({
-          where: { id: produtoCriado.id },
-          data: { imagemUrl },
-          omit: { createdAt: true, updatedAt: true },
-          include: { adicionais: { select: { id: true, nome: true, preco: true } } },
-        });
-
-        return { dados: produtoComImagem, mensagem: 'Produto criado com sucesso' };
-      }
-
       const produtoCompleto = await this.prismaWrite.produto.findUnique({
         where: { id: produtoCriado.id },
         omit: { createdAt: true, updatedAt: true },
@@ -196,13 +183,15 @@ export class ProdutoService {
     }
   }
 
-  async editarProduto(id: string, dto: EditarProdutoDto, file?: Express.Multer.File) {
+  async editarProduto(id: string, dto: EditarProdutoDto) {
     try {
-      const dadosUpdate: any = {
-        nome: dto.nome,
-        descricao: dto.descricao,
-        preco: dto.preco,
-      };
+      const dadosUpdate: Record<string, unknown> = {};
+
+      if (dto.nome !== undefined) dadosUpdate.nome = dto.nome;
+      if (dto.descricao !== undefined) {
+        dadosUpdate.descricao = dto.descricao.trim() === '' ? null : dto.descricao;
+      }
+      if (dto.preco !== undefined) dadosUpdate.preco = dto.preco;
 
       if (dto.adicionais && dto.adicionais.length > 0) {
         const deletados = dto.adicionais.filter((a) => a.foiDeletado && a.id);
@@ -213,36 +202,37 @@ export class ProdutoService {
 
         const novos = dto.adicionais.filter((a) => !a.foiDeletado && !a.id);
 
-        dadosUpdate.adicionais = {};
+        const adicionaisUpdate: {
+          delete?: { id: string }[];
+          update?: { where: { id: string }; data: { nome?: string; preco?: number } }[];
+          create?: { nome: string; preco: number }[];
+        } = {};
 
         if (deletados.length > 0) {
-          dadosUpdate.adicionais.delete = deletados.map((a) => ({ id: a.id }));
+          adicionaisUpdate.delete = deletados.map((a) => ({ id: a.id! }));
         }
 
         if (editados.length > 0) {
-          dadosUpdate.adicionais.update = editados.map((a) => {
-            const dadosParaAtualizar: any = {};
+          adicionaisUpdate.update = editados.map((a) => {
+            const dadosParaAtualizar: { nome?: string; preco?: number } = {};
             if (a.nome !== undefined) dadosParaAtualizar.nome = a.nome;
             if (a.preco !== undefined) dadosParaAtualizar.preco = a.preco;
 
             return {
-              where: { id: a.id },
+              where: { id: a.id! },
               data: dadosParaAtualizar,
             };
           });
         }
 
         if (novos.length > 0) {
-          dadosUpdate.adicionais.create = novos.map((a) => ({
+          adicionaisUpdate.create = novos.map((a) => ({
             nome: a.nome!,
             preco: a.preco!,
           }));
         }
-      }
 
-      if (file) {
-        const imagemUrl = await this.produtoImagem.salvar(id, file);
-        dadosUpdate.imagemUrl = imagemUrl;
+        dadosUpdate.adicionais = adicionaisUpdate;
       }
 
       const produtoEditadoCompleto = await this.prismaWrite.produto.update({
@@ -268,6 +258,36 @@ export class ProdutoService {
       }
 
       throw new InternalServerErrorException('Não foi possível editar o produto. Tente novamente.');
+    }
+  }
+
+  async editarImagemProduto(id: string, file: Express.Multer.File) {
+    try {
+      await this.prismaWrite.produto.findUniqueOrThrow({ where: { id } });
+
+      const imagemUrl = await this.produtoImagem.salvar(id, file);
+
+      const produto = await this.prismaWrite.produto.update({
+        where: { id },
+        data: { imagemUrl },
+        include: { adicionais: true },
+      });
+
+      return { mensagem: 'Imagem do produto atualizada com sucesso', dados: produto };
+    } catch (erro) {
+      console.error('Erro ao editar imagem do produto:', erro);
+
+      if (erro instanceof BadRequestException) {
+        throw erro;
+      }
+
+      if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2025') {
+        throw new NotFoundException('Produto não encontrado.');
+      }
+
+      throw new InternalServerErrorException(
+        'Não foi possível atualizar a imagem do produto. Tente novamente.',
+      );
     }
   }
 

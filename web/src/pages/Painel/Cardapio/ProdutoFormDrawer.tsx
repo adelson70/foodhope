@@ -49,13 +49,20 @@ function valoresIniciais(produto: Produto | null): ProdutoFormValues {
   };
 }
 
+function idAdicionalValido(
+  id: string | undefined,
+): id is string {
+  return Boolean(id && id.trim());
+}
+
 function montarAdicionaisEdicao(
   atuais: ProdutoFormValues['adicionais'],
   originais: { id: string; nome: string; preco: number }[],
 ): AdicionalEditarInput[] {
   const payload: AdicionalEditarInput[] = [];
+  const idsOriginais = new Set(originais.map((item) => item.id));
   const idsAtuais = new Set(
-    atuais.map((item) => item.id).filter((id): id is string => Boolean(id)),
+    atuais.map((item) => item.id).filter(idAdicionalValido),
   );
 
   for (const original of originais) {
@@ -65,18 +72,20 @@ function montarAdicionaisEdicao(
   }
 
   for (const item of atuais) {
-    if (!item.id) {
-      payload.push({ nome: item.nome, preco: item.preco });
+    const id = idAdicionalValido(item.id) ? item.id : undefined;
+    const nome = item.nome.trim();
+
+    if (!id || !idsOriginais.has(id)) {
+      payload.push({ nome, preco: item.preco });
       continue;
     }
 
-    const original = originais.find((o) => o.id === item.id);
+    const original = originais.find((o) => o.id === id);
     if (
-      !original ||
-      original.nome !== item.nome ||
-      original.preco !== item.preco
+      original &&
+      (original.nome !== nome || original.preco !== item.preco)
     ) {
-      payload.push({ id: item.id, nome: item.nome, preco: item.preco });
+      payload.push({ id, nome, preco: item.preco });
     }
   }
 
@@ -149,13 +158,18 @@ export function ProdutoFormDrawer({
     const descricao =
       values.descricao.trim().length > 0 ? values.descricao.trim() : undefined;
 
+    const adicionaisAtuais = values.adicionais.filter((_, index) => {
+      const fieldId = fields[index]?.id;
+      return !fieldId || !adicionaisSaindo.has(fieldId);
+    });
+
     try {
       if (!produto) {
         const response = await produtoService.criar({
           nome: values.nome.trim(),
           descricao,
           preco: values.preco,
-          adicionais: values.adicionais.map((item) => ({
+          adicionais: adicionaisAtuais.map((item) => ({
             nome: item.nome.trim(),
             preco: item.preco,
           })),
@@ -173,7 +187,7 @@ export function ProdutoFormDrawer({
         nome: item.nome,
         preco: Number(item.preco),
       }));
-      const adicionais = montarAdicionaisEdicao(values.adicionais, originais);
+      const adicionais = montarAdicionaisEdicao(adicionaisAtuais, originais);
 
       const response = await produtoService.editar(produto.id, {
         nome: values.nome.trim(),
@@ -326,10 +340,6 @@ export function ProdutoFormDrawer({
                       if (entrando) setAnimarPrimeiroAdicional(false);
                     }}
                   >
-                    <input
-                      type="hidden"
-                      {...register(`adicionais.${index}.id`)}
-                    />
                     <div className="flex flex-col gap-3">
                       <div className="space-y-2">
                         <Label htmlFor={`adicional-nome-${index}`}>Nome</Label>
