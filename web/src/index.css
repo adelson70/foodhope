@@ -1,0 +1,95 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+/* Importa o motor do Tailwind v4 */
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", sans-serif;
+
+  --color-primary-100: #F6EDD0;
+  --color-primary-200: #EDDBA1;
+  --color-primary-300: #E4C972;
+  --color-primary-400: #DBB743;
+  --color-primary-500: #D4AF37;
+  --color-primary-600: #B2932E;
+  --color-primary-700: #8F7625;
+  --color-primary-800: #6D5A1C;
+  --color-primary-900: #4A3D13;
+
+  --color-secondary-100: #434343;
+  --color-secondary-200: #363636;
+  --color-secondary-300: #292929;
+  --color-secondary-400: #1c1c1c;
+  --color-secondary-500: #151515;
+  --color-secondary-600: #121212;
+  --color-secondary-700: #0f0f0f;
+  --color-secondary-800: #0a0a0a;
+  --color-secondary-900: #050505;
+
+  --color-neutral-100: #e5e4e1;
+  --color-neutral-300: #bcb8b1;
+  --color-neutral-500: #7C766B; 
+  --color-neutral-700: #4a4740;
+  --color-neutral-900: #191815;
+
+  --color-tertiary-100: #eaf0ff;
+  --color-tertiary-300: #c2d2ff;
+  --color-tertiary-500: #97B0FF;
+  --color-tertiary-700: #5b7acc;
+  --color-tertiary-900: #1e2333;
+
+  --shadow-card: 0 4px 24px -4px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 15px rgba(212, 175, 55, 0.3);
+}
+
+@utility text-headline {
+  font-family: var(--font-sans);
+  font-size: 1.5rem; /* 24px */
+  line-height: 2rem;
+  font-weight: 700; /* Bold */
+  letter-spacing: -0.02em;
+}
+
+@utility text-body {
+  font-family: var(--font-sans);
+  font-size: 1rem; /* 16px */
+  line-height: 1.5rem;
+  font-weight: 500; /* Medium */
+}
+
+@utility text-label {
+  font-family: var(--font-sans);
+  font-size: 0.75rem; /* 12px */
+  line-height: 1rem;
+  font-weight: 600; /* Semi-bold */
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+@layer base {
+  body {
+    @apply bg-secondary-900 text-white antialiased;
+  }
+
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  *::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+    background: transparent;
+  }
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
