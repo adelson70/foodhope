@@ -1,21 +1,23 @@
-import { Outlet, Link } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
+
+import { PainelBottomNav } from './PainelBottomNav';
 
 export function PainelLayout() {
   return (
-    <div className="flex flex-col min-h-screen bg-secondary-900 text-white">
-      <header className="bg-secondary-500 p-4 shadow-md flex justify-between items-center">
-        <h1 className="text-headline text-primary-500">Painel Food Hope</h1>
-        <nav className="flex gap-4 text-label">
-          <Link to="/painel/dash" className="hover:text-primary-400">Dash</Link>
-          <Link to="/painel/cardapio" className="hover:text-primary-400">Cardápio</Link>
-          <Link to="/painel/pedido" className="hover:text-primary-400">Pedidos</Link>
-          <Link to="/painel/configuracoes" className="hover:text-primary-400">Config</Link>
-        </nav>
-      </header>
+    <div className="flex min-h-screen justify-center bg-operator-bg text-on-surface">
+      <div className="relative flex w-full max-w-md flex-col min-h-screen overflow-hidden bg-operator-bg shadow-2xl">
+        <header className="shrink-0 border-b border-operator-border bg-operator-surface px-4 py-3">
+          <p className="text-label-sm uppercase tracking-widest text-primary-container">
+            Food Hope
+          </p>
+        </header>
 
-      <main className="flex-1 p-6 overflow-y-auto">
-        <Outlet />
-      </main>
+        <main className="flex-1 overflow-y-auto px-4 py-4 pb-4">
+          <Outlet />
+        </main>
+
+        <PainelBottomNav />
+      </div>
     </div>
   );
 }
