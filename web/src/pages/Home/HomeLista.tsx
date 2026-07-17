@@ -6,54 +6,23 @@ import { HomeProdutoCardSkeleton } from './HomeProdutoSkeleton';
 
 type HomeListaProps = {
   produtos: Produto[];
-  loading: boolean;
   loadingMore: boolean;
-  pending: boolean;
   hasNextPage: boolean;
   erro: string | null;
   buscaAtiva: boolean;
   sentinelRef: RefObject<HTMLDivElement | null>;
 };
 
-const SKELETON_COUNT = 4;
 const LOAD_MORE_SKELETON_COUNT = 2;
 
 export function HomeLista({
   produtos,
-  loading,
   loadingMore,
-  pending,
   hasNextPage,
   erro,
   buscaAtiva,
   sentinelRef,
 }: HomeListaProps) {
-  if (loading) {
-    return (
-      <ul
-        className="flex flex-col gap-3"
-        aria-busy="true"
-        aria-label="Carregando cardápio"
-      >
-        {Array.from({ length: SKELETON_COUNT }, (_, index) => (
-          <li key={index}>
-            <HomeProdutoCardSkeleton />
-          </li>
-        ))}
-      </ul>
-    );
-  }
-
-  if (pending) {
-    return (
-      <div
-        className="min-h-40"
-        aria-busy="true"
-        aria-label="Carregando cardápio"
-      />
-    );
-  }
-
   if (erro) {
     return (
       <div className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-caption text-danger">

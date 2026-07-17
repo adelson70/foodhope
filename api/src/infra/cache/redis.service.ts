@@ -44,6 +44,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return this.client.set(key, value);
   }
 
+  async setNx(key: string, value: string, ttl: number): Promise<boolean> {
+    const result = await this.client.set(key, value, 'EX', ttl, 'NX');
+    return result === 'OK';
+  }
+
   async get<T = string>(key: string): Promise<T | null> {
     const value = await this.client.get(key);
 

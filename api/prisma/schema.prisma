@@ -23,6 +23,18 @@ model Operador {
   @@map("operador")
 }
 
+model Visitor {
+  id                 String    @id @default(uuid())
+  publicKey          String    @map("public_key") @db.Text
+  verified           Boolean   @default(false)
+  challenge          String?
+  challengeExpiresAt DateTime? @map("challenge_expires_at")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@map("visitor")
+}
+
 model Lead {
   id            String   @id @default(uuid())
   primeiro_nome String

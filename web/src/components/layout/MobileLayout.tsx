@@ -1,10 +1,44 @@
 import { ShoppingCart } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 
 import { useCarrinhoStore } from '../../stores/carrinho.store';
+import { ensureVisitor } from '../../services/visitor';
 
 export function MobileAppLayout() {
   const totalItens = useCarrinhoStore((state) => state.totalItens);
+  const [visitorReady, setVisitorReady] = useState(false);
+  const [visitorErro, setVisitorErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const baseUrl = (import.meta.env.VITE_API_URL as string | undefined)?.replace(
+      /\/$/,
+      '',
+    );
+
+    if (!baseUrl) {
+      setVisitorErro('API não configurada.');
+      return;
+    }
+
+    ensureVisitor(baseUrl)
+      .then(() => {
+        if (!cancelled) {
+          setVisitorReady(true);
+          setVisitorErro(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setVisitorErro('Não foi possível iniciar a sessão do cardápio.');
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="min-h-screen flex justify-center bg-secondary-900">
@@ -29,7 +63,20 @@ export function MobileAppLayout() {
           </button>
         </header>
         <main className="flex-1 overflow-y-auto">
-          <Outlet />
+          {visitorErro ? (
+            <div className="flex flex-col gap-2 p-4">
+              <p className="text-body-md text-danger">{visitorErro}</p>
+            </div>
+          ) : visitorReady ? (
+            <Outlet />
+          ) : (
+            <div className="flex items-center justify-center p-8">
+              <div
+                className="size-8 animate-pulse rounded-full bg-primary-container/40"
+                aria-label="Iniciando sessão"
+              />
+            </div>
+          )}
         </main>
       </div>
     </div>

@@ -7,6 +7,7 @@ import { getApiErrorMensagens, produtoService } from '../../services';
 import type { Produto } from '../../services/types';
 import { HomeLista } from './HomeLista';
 import { HomeSearch } from './HomeSearch';
+import { HomeSkeleton } from './HomeSkeleton';
 
 const LISTAR_LIMIT = 20;
 
@@ -18,7 +19,8 @@ export function Home() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-  const showSkeleton = useDeferredLoading(loading && produtos.length === 0);
+  const initialPending = loading && produtos.length === 0;
+  const showSkeleton = useDeferredLoading(initialPending);
   const showMoreSkeleton = useDeferredLoading(loadingMore);
   const buscaRef = useRef(busca);
   buscaRef.current = busca;
@@ -101,16 +103,25 @@ export function Home() {
   return (
     <div className="flex flex-col gap-4 p-4">
       <HomeSearch value={buscaInput} onChange={setBuscaInput} />
-      <HomeLista
-        produtos={produtos}
-        loading={showSkeleton}
-        loadingMore={showMoreSkeleton}
-        pending={loading && produtos.length === 0 && !showSkeleton}
-        hasNextPage={hasNextPage && !busca}
-        erro={erro}
-        buscaAtiva={Boolean(busca)}
-        sentinelRef={sentinelRef}
-      />
+
+      {showSkeleton ? (
+        <HomeSkeleton />
+      ) : initialPending ? (
+        <div
+          className="min-h-40"
+          aria-busy="true"
+          aria-label="Carregando cardápio"
+        />
+      ) : (
+        <HomeLista
+          produtos={produtos}
+          loadingMore={showMoreSkeleton}
+          hasNextPage={hasNextPage && !busca}
+          erro={erro}
+          buscaAtiva={Boolean(busca)}
+          sentinelRef={sentinelRef}
+        />
+      )}
     </div>
   );
 }

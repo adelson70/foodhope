@@ -1,7 +1,16 @@
-import axios, { type AxiosError, type AxiosResponse } from 'axios';
+import axios, {
+  type AxiosError,
+  type AxiosResponse,
+  type InternalAxiosRequestConfig,
+} from 'axios';
 
 import { clearToken, getToken } from './cookie';
 import type { ApiErrorBody, ApiResponse } from './types';
+import {
+  clearVisitorSession,
+  pathWithQueryFromUrl,
+  signRequestHeaders,
+} from './visitor';
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
@@ -9,7 +18,31 @@ export const api = axios.create({
   withCredentials: true,
 });
 
-api.interceptors.request.use((config) => {
+function isVisitorBootstrapUrl(url: string | undefined): boolean {
+  if (!url) return false;
+  return (
+    url.includes('/visitor/register') ||
+    url.includes('/visitor/confirm') ||
+    url.includes('/auth/login')
+  );
+}
+
+function bodyForSignature(
+  data: InternalAxiosRequestConfig['data'],
+): ArrayBuffer | string | undefined {
+  if (data == null || data instanceof FormData) {
+    return undefined;
+  }
+  if (typeof data === 'string') {
+    return data;
+  }
+  if (data instanceof ArrayBuffer) {
+    return data;
+  }
+  return JSON.stringify(data);
+}
+
+api.interceptors.request.use(async (config) => {
   const token = getToken();
 
   if (token && config.headers) {
@@ -20,6 +53,22 @@ api.interceptors.request.use((config) => {
     config.headers.delete('Content-Type');
   }
 
+  if (!token && !isVisitorBootstrapUrl(config.url)) {
+    const baseURL = config.baseURL || import.meta.env.VITE_API_URL || '';
+    const fullUri = axios.getUri(config);
+    const pathWithQuery = pathWithQueryFromUrl(fullUri, baseURL);
+    const headers = await signRequestHeaders({
+      apiBaseUrl: baseURL.replace(/\/$/, ''),
+      method: (config.method || 'get').toUpperCase(),
+      pathWithQuery,
+      bodyBytes: bodyForSignature(config.data),
+    });
+
+    Object.entries(headers).forEach(([key, value]) => {
+      config.headers.set(key, value);
+    });
+  }
+
   return config;
 });
 
@@ -27,10 +76,15 @@ api.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiErrorBody>) => {
     if (error.response?.status === 401) {
-      clearToken();
+      const hadToken = Boolean(getToken());
 
-      if (window.location.pathname !== '/') {
-        window.location.href = '/';
+      if (hadToken) {
+        clearToken();
+        if (!window.location.pathname.startsWith('/login')) {
+          window.location.href = '/login';
+        }
+      } else {
+        void clearVisitorSession();
       }
     }
 

@@ -1,5 +1,6 @@
 import { ImpressoraModule } from './modules/impressora/impressora.module.js';
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { ConfigModule } from '@nestjs/config';
@@ -9,8 +10,11 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { ProdutoModule } from './modules/produto/produto.module.js';
 import { PedidoModule } from './modules/pedido/pedido.module.js';
 import { DashModule } from './modules/dash/dash.module.js';
+import { VisitorModule } from './modules/visitor/visitor.module.js';
 import { BullModule } from '@nestjs/bullmq';
 import { WebsocketModule } from './infra/websocket/websocket.module.js';
+import { AuthGuard } from './infra/auth/auth.guard.js';
+import { InfraJwtModule } from './infra/auth/jwt.module.js';
 
 @Module({
   imports: [
@@ -38,13 +42,21 @@ import { WebsocketModule } from './infra/websocket/websocket.module.js';
     WebsocketModule,
     DatabaseModule,
     RedisModule,
+    InfraJwtModule,
     AuthModule,
+    VisitorModule,
     ProdutoModule,
     PedidoModule,
     DashModule,
     ImpressoraModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: AuthGuard,
+    },
+  ],
 })
 export class AppModule {}

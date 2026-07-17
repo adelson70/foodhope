@@ -8,7 +8,6 @@ import {
   Put,
   Query,
   UploadedFile,
-  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -21,7 +20,7 @@ import {
 } from '@nestjs/swagger';
 
 import { ProdutoService } from './produto.service.js';
-import { JwtGuard } from '../../infra/auth/jwt.guard.js';
+import { Auth } from '../../common/decorator/auth-mode.decorator.js';
 import { CriarDto } from './dto/criar.dto.js';
 import { EditarDto } from './dto/editar.dto.js';
 import { ListarDto } from './dto/listar.dto.js';
@@ -33,19 +32,20 @@ export class ProdutoController {
   constructor(private readonly produto: ProdutoService) {}
 
   @Get()
+  @Auth('jwt-or-visitor')
   @ApiOperation({ summary: 'Listagem de Produto' })
   async listar(@Query() dto: ListarDto) {
     return this.produto.listarProduto(dto);
   }
 
   @Get(':params')
+  @Auth('jwt-or-visitor')
   @ApiOperation({ summary: 'Buscar Produto' })
   async buscar(@Param('params') params: string) {
     return this.produto.buscarProduto(params);
   }
 
   @Post()
-  @UseGuards(JwtGuard)
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: CriarDto })
@@ -59,7 +59,6 @@ export class ProdutoController {
   }
 
   @Put(':id')
-  @UseGuards(JwtGuard)
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: EditarDto })
@@ -84,7 +83,6 @@ export class ProdutoController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Deleção de Produto' })
   async deletar(@Param('id') id: string) {

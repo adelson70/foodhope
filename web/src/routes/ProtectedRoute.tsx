@@ -37,7 +37,7 @@ export function ProtectedRoute() {
   }, []);
 
   if (status === 'denied') {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   if (status === 'checking') {

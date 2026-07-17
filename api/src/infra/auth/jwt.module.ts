@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 
+import { AuthGuard } from './auth.guard.js';
 import { JwtServiceCustom } from './jwt.service.js';
 import { JwtStrategy } from './jwt.strategy.js';
 import { JwtGuard } from './jwt.guard.js';
@@ -15,8 +16,8 @@ import { JwtGuard } from './jwt.guard.js';
     }),
   ],
 
-  providers: [JwtServiceCustom, JwtStrategy, JwtGuard],
+  providers: [JwtServiceCustom, JwtStrategy, JwtGuard, AuthGuard],
 
-  exports: [JwtServiceCustom, JwtGuard],
+  exports: [JwtServiceCustom, JwtGuard, AuthGuard, JwtModule],
 })
 export class InfraJwtModule {}
