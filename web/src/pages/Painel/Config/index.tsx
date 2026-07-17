@@ -1,73 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ChefHat, ChevronRight, UserRound } from 'lucide-react';
 
-import { useDeferredLoading } from '../../../hooks/useDeferredLoading';
-import { authService, getApiErrorMensagens } from '../../../services';
-import type { Operador } from '../../../services/types';
-import { ConfigForm } from './ConfigForm';
 import { ConfigLogout } from './ConfigLogout';
-import { ConfigSkeleton } from './ConfigSkeleton';
+import { ConfigUsuarioDrawer } from './ConfigUsuarioDrawer';
 
 export function Config() {
-  const [operador, setOperador] = useState<Operador | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [erro, setErro] = useState<string | null>(null);
-  const showSkeleton = useDeferredLoading(loading);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    setLoading(true);
-    setErro(null);
-
-    authService
-      .me()
-      .then((response) => {
-        if (cancelled) return;
-        if (!response.sucesso || !response.dados) {
-          setErro('Não foi possível carregar as configurações.');
-          setOperador(null);
-          return;
-        }
-        setOperador(response.dados);
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        const mensagens = getApiErrorMensagens(error);
-        setErro(
-          mensagens[0] ?? 'Não foi possível carregar as configurações.',
-        );
-        setOperador(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (showSkeleton) {
-    return <ConfigSkeleton />;
-  }
-
-  if (loading || (!operador && !erro)) {
-    return (
-      <div
-        className="min-h-40"
-        aria-busy="true"
-        aria-label="Carregando configurações"
-      />
-    );
-  }
-
-  if (erro || !operador) {
-    return (
-      <div className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-caption text-danger">
-        {erro ?? 'Não foi possível carregar as configurações.'}
-      </div>
-    );
-  }
+  const [usuarioAberto, setUsuarioAberto] = useState(false);
 
   return (
     <div className="flex flex-col gap-6">
@@ -76,19 +15,71 @@ export function Config() {
           Configurações
         </h1>
         <p className="text-caption text-on-surface-variant">
-          Redefina seu nome e senha
+          Escolha o que deseja configurar
         </p>
       </div>
 
-      <ConfigForm
-        key={operador.nome}
-        operador={operador}
-        onUpdated={setOperador}
-      />
+      <ul className="flex flex-col gap-3">
+        <li>
+          <button
+            type="button"
+            onClick={() => setUsuarioAberto(true)}
+            className="flex w-full items-center gap-3 rounded-xl border border-operator-border bg-operator-card p-4 text-left shadow-card transition-colors hover:border-primary/40"
+          >
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-container/30 text-primary">
+              <UserRound size={22} strokeWidth={1.75} aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-body-md font-medium text-on-surface">
+                Informações do usuário
+              </span>
+              <span className="block text-caption text-on-surface-variant">
+                Nome e senha do operador
+              </span>
+            </span>
+            <ChevronRight
+              size={20}
+              strokeWidth={1.75}
+              className="shrink-0 text-on-surface-variant"
+              aria-hidden
+            />
+          </button>
+        </li>
+
+        <li>
+          <Link
+            to="/painel/configuracoes/cozinha"
+            className="flex items-center gap-3 rounded-xl border border-operator-border bg-operator-card p-4 shadow-card transition-colors hover:border-primary/40"
+          >
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-container/30 text-primary">
+              <ChefHat size={22} strokeWidth={1.75} aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-body-md font-medium text-on-surface">
+                Informações da cozinha
+              </span>
+              <span className="block text-caption text-on-surface-variant">
+                Adicionais globais e disponibilidade
+              </span>
+            </span>
+            <ChevronRight
+              size={20}
+              strokeWidth={1.75}
+              className="shrink-0 text-on-surface-variant"
+              aria-hidden
+            />
+          </Link>
+        </li>
+      </ul>
 
       <div className="border-t border-operator-border pt-4">
         <ConfigLogout />
       </div>
+
+      <ConfigUsuarioDrawer
+        open={usuarioAberto}
+        onClose={() => setUsuarioAberto(false)}
+      />
     </div>
   );
 }

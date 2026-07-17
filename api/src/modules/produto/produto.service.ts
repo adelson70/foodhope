@@ -15,6 +15,88 @@ import { Prisma } from '../../../generated/prisma/client.js';
 import { EditarProdutoDto } from './dto/editar.dto.js';
 import { ProdutoImagemService } from './produto-imagem.service.js';
 
+type AdicionalEspecificoRow = {
+  id: string;
+  nome: string;
+  preco: Prisma.Decimal | number;
+  ativo: boolean;
+};
+
+type AdicionalGlobalVinculoRow = {
+  adicional_global_id: string;
+  adicionalGlobal: {
+    id: string;
+    nome: string;
+    preco: Prisma.Decimal | number;
+    ativo: boolean;
+  };
+};
+
+type ProdutoComAdicionais = {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  preco: Prisma.Decimal | number;
+  imagemUrl: string | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+  adicionais: AdicionalEspecificoRow[];
+  adicionaisGlobais: AdicionalGlobalVinculoRow[];
+};
+
+const produtoAdicionaisInclude = {
+  adicionais: {
+    select: { id: true, nome: true, preco: true, ativo: true },
+    orderBy: [{ nome: 'asc' as const }, { id: 'asc' as const }],
+  },
+  adicionaisGlobais: {
+    select: {
+      adicional_global_id: true,
+      adicionalGlobal: {
+        select: { id: true, nome: true, preco: true, ativo: true },
+      },
+    },
+  },
+} satisfies Prisma.ProdutoInclude;
+
+function normalizarNome(nome: string) {
+  return nome.trim().toLowerCase();
+}
+
+function montarRespostaProduto(produto: ProdutoComAdicionais) {
+  const adicionaisEspecificos = produto.adicionais.map((a) => ({
+    id: a.id,
+    nome: a.nome,
+    preco: a.preco,
+    ativo: a.ativo,
+  }));
+
+  const adicionalGlobalIds = produto.adicionaisGlobais.map(
+    (v) => v.adicional_global_id,
+  );
+
+  const especificosAtivos = adicionaisEspecificos
+    .filter((a) => a.ativo)
+    .map((a) => ({ id: a.id, nome: a.nome, preco: a.preco }));
+
+  const globaisAtivos = produto.adicionaisGlobais
+    .filter((v) => v.adicionalGlobal.ativo)
+    .map((v) => ({
+      id: v.adicionalGlobal.id,
+      nome: v.adicionalGlobal.nome,
+      preco: v.adicionalGlobal.preco,
+    }));
+
+  const { adicionais: _a, adicionaisGlobais: _g, ...rest } = produto;
+
+  return {
+    ...rest,
+    adicionais: [...especificosAtivos, ...globaisAtivos],
+    adicionaisEspecificos,
+    adicionalGlobalIds,
+  };
+}
+
 @Injectable()
 export class ProdutoService {
   constructor(
@@ -24,6 +106,62 @@ export class ProdutoService {
     private readonly jwt: JwtServiceCustom,
     private readonly produtoImagem: ProdutoImagemService,
   ) {}
+
+  private async validarGlobaisEColisao(
+    tx: Prisma.TransactionClient,
+    adicionalGlobalIds: string[] | undefined,
+    nomesEspecificos: string[],
+  ) {
+    const ids = [...new Set(adicionalGlobalIds ?? [])];
+
+    if (ids.length === 0) {
+      return ids;
+    }
+
+    const globais = await tx.adicionalGlobal.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, nome: true },
+    });
+
+    if (globais.length !== ids.length) {
+      throw new BadRequestException(
+        'Um ou mais adicionais globais informados não existem.',
+      );
+    }
+
+    const nomesEspecificosSet = new Set(
+      nomesEspecificos.map(normalizarNome).filter((n) => n.length > 0),
+    );
+
+    for (const global of globais) {
+      if (nomesEspecificosSet.has(normalizarNome(global.nome))) {
+        throw new BadRequestException(
+          `O adicional específico "${global.nome}" conflita com um adicional global vinculado.`,
+        );
+      }
+    }
+
+    return ids;
+  }
+
+  private async sincronizarGlobais(
+    tx: Prisma.TransactionClient,
+    produtoId: string,
+    adicionalGlobalIds: string[],
+  ) {
+    await tx.produtoAdicionalGlobal.deleteMany({
+      where: { produto_id: produtoId },
+    });
+
+    if (adicionalGlobalIds.length === 0) return;
+
+    await tx.produtoAdicionalGlobal.createMany({
+      data: adicionalGlobalIds.map((adicional_global_id) => ({
+        produto_id: produtoId,
+        adicional_global_id,
+      })),
+    });
+  }
 
   async listarProduto(dto: ListarDto) {
     try {
@@ -36,23 +174,17 @@ export class ProdutoService {
         try {
           const jsonString = Buffer.from(cursorStr, 'base64').toString('utf-8');
           decodedCursor = JSON.parse(jsonString);
-        } catch (e) {
+        } catch {
           throw new BadRequestException('O cursor fornecido é inválido.');
         }
       }
 
       const produtos = await this.prismaRead.produto.findMany({
         take: limit + 1,
-
         cursor: decodedCursor ? { id: decodedCursor.id } : undefined,
-
         skip: decodedCursor ? 1 : 0,
-
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-
-        include: {
-          adicionais: { select: { id: true, nome: true, preco: true } },
-        },
+        include: produtoAdicionaisInclude,
       });
 
       let nextCursor: string | null = null;
@@ -60,19 +192,16 @@ export class ProdutoService {
 
       if (hasNextPage) {
         produtos.pop();
-
         const lastItem = produtos[produtos.length - 1];
-
         const cursorPayload = JSON.stringify({
           id: lastItem.id,
           createdAt: lastItem.createdAt,
         });
-
         nextCursor = Buffer.from(cursorPayload).toString('base64');
       }
 
       return {
-        data: produtos,
+        data: produtos.map((p) => montarRespostaProduto(p as ProdutoComAdicionais)),
         meta: {
           hasNextPage,
           nextCursor,
@@ -114,16 +243,20 @@ export class ProdutoService {
             },
           ],
         },
-        include: {
-          adicionais: { select: { id: true, nome: true, preco: true } },
-        },
+        include: produtoAdicionaisInclude,
       });
 
       if (!produtos || produtos.length === 0) {
         return { mensagem: 'Nenhum produto encontrado', dados: { produtos: [] } };
       }
 
-      return { dados: { produtos } };
+      return {
+        dados: {
+          produtos: produtos.map((p) =>
+            montarRespostaProduto(p as ProdutoComAdicionais),
+          ),
+        },
+      };
     } catch (erro) {
       console.log('erro', erro);
 
@@ -139,9 +272,17 @@ export class ProdutoService {
 
   async criarProduto(dto: CriarDto) {
     try {
-      const temAdicionais = dto.adicionais && dto.adicionais.length > 0;
-
       const produtoCriado = await this.prismaWrite.$transaction(async (tx) => {
+        const nomesEspecificos = (dto.adicionais ?? [])
+          .filter((a) => a.ativo !== false)
+          .map((a) => a.nome);
+
+        const globalIds = await this.validarGlobaisEColisao(
+          tx,
+          dto.adicionalGlobalIds,
+          nomesEspecificos,
+        );
+
         const novoProduto = await tx.produto.create({
           data: {
             nome: dto.nome,
@@ -150,17 +291,18 @@ export class ProdutoService {
           },
         });
 
-        if (temAdicionais && dto.adicionais) {
-          const adicionaisMapeados = dto.adicionais.map((adicional) => ({
-            nome: adicional.nome,
-            preco: adicional.preco,
-            produto_id: novoProduto.id,
-          }));
-
+        if (dto.adicionais && dto.adicionais.length > 0) {
           await tx.adicionalProduto.createMany({
-            data: adicionaisMapeados,
+            data: dto.adicionais.map((adicional) => ({
+              nome: adicional.nome,
+              preco: adicional.preco,
+              ativo: adicional.ativo ?? true,
+              produto_id: novoProduto.id,
+            })),
           });
         }
+
+        await this.sincronizarGlobais(tx, novoProduto.id, globalIds);
 
         return novoProduto;
       });
@@ -168,10 +310,13 @@ export class ProdutoService {
       const produtoCompleto = await this.prismaWrite.produto.findUnique({
         where: { id: produtoCriado.id },
         omit: { createdAt: true, updatedAt: true },
-        include: { adicionais: { select: { id: true, nome: true, preco: true } } },
+        include: produtoAdicionaisInclude,
       });
 
-      return { dados: produtoCompleto, mensagem: 'Produto criado com sucesso' };
+      return {
+        dados: montarRespostaProduto(produtoCompleto as ProdutoComAdicionais),
+        mensagem: 'Produto criado com sucesso',
+      };
     } catch (erro) {
       console.error('Erro na transação de produto:', erro);
 
@@ -185,69 +330,114 @@ export class ProdutoService {
 
   async editarProduto(id: string, dto: EditarProdutoDto) {
     try {
-      const dadosUpdate: Record<string, unknown> = {};
+      const produtoEditado = await this.prismaWrite.$transaction(async (tx) => {
+        const existente = await tx.produto.findUnique({
+          where: { id },
+          include: {
+            adicionais: { select: { id: true, nome: true, ativo: true } },
+          },
+        });
 
-      if (dto.nome !== undefined) dadosUpdate.nome = dto.nome;
-      if (dto.descricao !== undefined) {
-        dadosUpdate.descricao = dto.descricao.trim() === '' ? null : dto.descricao;
-      }
-      if (dto.preco !== undefined) dadosUpdate.preco = dto.preco;
-
-      if (dto.adicionais && dto.adicionais.length > 0) {
-        const deletados = dto.adicionais.filter((a) => a.foiDeletado && a.id);
-
-        const editados = dto.adicionais.filter(
-          (a) => !a.foiDeletado && a.id && (a.nome !== undefined || a.preco !== undefined),
-        );
-
-        const novos = dto.adicionais.filter((a) => !a.foiDeletado && !a.id);
-
-        const adicionaisUpdate: {
-          delete?: { id: string }[];
-          update?: { where: { id: string }; data: { nome?: string; preco?: number } }[];
-          create?: { nome: string; preco: number }[];
-        } = {};
-
-        if (deletados.length > 0) {
-          adicionaisUpdate.delete = deletados.map((a) => ({ id: a.id! }));
+        if (!existente) {
+          throw new NotFoundException('Produto não encontrado.');
         }
 
-        if (editados.length > 0) {
-          adicionaisUpdate.update = editados.map((a) => {
-            const dadosParaAtualizar: { nome?: string; preco?: number } = {};
-            if (a.nome !== undefined) dadosParaAtualizar.nome = a.nome;
-            if (a.preco !== undefined) dadosParaAtualizar.preco = a.preco;
+        const dadosUpdate: Prisma.ProdutoUpdateInput = {};
 
-            return {
-              where: { id: a.id! },
-              data: dadosParaAtualizar,
-            };
+        if (dto.nome !== undefined) dadosUpdate.nome = dto.nome;
+        if (dto.descricao !== undefined) {
+          dadosUpdate.descricao = dto.descricao.trim() === '' ? null : dto.descricao;
+        }
+        if (dto.preco !== undefined) dadosUpdate.preco = dto.preco;
+
+        if (dto.adicionais && dto.adicionais.length > 0) {
+          const deletados = dto.adicionais.filter((a) => a.foiDeletado && a.id);
+          const editados = dto.adicionais.filter(
+            (a) =>
+              !a.foiDeletado &&
+              a.id &&
+              (a.nome !== undefined || a.preco !== undefined || a.ativo !== undefined),
+          );
+          const novos = dto.adicionais.filter((a) => !a.foiDeletado && !a.id);
+
+          const adicionaisNested: Prisma.AdicionalProdutoUpdateManyWithoutProdutoNestedInput =
+            {};
+
+          if (deletados.length > 0) {
+            adicionaisNested.delete = deletados.map((a) => ({ id: a.id! }));
+          }
+
+          if (editados.length > 0) {
+            adicionaisNested.update = editados.map((a) => {
+              const data: { nome?: string; preco?: number; ativo?: boolean } = {};
+              if (a.nome !== undefined) data.nome = a.nome;
+              if (a.preco !== undefined) data.preco = a.preco;
+              if (a.ativo !== undefined) data.ativo = a.ativo;
+              return { where: { id: a.id! }, data };
+            });
+          }
+
+          if (novos.length > 0) {
+            adicionaisNested.create = novos.map((a) => ({
+              nome: a.nome!,
+              preco: a.preco!,
+              ativo: a.ativo ?? true,
+            }));
+          }
+
+          dadosUpdate.adicionais = adicionaisNested;
+        }
+
+        if (Object.keys(dadosUpdate).length > 0) {
+          await tx.produto.update({
+            where: { id },
+            data: dadosUpdate,
           });
         }
 
-        if (novos.length > 0) {
-          adicionaisUpdate.create = novos.map((a) => ({
-            nome: a.nome!,
-            preco: a.preco!,
-          }));
+        if (dto.adicionalGlobalIds !== undefined || dto.adicionais !== undefined) {
+          const aposUpdate = await tx.produto.findUniqueOrThrow({
+            where: { id },
+            include: {
+              adicionais: { select: { nome: true, ativo: true } },
+              adicionaisGlobais: { select: { adicional_global_id: true } },
+            },
+          });
+
+          const nomesEspecificos = aposUpdate.adicionais
+            .filter((a) => a.ativo)
+            .map((a) => a.nome);
+
+          const idsParaValidar =
+            dto.adicionalGlobalIds !== undefined
+              ? dto.adicionalGlobalIds
+              : aposUpdate.adicionaisGlobais.map((v) => v.adicional_global_id);
+
+          const globalIds = await this.validarGlobaisEColisao(
+            tx,
+            idsParaValidar,
+            nomesEspecificos,
+          );
+
+          if (dto.adicionalGlobalIds !== undefined) {
+            await this.sincronizarGlobais(tx, id, globalIds);
+          }
         }
 
-        dadosUpdate.adicionais = adicionaisUpdate;
-      }
-
-      const produtoEditadoCompleto = await this.prismaWrite.produto.update({
-        where: { id },
-        data: dadosUpdate,
-        include: {
-          adicionais: true,
-        },
+        return tx.produto.findUniqueOrThrow({
+          where: { id },
+          include: produtoAdicionaisInclude,
+        });
       });
 
-      return { mensagem: 'Produto editado com sucesso', dados: produtoEditadoCompleto };
+      return {
+        mensagem: 'Produto editado com sucesso',
+        dados: montarRespostaProduto(produtoEditado as ProdutoComAdicionais),
+      };
     } catch (erro) {
       console.error('Erro na transação de produto:', erro);
 
-      if (erro instanceof BadRequestException) {
+      if (erro instanceof BadRequestException || erro instanceof NotFoundException) {
         throw erro;
       }
 
@@ -270,10 +460,13 @@ export class ProdutoService {
       const produto = await this.prismaWrite.produto.update({
         where: { id },
         data: { imagemUrl },
-        include: { adicionais: true },
+        include: produtoAdicionaisInclude,
       });
 
-      return { mensagem: 'Imagem do produto atualizada com sucesso', dados: produto };
+      return {
+        mensagem: 'Imagem do produto atualizada com sucesso',
+        dados: montarRespostaProduto(produto as ProdutoComAdicionais),
+      };
     } catch (erro) {
       console.error('Erro ao editar imagem do produto:', erro);
 

@@ -86,7 +86,8 @@ export class ProdutoController {
       !dto.nome &&
       !dto.descricao &&
       dto.preco === undefined &&
-      (!dto.adicionais || dto.adicionais.length === 0)
+      (!dto.adicionais || dto.adicionais.length === 0) &&
+      dto.adicionalGlobalIds === undefined
     ) {
       return { mensagem: 'Nada para editar :)' };
     }

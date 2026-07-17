@@ -1,8 +1,9 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
   IsNumber,
   IsOptional,
+  IsUUID,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -38,4 +39,13 @@ export class EditarProdutoDto {
   @ValidateNested({ each: true })
   @Type(() => AdicionalEditarDto)
   adicionais?: AdicionalEditarDto[];
+
+  @ApiPropertyOptional({
+    description: 'IDs dos adicionais globais vinculados a este produto (substitui o conjunto)',
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true, message: 'Cada adicional global deve ser um UUID válido' })
+  adicionalGlobalIds?: string[];
 }

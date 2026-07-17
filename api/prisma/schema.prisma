@@ -72,6 +72,7 @@ model Produto {
   imagemUrl String? @map("imagem_url")
 
   adicionais AdicionalProduto[]
+  adicionaisGlobais ProdutoAdicionalGlobal[]
   itens PedidoItem[]
 
   createdAt DateTime @default(now())
@@ -80,11 +81,37 @@ model Produto {
   @@map("produto")
 }
 
+model AdicionalGlobal {
+  id    String  @id @default(uuid())
+  nome  String
+  preco Decimal @db.Decimal(10, 2)
+  ativo Boolean @default(true)
+
+  produtos ProdutoAdicionalGlobal[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("adicional_global")
+}
+
+model ProdutoAdicionalGlobal {
+  produto_id          String @map("produto_id")
+  adicional_global_id String @map("adicional_global_id")
+
+  produto          Produto          @relation(fields: [produto_id], references: [id], onDelete: Cascade)
+  adicionalGlobal  AdicionalGlobal  @relation(fields: [adicional_global_id], references: [id], onDelete: Cascade)
+
+  @@id([produto_id, adicional_global_id])
+  @@map("produto_adicional_global")
+}
+
 model AdicionalProduto {
   id String @id @default(uuid())
   produto_id String @map("produto_id")
   nome String
   preco Decimal @db.Decimal(10,2)
+  ativo Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -22,6 +22,16 @@ export type Adicional = {
   nome: string;
   preco: string | number;
   produto_id?: string;
+  ativo?: boolean;
+};
+
+export type AdicionalGlobal = {
+  id: string;
+  nome: string;
+  preco: string | number;
+  ativo: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type Produto = {
@@ -33,6 +43,8 @@ export type Produto = {
   createdAt?: string;
   updatedAt?: string;
   adicionais?: Adicional[];
+  adicionaisEspecificos?: Adicional[];
+  adicionalGlobalIds?: string[];
 };
 
 export type CursorMeta = {
@@ -62,6 +74,7 @@ export type LogoutDados = {
 export type AdicionalCriarInput = {
   nome: string;
   preco: number;
+  ativo?: boolean;
 };
 
 export type AdicionalEditarInput = {
@@ -69,6 +82,22 @@ export type AdicionalEditarInput = {
   foiDeletado?: boolean;
   nome?: string;
   preco?: number;
+  ativo?: boolean;
+};
+
+export type CriarAdicionalGlobalInput = {
+  nome: string;
+  preco: number;
+};
+
+export type EditarAdicionalGlobalInput = {
+  nome?: string;
+  preco?: number;
+  ativo?: boolean;
+};
+
+export type ListarAdicionaisGlobaisDados = {
+  adicionais: AdicionalGlobal[];
 };
 
 export type CriarProdutoInput = {
@@ -76,6 +105,7 @@ export type CriarProdutoInput = {
   descricao?: string;
   preco: number;
   adicionais?: AdicionalCriarInput[];
+  adicionalGlobalIds?: string[];
   imagem?: File;
 };
 
@@ -84,6 +114,7 @@ export type EditarProdutoInput = {
   descricao?: string;
   preco?: number;
   adicionais?: AdicionalEditarInput[];
+  adicionalGlobalIds?: string[];
   imagem?: File;
 };
 

@@ -12,13 +12,15 @@ import {
   Textarea,
 } from '../../../components/ui';
 import { cn } from '../../../lib/cn';
+import { formatarMoeda } from '../../../lib/currency';
 import {
   produtoSchema,
   type ProdutoFormValues,
 } from '../../../schemas/produto.schema';
-import { produtoService } from '../../../services';
+import { adicionalService, produtoService } from '../../../services';
 import type {
   AdicionalEditarInput,
+  AdicionalGlobal,
   Produto,
 } from '../../../services/types';
 import { ProdutoImagemField } from './ProdutoImagemField';
@@ -34,30 +36,36 @@ const FORM_ID = 'produto-form';
 
 function valoresIniciais(produto: Produto | null): ProdutoFormValues {
   if (!produto) {
-    return { nome: '', descricao: '', preco: 0, adicionais: [] };
+    return {
+      nome: '',
+      descricao: '',
+      preco: 0,
+      adicionais: [],
+      adicionalGlobalIds: [],
+    };
   }
 
   return {
     nome: produto.nome,
     descricao: produto.descricao ?? '',
     preco: Number(produto.preco),
-    adicionais: (produto.adicionais ?? []).map((item) => ({
+    adicionais: (produto.adicionaisEspecificos ?? []).map((item) => ({
       id: item.id,
       nome: item.nome,
       preco: Number(item.preco),
+      ativo: item.ativo ?? true,
     })),
+    adicionalGlobalIds: produto.adicionalGlobalIds ?? [],
   };
 }
 
-function idAdicionalValido(
-  id: string | undefined,
-): id is string {
+function idAdicionalValido(id: string | undefined): id is string {
   return Boolean(id && id.trim());
 }
 
 function montarAdicionaisEdicao(
   atuais: ProdutoFormValues['adicionais'],
-  originais: { id: string; nome: string; preco: number }[],
+  originais: { id: string; nome: string; preco: number; ativo: boolean }[],
 ): AdicionalEditarInput[] {
   const payload: AdicionalEditarInput[] = [];
   const idsOriginais = new Set(originais.map((item) => item.id));
@@ -76,16 +84,23 @@ function montarAdicionaisEdicao(
     const nome = item.nome.trim();
 
     if (!id || !idsOriginais.has(id)) {
-      payload.push({ nome, preco: item.preco });
+      payload.push({ nome, preco: item.preco, ativo: item.ativo });
       continue;
     }
 
     const original = originais.find((o) => o.id === id);
     if (
       original &&
-      (original.nome !== nome || original.preco !== item.preco)
+      (original.nome !== nome ||
+        original.preco !== item.preco ||
+        original.ativo !== item.ativo)
     ) {
-      payload.push({ id, nome, preco: item.preco });
+      payload.push({
+        id,
+        nome,
+        preco: item.preco,
+        ativo: item.ativo,
+      });
     }
   }
 
@@ -104,12 +119,15 @@ export function ProdutoFormDrawer({
   const [adicionaisSaindo, setAdicionaisSaindo] = useState<Set<string>>(
     () => new Set(),
   );
+  const [globais, setGlobais] = useState<AdicionalGlobal[]>([]);
 
   const {
     register,
     handleSubmit,
     control,
     reset,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ProdutoFormValues>({
     resolver: zodResolver(produtoSchema),
@@ -121,12 +139,29 @@ export function ProdutoFormDrawer({
     name: 'adicionais',
   });
 
+  const adicionalGlobalIds = watch('adicionalGlobalIds');
+
   useEffect(() => {
     if (!open) return;
     reset(valoresIniciais(produto));
     setImagemFile(null);
     setAnimarPrimeiroAdicional(false);
     setAdicionaisSaindo(new Set());
+
+    let cancelled = false;
+    adicionalService
+      .listar()
+      .then((response) => {
+        if (cancelled || !response.sucesso || !response.dados) return;
+        setGlobais(response.dados.adicionais);
+      })
+      .catch(() => {
+        if (!cancelled) setGlobais([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [open, produto, reset]);
 
   useEffect(() => {
@@ -135,7 +170,7 @@ export function ProdutoFormDrawer({
   }, [animarPrimeiroAdicional, fields]);
 
   function handleAdicionarAdicional() {
-    prepend({ nome: '', preco: 0 });
+    prepend({ nome: '', preco: 0, ativo: true });
     setAnimarPrimeiroAdicional(true);
   }
 
@@ -152,6 +187,19 @@ export function ProdutoFormDrawer({
       return proximo;
     });
     if (index >= 0) remove(index);
+  }
+
+  function toggleGlobal(id: string) {
+    const atual = adicionalGlobalIds ?? [];
+    if (atual.includes(id)) {
+      setValue(
+        'adicionalGlobalIds',
+        atual.filter((item) => item !== id),
+        { shouldDirty: true },
+      );
+      return;
+    }
+    setValue('adicionalGlobalIds', [...atual, id], { shouldDirty: true });
   }
 
   async function onSubmit(values: ProdutoFormValues) {
@@ -172,7 +220,9 @@ export function ProdutoFormDrawer({
           adicionais: adicionaisAtuais.map((item) => ({
             nome: item.nome.trim(),
             preco: item.preco,
+            ativo: item.ativo,
           })),
+          adicionalGlobalIds: values.adicionalGlobalIds,
           imagem: imagemFile ?? undefined,
         });
 
@@ -182,10 +232,11 @@ export function ProdutoFormDrawer({
         return;
       }
 
-      const originais = (produto.adicionais ?? []).map((item) => ({
+      const originais = (produto.adicionaisEspecificos ?? []).map((item) => ({
         id: item.id,
         nome: item.nome,
         preco: Number(item.preco),
+        ativo: item.ativo ?? true,
       }));
       const adicionais = montarAdicionaisEdicao(adicionaisAtuais, originais);
 
@@ -194,6 +245,7 @@ export function ProdutoFormDrawer({
         descricao: descricao ?? '',
         preco: values.preco,
         adicionais: adicionais.length > 0 ? adicionais : undefined,
+        adicionalGlobalIds: values.adicionalGlobalIds,
         imagem: imagemFile ?? undefined,
       });
 
@@ -298,8 +350,53 @@ export function ProdutoFormDrawer({
         </div>
 
         <div className="space-y-3">
+          <Label>Adicionais globais</Label>
+          {globais.length === 0 ? (
+            <p className="text-caption text-on-surface-variant">
+              Nenhum adicional global. Cadastre em Configurações → Cozinha.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {globais.map((global) => {
+                const marcado = (adicionalGlobalIds ?? []).includes(global.id);
+                return (
+                  <li key={global.id}>
+                    <label
+                      className={cn(
+                        'flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-3',
+                        marcado
+                          ? 'border-primary/40 bg-primary-container/20'
+                          : 'border-operator-border bg-operator-bg',
+                        !global.ativo && 'opacity-60',
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        className="size-5 accent-primary"
+                        checked={marcado}
+                        disabled={isSubmitting}
+                        onChange={() => toggleGlobal(global.id)}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-body-md text-on-surface">
+                          {global.nome}
+                        </span>
+                        <span className="block text-caption text-on-surface-variant">
+                          {formatarMoeda(Number(global.preco))}
+                          {!global.ativo ? ' · inativo na casa' : ''}
+                        </span>
+                      </span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        <div className="space-y-3">
           <div className="flex items-center justify-between gap-3">
-            <Label>Adicionais</Label>
+            <Label>Adicionais deste produto</Label>
             <Button
               type="button"
               variant="ghost"
@@ -314,7 +411,7 @@ export function ProdutoFormDrawer({
 
           {fields.length === 0 ? (
             <p className="text-caption text-on-surface-variant">
-              Nenhum adicional. Use “Adicionar” para incluir.
+              Nenhum adicional específico. Use “Adicionar” para incluir.
             </p>
           ) : (
             <ul className="flex flex-col gap-3">
@@ -322,6 +419,7 @@ export function ProdutoFormDrawer({
                 const saindo = adicionaisSaindo.has(field.id);
                 const entrando =
                   index === 0 && animarPrimeiroAdicional && !saindo;
+                const ativo = watch(`adicionais.${index}.ativo`);
 
                 return (
                   <li
@@ -341,6 +439,36 @@ export function ProdutoFormDrawer({
                     }}
                   >
                     <div className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <Label htmlFor={`adicional-ativo-${index}`}>
+                          Disponível neste produto
+                        </Label>
+                        <button
+                          type="button"
+                          id={`adicional-ativo-${index}`}
+                          role="switch"
+                          aria-checked={ativo}
+                          disabled={isSubmitting || saindo}
+                          onClick={() =>
+                            setValue(
+                              `adicionais.${index}.ativo`,
+                              !ativo,
+                              { shouldDirty: true },
+                            )
+                          }
+                          className={cn(
+                            'relative h-8 w-14 shrink-0 rounded-full transition-colors',
+                            ativo ? 'bg-primary' : 'bg-outline-variant',
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              'absolute top-1 size-6 rounded-full bg-surface shadow-card transition-transform',
+                              ativo ? 'left-7' : 'left-1',
+                            )}
+                          />
+                        </button>
+                      </div>
                       <div className="space-y-2">
                         <Label htmlFor={`adicional-nome-${index}`}>Nome</Label>
                         <Input

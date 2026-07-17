@@ -1,12 +1,19 @@
 import { useRef } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 
 import { useHideOnScrollDown } from '../../hooks/useHideOnScrollDown';
+import { cn } from '../../lib/cn';
 import { PainelBottomNav } from './PainelBottomNav';
 
+function isConfigSubtela(pathname: string) {
+  return pathname === '/painel/configuracoes/cozinha';
+}
+
 export function PainelLayout() {
+  const { pathname } = useLocation();
   const mainRef = useRef<HTMLElement>(null);
   const navHidden = useHideOnScrollDown(mainRef);
+  const semBottomNav = isConfigSubtela(pathname);
 
   return (
     <div className="flex min-h-dvh justify-center bg-background text-on-background">
@@ -17,11 +24,17 @@ export function PainelLayout() {
           </p>
         </header>
 
-        <main ref={mainRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-4 pb-28">
+        <main
+          ref={mainRef}
+          className={cn(
+            'min-h-0 flex-1 overflow-y-auto px-4 py-4',
+            semBottomNav ? 'pb-6' : 'pb-28',
+          )}
+        >
           <Outlet />
         </main>
 
-        <PainelBottomNav hidden={navHidden} />
+        {semBottomNav ? null : <PainelBottomNav hidden={navHidden} />}
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ const adicionalSchema = z.object({
   preco: z.coerce
     .number({ error: 'Informe o preço do adicional' })
     .min(0, 'O valor não pode ser negativo'),
+  ativo: z.boolean().default(true),
 });
 
 export const produtoSchema = z.object({
@@ -26,6 +27,7 @@ export const produtoSchema = z.object({
     .min(0, 'O valor não pode ser negativo')
     .max(99999999.99, 'O valor excede o limite permitido'),
   adicionais: z.array(adicionalSchema).default([]),
+  adicionalGlobalIds: z.array(z.string()).default([]),
 });
 
 export type ProdutoFormValues = {
@@ -36,5 +38,7 @@ export type ProdutoFormValues = {
     id?: string;
     nome: string;
     preco: number;
+    ativo: boolean;
   }>;
+  adicionalGlobalIds: string[];
 };

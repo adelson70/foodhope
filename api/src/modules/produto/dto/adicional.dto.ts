@@ -21,6 +21,11 @@ export class AdicionalDto {
   )
   @Min(0, { message: 'O valor não pode ser negativo' })
   preco: number;
+
+  @ApiProperty({ example: true, description: 'Disponível neste produto', required: false })
+  @IsOptional()
+  @IsBoolean()
+  ativo?: boolean;
 }
 
 export class AdicionalEditarDto {
@@ -46,4 +51,9 @@ export class AdicionalEditarDto {
   @IsNumber({ maxDecimalPlaces: 2 }, { message: 'O valor deve ser numérico.' })
   @Min(0, { message: 'O valor não pode ser negativo.' })
   preco?: number;
+
+  @ApiProperty({ example: true, description: 'Disponível neste produto', required: false })
+  @IsOptional()
+  @IsBoolean()
+  ativo?: boolean;
 }

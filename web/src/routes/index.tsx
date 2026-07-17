@@ -7,6 +7,7 @@ import { Home } from '../pages/Home';
 import { Cardapio } from '../pages/Painel/Cardapio';
 import { Pedidos } from '../pages/Painel/Pedidos';
 import { Config } from '../pages/Painel/Config';
+import { ConfigCozinha } from '../pages/Painel/Config/ConfigCozinha';
 import { Carrinho } from '../pages/Carrinho';
 import { PedidoConfirmado } from '../pages/PedidoConfirmado';
 import { PedidosCliente } from '../pages/PedidosCliente';
@@ -40,6 +41,7 @@ export const router = createBrowserRouter([
           { path: 'cardapio', element: <Cardapio /> },
           { path: 'pedido', element: <Pedidos /> },
           { path: 'configuracoes', element: <Config /> },
+          { path: 'configuracoes/cozinha', element: <ConfigCozinha /> },
         ],
       },
     ],

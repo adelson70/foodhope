@@ -218,18 +218,44 @@ export class PedidoService {
             [];
           if (itemDto.adicional && itemDto.adicional.length > 0) {
             for (const addDto of itemDto.adicional) {
-              const adicionalDB = await tx.adicionalProduto.findUnique({
-                where: { id: addDto.id },
+              const adicionalEspecifico = await tx.adicionalProduto.findFirst({
+                where: {
+                  id: addDto.id,
+                  produto_id: produto.id,
+                  ativo: true,
+                },
               });
 
-              if (!adicionalDB) {
-                throw new Error(`Adicional com ID ${addDto.id} não encontrado.`);
+              if (adicionalEspecifico) {
+                adicionaisVenda.push({
+                  id: adicionalEspecifico.id,
+                  nome: adicionalEspecifico.nome,
+                  preco: Number(adicionalEspecifico.preco),
+                  qtd: addDto.qtd,
+                });
+                continue;
+              }
+
+              const adicionalGlobal = await tx.adicionalGlobal.findFirst({
+                where: {
+                  id: addDto.id,
+                  ativo: true,
+                  produtos: {
+                    some: { produto_id: produto.id },
+                  },
+                },
+              });
+
+              if (!adicionalGlobal) {
+                throw new Error(
+                  `Adicional com ID ${addDto.id} indisponível ou não vinculado a este produto.`,
+                );
               }
 
               adicionaisVenda.push({
-                id: adicionalDB.id,
-                nome: adicionalDB.nome,
-                preco: Number(adicionalDB.preco),
+                id: adicionalGlobal.id,
+                nome: adicionalGlobal.nome,
+                preco: Number(adicionalGlobal.preco),
                 qtd: addDto.qtd,
               });
             }

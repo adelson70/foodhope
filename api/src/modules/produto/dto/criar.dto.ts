@@ -9,6 +9,7 @@ import {
   IsOptional,
   ValidateNested,
   IsArray,
+  IsUUID,
 } from 'class-validator';
 import { IsObrigatorio } from '../../../common/decorator/is-obrigatorio.decorator.js';
 import { AdicionalDto } from './adicional.dto.js';
@@ -42,7 +43,7 @@ export class CriarDto {
   preco: number;
 
   @ApiPropertyOptional({
-    description: 'Lista de adicionais escolhidos para o lanche',
+    description: 'Lista de adicionais específicos do lanche',
     type: [AdicionalDto],
   })
   @IsOptional()
@@ -50,4 +51,13 @@ export class CriarDto {
   @ValidateNested({ each: true })
   @Type(() => AdicionalDto)
   adicionais?: AdicionalDto[];
+
+  @ApiPropertyOptional({
+    description: 'IDs dos adicionais globais vinculados a este produto',
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true, message: 'Cada adicional global deve ser um UUID válido' })
+  adicionalGlobalIds?: string[];
 }
