@@ -18,7 +18,7 @@ const items = [
 export function PainelBottomNav() {
   return (
     <nav
-      className="sticky bottom-0 z-40 border-t border-operator-border bg-operator-surface pb-[env(safe-area-inset-bottom)]"
+      className="fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-md border-t border-operator-border bg-operator-surface pb-[env(safe-area-inset-bottom)]"
       aria-label="Navegação do painel"
     >
       <ul className="grid grid-cols-4">

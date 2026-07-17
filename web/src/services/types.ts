@@ -155,3 +155,20 @@ export type BuscarPedidosDados = {
 export type CriarPedidoDados = {
   pedido: Pedido;
 };
+
+export type DashItemRank = {
+  produtoId?: string;
+  adicionalId?: string;
+  nome: string;
+  quantidade: number;
+};
+
+export type DashDados = {
+  faturamentoHoje: number;
+  comprasHoje: number;
+  leadsTotal: number;
+  produtoMaisVendido: DashItemRank | null;
+  adicionalMaisVendido: DashItemRank | null;
+  topProdutos: DashItemRank[];
+  topAdicionais: DashItemRank[];
+};

@@ -8,6 +8,7 @@ import { RedisModule } from './infra/cache/redis.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { ProdutoModule } from './modules/produto/produto.module.js';
 import { PedidoModule } from './modules/pedido/pedido.module.js';
+import { DashModule } from './modules/dash/dash.module.js';
 import { BullModule } from '@nestjs/bullmq';
 import { WebsocketModule } from './infra/websocket/websocket.module.js';
 
@@ -40,6 +41,7 @@ import { WebsocketModule } from './infra/websocket/websocket.module.js';
     AuthModule,
     ProdutoModule,
     PedidoModule,
+    DashModule,
     ImpressoraModule,
   ],
   controllers: [AppController],
