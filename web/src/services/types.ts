@@ -45,6 +45,11 @@ export type LoginPayload = {
   senha: string;
 };
 
+export type EditarOperadorInput = {
+  nome?: string;
+  senha?: string;
+};
+
 export type LoginDados = {
   access_token: string;
   operador: Operador;

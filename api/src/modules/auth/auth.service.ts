@@ -1,16 +1,23 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 
 import * as bcrypt from 'bcrypt';
 
 import { PrismaReadService } from '../../infra/database/prisma-read.service.js';
+import { PrismaWriteService } from '../../infra/database/prisma-write.service.js';
 
 import { JwtServiceCustom } from '../../infra/auth/jwt.service.js';
 import { LoginDto } from './dto/login.dto.js';
+import { EditarDto } from './dto/editar.dto.js';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaReadService,
+    private readonly prismaWrite: PrismaWriteService,
 
     private readonly jwt: JwtServiceCustom,
   ) {}
@@ -57,6 +64,41 @@ export class AuthService {
         nome: true,
       },
     });
+  }
+
+  async editar(id: string, dto: EditarDto) {
+    const operador = await this.prisma.operador.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!operador) {
+      throw new NotFoundException('Operador não encontrado');
+    }
+
+    const data: { nome?: string; senha?: string } = {};
+
+    if (dto.nome !== undefined) {
+      data.nome = dto.nome;
+    }
+
+    if (dto.senha !== undefined) {
+      data.senha = await bcrypt.hash(dto.senha, 10);
+    }
+
+    const atualizado = await this.prismaWrite.operador.update({
+      where: { id },
+      data,
+      select: {
+        id: true,
+        nome: true,
+      },
+    });
+
+    return {
+      mensagem: 'Operador editado com sucesso',
+      dados: atualizado,
+    };
   }
 
   async logout() {

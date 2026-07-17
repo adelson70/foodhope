@@ -15,6 +15,17 @@ type DashChartsProps = {
   topAdicionais: DashItemRank[];
 };
 
+const chartTokens = {
+  grid: 'var(--color-operator-border)',
+  tick: 'var(--color-on-surface-variant)',
+  cursor: 'var(--color-operator-border)',
+  tooltipBg: 'var(--color-operator-card)',
+  tooltipBorder: 'var(--color-operator-border)',
+  tooltipText: 'var(--color-on-surface)',
+  tooltipLabel: 'var(--color-on-surface-variant)',
+  bar: 'var(--color-primary-container)',
+} as const;
+
 function ChartCard({
   titulo,
   data,
@@ -42,13 +53,13 @@ function ChartCard({
               margin={{ top: 4, right: 12, left: 4, bottom: 4 }}
             >
               <CartesianGrid
-                stroke="rgba(255,255,255,0.06)"
+                stroke={chartTokens.grid}
                 horizontal={false}
               />
               <XAxis
                 type="number"
                 allowDecimals={false}
-                tick={{ fill: '#d0c5af', fontSize: 11 }}
+                tick={{ fill: chartTokens.tick, fontSize: 12 }}
                 axisLine={false}
                 tickLine={false}
               />
@@ -56,25 +67,25 @@ function ChartCard({
                 type="category"
                 dataKey="nome"
                 width={88}
-                tick={{ fill: '#d0c5af', fontSize: 11 }}
+                tick={{ fill: chartTokens.tick, fontSize: 12 }}
                 axisLine={false}
                 tickLine={false}
               />
               <Tooltip
-                cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                cursor={{ fill: chartTokens.cursor }}
                 contentStyle={{
-                  background: '#1E1E1E',
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: chartTokens.tooltipBg,
+                  border: `1px solid ${chartTokens.tooltipBorder}`,
                   borderRadius: 12,
-                  color: '#eae1d4',
+                  color: chartTokens.tooltipText,
                   fontSize: 12,
                 }}
-                labelStyle={{ color: '#d0c5af' }}
+                labelStyle={{ color: chartTokens.tooltipLabel }}
               />
               <Bar
                 dataKey="quantidade"
                 name="Quantidade"
-                fill="#D4AF37"
+                fill={chartTokens.bar}
                 radius={[0, 8, 8, 0]}
                 barSize={18}
               />

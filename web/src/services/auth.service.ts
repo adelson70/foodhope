@@ -3,6 +3,7 @@ import { clearToken, setToken } from './cookie';
 import { withMutationToast } from './mutation-toast';
 import type {
   ApiResponse,
+  EditarOperadorInput,
   LoginDados,
   LoginPayload,
   LogoutDados,
@@ -44,5 +45,16 @@ export const authService = {
 
   async me(): Promise<ApiResponse<Operador>> {
     return request(api.get<ApiResponse<Operador>>('/auth/me'));
+  },
+
+  async editar(input: EditarOperadorInput): Promise<ApiResponse<Operador>> {
+    return withMutationToast(
+      () =>
+        request(api.put<ApiResponse<Operador>>('/auth/me', input)),
+      {
+        success: 'Operador editado com sucesso',
+        error: 'Não foi possível editar o operador',
+      },
+    );
   },
 };

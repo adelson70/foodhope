@@ -6,9 +6,9 @@ const variants = {
   primary:
     'bg-primary-container text-on-primary hover:bg-primary shadow-primary-glow',
   secondary:
-    'bg-white/5 text-on-surface border border-operator-border hover:bg-white/10',
+    'bg-on-surface/5 text-on-surface border border-operator-border hover:bg-on-surface/10',
   ghost: 'bg-transparent text-primary hover:bg-primary/5',
-  danger: 'bg-danger text-white hover:bg-danger/80',
+  danger: 'bg-danger text-on-surface hover:bg-danger/80',
   icon: 'bg-primary-container text-on-primary hover:scale-105 size-12 p-0',
 } as const;
 
