@@ -38,8 +38,9 @@ model Visitor {
 model Lead {
   id            String   @id @default(uuid())
   primeiro_nome String
-  sobrenome     String
-  contato       String
+  sobrenome     String?
+  contato       String?
+  cidade        String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

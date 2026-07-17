@@ -52,7 +52,12 @@ export async function loadClienteLocal(
   visitorId: string,
 ): Promise<ClienteLocal | null> {
   const perfil = await idbGet<ClienteLocal>(STORE_CLIENTE, visitorId);
-  if (!perfil?.primeiro_nome || !perfil?.sobrenome || !perfil?.contato) {
+  if (
+    !perfil?.primeiro_nome ||
+    !perfil?.sobrenome ||
+    !perfil?.contato ||
+    !perfil?.cidade
+  ) {
     return null;
   }
   return perfil;

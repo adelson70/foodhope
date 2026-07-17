@@ -46,6 +46,7 @@ export function Carrinho() {
       primeiro_nome: '',
       sobrenome: '',
       contato: '',
+      cidade: '',
     },
   });
 
@@ -61,6 +62,7 @@ export function Carrinho() {
         primeiro_nome: perfil.primeiro_nome,
         sobrenome: perfil.sobrenome,
         contato: perfil.contato,
+        cidade: perfil.cidade,
       });
     })();
 
@@ -76,6 +78,7 @@ export function Carrinho() {
       primeiro_nome: values.primeiro_nome,
       sobrenome: values.sobrenome,
       contato: onlyDigits(values.contato),
+      cidade: values.cidade,
     };
 
     const response = await pedidoService.criar(
@@ -201,6 +204,20 @@ export function Carrinho() {
               {errors.contato ? (
                 <p className="px-1 text-caption text-danger">
                   {errors.contato.message}
+                </p>
+              ) : null}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="carrinho-cidade">Cidade</Label>
+              <Input
+                id="carrinho-cidade"
+                placeholder="Cidade"
+                error={Boolean(errors.cidade)}
+                {...register('cidade')}
+              />
+              {errors.cidade ? (
+                <p className="px-1 text-caption text-danger">
+                  {errors.cidade.message}
                 </p>
               ) : null}
             </div>

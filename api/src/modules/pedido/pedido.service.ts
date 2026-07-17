@@ -184,29 +184,39 @@ export class PedidoService {
   async criarPedido(dto: CriarPedidoDto) {
     try {
       const pedidoCompleto = await this.prismaWrite.$transaction(async (tx) => {
-        let lead = await tx.lead.findFirst({
-          where: { contato: dto.cliente.contato },
-        });
+        const contato = dto.cliente.contato?.trim() || undefined;
+        const sobrenome = dto.cliente.sobrenome?.trim() || undefined;
+        const cidade = dto.cliente.cidade?.trim() || undefined;
 
-        if (lead) {
-          lead = await tx.lead.update({
-            where: { id: lead.id },
-            data: {
-              primeiro_nome: dto.cliente.primeiro_nome,
-              sobrenome: dto.cliente.sobrenome,
-            },
+        if (contato) {
+          const leadExistente = await tx.lead.findFirst({
+            where: { contato },
           });
-        } else {
-          lead = await tx.lead.create({
-            data: {
-              primeiro_nome: dto.cliente.primeiro_nome,
-              sobrenome: dto.cliente.sobrenome,
-              contato: dto.cliente.contato,
-            },
-          });
+
+          if (leadExistente) {
+            await tx.lead.update({
+              where: { id: leadExistente.id },
+              data: {
+                primeiro_nome: dto.cliente.primeiro_nome,
+                sobrenome,
+                cidade,
+              },
+            });
+          } else {
+            await tx.lead.create({
+              data: {
+                primeiro_nome: dto.cliente.primeiro_nome,
+                sobrenome,
+                contato,
+                cidade,
+              },
+            });
+          }
         }
 
-        const nome_completo = `${dto.cliente.primeiro_nome} ${dto.cliente.sobrenome}`;
+        const nome_completo = [dto.cliente.primeiro_nome, sobrenome]
+          .filter(Boolean)
+          .join(' ');
 
         const itensParaCriar: any[] = [];
 
@@ -328,7 +338,10 @@ export class PedidoService {
 
     impressao += `${linhaSeparadora('=')}\n`;
     impressao += `PEDIDO #${pedido.numero}\n`;
-    impressao += `CLIENTE: ${cliente.primeiro_nome} ${cliente.sobrenome}\n`;
+    const nomeCliente = [cliente.primeiro_nome, cliente.sobrenome]
+      .filter(Boolean)
+      .join(' ');
+    impressao += `CLIENTE: ${nomeCliente}\n`;
     impressao += `${linhaSeparadora('=')}\n\n`;
 
     let valorTotalPedido = 0;

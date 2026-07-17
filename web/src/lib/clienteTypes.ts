@@ -39,4 +39,5 @@ export type ClienteLocal = {
   primeiro_nome: string;
   sobrenome: string;
   contato: string;
+  cidade: string;
 };

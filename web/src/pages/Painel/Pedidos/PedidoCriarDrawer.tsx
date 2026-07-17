@@ -58,7 +58,7 @@ export function PedidoCriarDrawer({
   } = useForm<CriarPedidoFormValues>({
     resolver: zodResolver(criarPedidoSchema),
     defaultValues: {
-      cliente: { primeiro_nome: '', sobrenome: '', contato: '' },
+      cliente: { primeiro_nome: '', sobrenome: '', contato: '', cidade: '' },
       itens: [],
     },
   });
@@ -116,7 +116,7 @@ export function PedidoCriarDrawer({
   useEffect(() => {
     if (!open) {
       reset({
-        cliente: { primeiro_nome: '', sobrenome: '', contato: '' },
+        cliente: { primeiro_nome: '', sobrenome: '', contato: '', cidade: '' },
         itens: [],
       });
       setProdutoSelecionadoId('');
@@ -166,10 +166,18 @@ export function PedidoCriarDrawer({
 
   async function onSubmit(values: CriarPedidoFormValues) {
     try {
+      const contatoDigits = values.cliente.contato
+        ? onlyDigits(values.cliente.contato)
+        : undefined;
+      const sobrenome = values.cliente.sobrenome?.trim() || undefined;
+      const cidade = values.cliente.cidade?.trim() || undefined;
+
       const response = await pedidoService.criar({
         cliente: {
-          ...values.cliente,
-          contato: onlyDigits(values.cliente.contato),
+          primeiro_nome: values.cliente.primeiro_nome,
+          ...(sobrenome ? { sobrenome } : {}),
+          ...(contatoDigits ? { contato: contatoDigits } : {}),
+          ...(cidade ? { cidade } : {}),
         },
         itens: values.itens.map(({ produtoId, qtd, adicional, observacao }) => ({
           id: produtoId,
@@ -255,7 +263,7 @@ export function PedidoCriarDrawer({
               render={({ field }) => (
                 <PhoneInput
                   id="contato"
-                  value={field.value}
+                  value={field.value ?? ''}
                   onChange={field.onChange}
                   onBlur={field.onBlur}
                   error={Boolean(errors.cliente?.contato)}
@@ -265,6 +273,20 @@ export function PedidoCriarDrawer({
             {errors.cliente?.contato ? (
               <p className="px-1 text-caption text-danger">
                 {errors.cliente.contato.message}
+              </p>
+            ) : null}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="cidade">Cidade</Label>
+            <Input
+              id="cidade"
+              placeholder="Cidade"
+              error={Boolean(errors.cliente?.cidade)}
+              {...register('cliente.cidade')}
+            />
+            {errors.cliente?.cidade ? (
+              <p className="px-1 text-caption text-danger">
+                {errors.cliente.cidade.message}
               </p>
             ) : null}
           </div>

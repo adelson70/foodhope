@@ -10,6 +10,7 @@ export const checkoutClienteSchema = z.object({
     .min(1, 'Informe o telefone')
     .transform(onlyDigits)
     .refine(isValidContato, 'Informe um telefone válido com DDI'),
+  cidade: z.string().min(1, 'Informe a cidade'),
 });
 
 export type CheckoutClienteValues = z.infer<typeof checkoutClienteSchema>;

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsString,
   IsNumber,
@@ -9,7 +9,14 @@ import {
   IsArray,
   IsNotEmpty,
   Matches,
+  ValidateIf,
 } from 'class-validator';
+
+function emptyToUndefined({ value }: { value: unknown }) {
+  if (typeof value !== 'string') return value;
+  const trimmed = value.trim();
+  return trimmed === '' ? undefined : trimmed;
+}
 
 export class ClientePedido {
   @ApiProperty({ example: 'Adelson', description: 'Nome do cliente' })
@@ -17,19 +24,31 @@ export class ClientePedido {
   @IsNotEmpty({ message: 'Nome é obrigatório' })
   primeiro_nome: string;
 
-  @ApiProperty({ example: 'Bittencourt Jr', description: 'Sobrenome do cliente' })
+  @ApiPropertyOptional({ example: 'Bittencourt Jr', description: 'Sobrenome do cliente' })
+  @Transform(emptyToUndefined)
+  @IsOptional()
   @IsString()
-  @IsNotEmpty({ message: 'Sobrenome é obrigatório' })
-  sobrenome: string;
+  sobrenome?: string;
 
-  @ApiProperty({ example: '5548991802334', description: 'Contato do cliente (DDI + DDD + Número)' })
+  @ApiPropertyOptional({
+    example: '5548991802334',
+    description: 'Contato do cliente (DDI + DDD + Número)',
+  })
+  @Transform(emptyToUndefined)
+  @IsOptional()
+  @ValidateIf((_, v) => v !== undefined && v !== null && v !== '')
   @IsString()
-  @IsNotEmpty({ message: 'Contato é obrigatório' })
   @Matches(/^\d{11,15}$/, {
     message:
       'O contato deve conter apenas números e incluir o Código do País + DDD + Número (Ex: 5548991802334)',
   })
-  contato: string;
+  contato?: string;
+
+  @ApiPropertyOptional({ example: 'Florianópolis', description: 'Cidade do cliente' })
+  @Transform(emptyToUndefined)
+  @IsOptional()
+  @IsString()
+  cidade?: string;
 }
 
 export class AdicionalPedidoDto {
@@ -80,7 +99,8 @@ export class CriarPedidoDto {
   itens: ItemPedidoDto[];
 
   @ApiProperty({ description: 'Informações do cliente', type: ClientePedido })
-  @IsNotEmpty({ message: 'Sobrenome é obrigatório' })
+  @IsNotEmpty({ message: 'Dados do cliente são obrigatórios' })
+  @ValidateNested()
   @Type(() => ClientePedido)
   cliente: ClientePedido;
 }

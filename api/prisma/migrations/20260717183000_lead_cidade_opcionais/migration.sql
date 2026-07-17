@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "lead" ALTER COLUMN "sobrenome" DROP NOT NULL;
+ALTER TABLE "lead" ALTER COLUMN "contato" DROP NOT NULL;
+ALTER TABLE "lead" ADD COLUMN "cidade" TEXT;

@@ -162,8 +162,9 @@ export type Pedido = {
 
 export type ClientePedidoInput = {
   primeiro_nome: string;
-  sobrenome: string;
-  contato: string;
+  sobrenome?: string;
+  contato?: string;
+  cidade?: string;
 };
 
 export type AdicionalPedidoInput = {

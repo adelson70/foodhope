@@ -5,12 +5,16 @@ import { isValidContato, onlyDigits } from '../lib/phone';
 export const criarPedidoSchema = z.object({
   cliente: z.object({
     primeiro_nome: z.string().min(1, 'Informe o nome'),
-    sobrenome: z.string().min(1, 'Informe o sobrenome'),
+    sobrenome: z.string().optional(),
     contato: z
       .string()
-      .min(1, 'Informe o telefone')
-      .transform(onlyDigits)
-      .refine(isValidContato, 'Informe um telefone válido com DDI'),
+      .optional()
+      .transform((value) => (value ? onlyDigits(value) : ''))
+      .refine(
+        (value) => value === '' || isValidContato(value),
+        'Informe um telefone válido com DDI',
+      ),
+    cidade: z.string().optional(),
   }),
   itens: z
     .array(
