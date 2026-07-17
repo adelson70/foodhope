@@ -1,31 +1,56 @@
+import type { RefObject } from 'react';
+
 import type { Produto } from '../../../services/types';
 import { ProdutoCard } from './ProdutoCard';
+import { ProdutoCardSkeleton } from './ProdutoCardSkeleton';
 
 type CardapioListaProps = {
   produtos: Produto[];
   loading: boolean;
+  loadingMore: boolean;
+  pending: boolean;
+  hasNextPage: boolean;
   erro: string | null;
   buscaAtiva: boolean;
+  sentinelRef: RefObject<HTMLDivElement | null>;
   onEdit: (produto: Produto) => void;
   onDelete: (produto: Produto) => void;
 };
 
+const SKELETON_COUNT = 4;
+const LOAD_MORE_SKELETON_COUNT = 2;
+
 export function CardapioLista({
   produtos,
   loading,
+  loadingMore,
+  pending,
+  hasNextPage,
   erro,
   buscaAtiva,
+  sentinelRef,
   onEdit,
   onDelete,
 }: CardapioListaProps) {
   if (loading) {
     return (
-      <div className="flex min-h-40 items-center justify-center">
-        <div
-          className="size-8 animate-pulse rounded-full bg-primary-container/40"
-          aria-label="Carregando produtos"
-        />
-      </div>
+      <ul
+        className="flex flex-col gap-3"
+        aria-busy="true"
+        aria-label="Carregando produtos"
+      >
+        {Array.from({ length: SKELETON_COUNT }, (_, index) => (
+          <li key={index}>
+            <ProdutoCardSkeleton />
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  if (pending) {
+    return (
+      <div className="min-h-40" aria-busy="true" aria-label="Carregando produtos" />
     );
   }
 
@@ -60,6 +85,18 @@ export function CardapioLista({
           />
         </li>
       ))}
+      {loadingMore
+        ? Array.from({ length: LOAD_MORE_SKELETON_COUNT }, (_, index) => (
+            <li key={`more-${index}`}>
+              <ProdutoCardSkeleton />
+            </li>
+          ))
+        : null}
+      {hasNextPage ? (
+        <li aria-hidden>
+          <div ref={sentinelRef} className="h-1" />
+        </li>
+      ) : null}
     </ul>
   );
 }

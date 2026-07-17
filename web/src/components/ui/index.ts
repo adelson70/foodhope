@@ -7,5 +7,6 @@ export { Label } from './Label';
 export { PhoneInput } from './PhoneInput';
 export { Select } from './Select';
 export type { SelectOption } from './select.utils';
+export { Skeleton } from './Skeleton';
 export { Textarea } from './Textarea';
 export { Toaster } from './Toaster';

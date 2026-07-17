@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
 
+import { useDeferredLoading } from '../../../hooks/useDeferredLoading';
 import { dashService, getApiErrorMensagens } from '../../../services';
 import type { DashDados } from '../../../services/types';
 import { DashCharts } from './DashCharts';
 import { DashDestaques } from './DashDestaques';
 import { DashKpis } from './DashKpis';
+import { DashSkeleton } from './DashSkeleton';
 
 export function Dash() {
   const [dados, setDados] = useState<DashDados | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+  const showSkeleton = useDeferredLoading(loading);
 
   useEffect(() => {
     let cancelled = false;
@@ -43,14 +46,13 @@ export function Dash() {
     };
   }, []);
 
-  if (loading) {
+  if (showSkeleton) {
+    return <DashSkeleton />;
+  }
+
+  if (loading || (!dados && !erro)) {
     return (
-      <div className="flex min-h-40 items-center justify-center">
-        <div
-          className="size-8 animate-pulse rounded-full bg-primary-container/40"
-          aria-label="Carregando dashboard"
-        />
-      </div>
+      <div className="min-h-40" aria-busy="true" aria-label="Carregando dashboard" />
     );
   }
 

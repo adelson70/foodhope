@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ConfirmDialog } from '../../../components/ui';
+import { useDeferredLoading } from '../../../hooks/useDeferredLoading';
+import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import {
   getApiErrorMensagens,
   produtoService,
@@ -11,7 +13,7 @@ import { CardapioLista } from './CardapioLista';
 import { CardapioSearch } from './CardapioSearch';
 import { ProdutoFormDrawer } from './ProdutoFormDrawer';
 
-const LISTAR_LIMIT = 50;
+const LISTAR_LIMIT = 20;
 const BUSCA_DEBOUNCE_MS = 300;
 
 export function Cardapio() {
@@ -19,13 +21,18 @@ export function Cardapio() {
   const [busca, setBusca] = useState('');
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasNextPage, setHasNextPage] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [produtoEditar, setProdutoEditar] = useState<Produto | null>(null);
   const [produtoExcluir, setProdutoExcluir] = useState<Produto | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const showSkeleton = useDeferredLoading(loading && produtos.length === 0);
+  const showMoreSkeleton = useDeferredLoading(loadingMore);
   const buscaRef = useRef(busca);
   buscaRef.current = busca;
+  const nextCursorRef = useRef<string | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -37,6 +44,8 @@ export function Cardapio() {
   const carregar = useCallback(async (termo: string) => {
     setLoading(true);
     setErro(null);
+    setHasNextPage(false);
+    nextCursorRef.current = null;
 
     try {
       if (termo) {
@@ -57,18 +66,54 @@ export function Cardapio() {
         return;
       }
       setProdutos(response.dados.data ?? []);
+      setHasNextPage(response.dados.meta.hasNextPage);
+      nextCursorRef.current = response.dados.meta.nextCursor;
     } catch (error: unknown) {
       const mensagens = getApiErrorMensagens(error);
       setErro(mensagens[0] ?? 'Não foi possível carregar os produtos.');
       setProdutos([]);
+      setHasNextPage(false);
+      nextCursorRef.current = null;
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const carregarMais = useCallback(async () => {
+    if (buscaRef.current || !nextCursorRef.current) return;
+
+    const cursor = nextCursorRef.current;
+    setLoadingMore(true);
+
+    try {
+      const response = await produtoService.listar({
+        limit: LISTAR_LIMIT,
+        cursor,
+      });
+      if (!response.sucesso || !response.dados) return;
+
+      const novos = response.dados.data ?? [];
+      setProdutos((atual) => {
+        const ids = new Set(atual.map((item) => item.id));
+        return [...atual, ...novos.filter((item) => !ids.has(item.id))];
+      });
+      setHasNextPage(response.dados.meta.hasNextPage);
+      nextCursorRef.current = response.dados.meta.nextCursor;
+    } catch {
+      return;
+    } finally {
+      setLoadingMore(false);
     }
   }, []);
 
   useEffect(() => {
     void carregar(busca);
   }, [busca, carregar]);
+
+  const sentinelRef = useInfiniteScroll({
+    enabled: hasNextPage && !loading && !loadingMore && !busca,
+    onLoadMore: carregarMais,
+  });
 
   function handleNovo() {
     setProdutoEditar(null);
@@ -126,9 +171,13 @@ export function Cardapio() {
       <CardapioSearch value={buscaInput} onChange={setBuscaInput} />
       <CardapioLista
         produtos={produtos}
-        loading={loading}
+        loading={showSkeleton}
+        loadingMore={showMoreSkeleton}
+        pending={loading && produtos.length === 0 && !showSkeleton}
+        hasNextPage={hasNextPage && !busca}
         erro={erro}
         buscaAtiva={Boolean(busca)}
+        sentinelRef={sentinelRef}
         onEdit={handleEdit}
         onDelete={setProdutoExcluir}
       />

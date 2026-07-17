@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
 
+import { useDeferredLoading } from '../../../hooks/useDeferredLoading';
 import { authService, getApiErrorMensagens } from '../../../services';
 import type { Operador } from '../../../services/types';
 import { ConfigForm } from './ConfigForm';
 import { ConfigLogout } from './ConfigLogout';
+import { ConfigSkeleton } from './ConfigSkeleton';
 
 export function Config() {
   const [operador, setOperador] = useState<Operador | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+  const showSkeleton = useDeferredLoading(loading);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,14 +47,17 @@ export function Config() {
     };
   }, []);
 
-  if (loading) {
+  if (showSkeleton) {
+    return <ConfigSkeleton />;
+  }
+
+  if (loading || (!operador && !erro)) {
     return (
-      <div className="flex min-h-40 items-center justify-center">
-        <div
-          className="size-8 animate-pulse rounded-full bg-primary-container/40"
-          aria-label="Carregando configurações"
-        />
-      </div>
+      <div
+        className="min-h-40"
+        aria-busy="true"
+        aria-label="Carregando configurações"
+      />
     );
   }
 

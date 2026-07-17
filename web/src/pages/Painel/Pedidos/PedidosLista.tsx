@@ -1,29 +1,54 @@
+import type { RefObject } from 'react';
+
 import type { Pedido } from '../../../services/types';
 import { PedidoCard } from './PedidoCard';
+import { PedidoCardSkeleton } from './PedidoCardSkeleton';
 
 type PedidosListaProps = {
   pedidos: Pedido[];
   loading: boolean;
+  loadingMore: boolean;
+  pending: boolean;
+  hasNextPage: boolean;
   erro: string | null;
   buscaAtiva: boolean;
+  sentinelRef: RefObject<HTMLDivElement | null>;
   onDelete: (pedido: Pedido) => void;
 };
+
+const SKELETON_COUNT = 4;
+const LOAD_MORE_SKELETON_COUNT = 2;
 
 export function PedidosLista({
   pedidos,
   loading,
+  loadingMore,
+  pending,
+  hasNextPage,
   erro,
   buscaAtiva,
+  sentinelRef,
   onDelete,
 }: PedidosListaProps) {
   if (loading) {
     return (
-      <div className="flex min-h-40 items-center justify-center">
-        <div
-          className="size-8 animate-pulse rounded-full bg-primary-container/40"
-          aria-label="Carregando pedidos"
-        />
-      </div>
+      <ul
+        className="flex flex-col gap-3"
+        aria-busy="true"
+        aria-label="Carregando pedidos"
+      >
+        {Array.from({ length: SKELETON_COUNT }, (_, index) => (
+          <li key={index}>
+            <PedidoCardSkeleton />
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  if (pending) {
+    return (
+      <div className="min-h-40" aria-busy="true" aria-label="Carregando pedidos" />
     );
   }
 
@@ -54,6 +79,18 @@ export function PedidosLista({
           <PedidoCard pedido={pedido} onDelete={onDelete} />
         </li>
       ))}
+      {loadingMore
+        ? Array.from({ length: LOAD_MORE_SKELETON_COUNT }, (_, index) => (
+            <li key={`more-${index}`}>
+              <PedidoCardSkeleton />
+            </li>
+          ))
+        : null}
+      {hasNextPage ? (
+        <li aria-hidden>
+          <div ref={sentinelRef} className="h-1" />
+        </li>
+      ) : null}
     </ul>
   );
 }
