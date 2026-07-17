@@ -5,6 +5,7 @@ import 'react-easy-crop/react-easy-crop.css';
 import { Button } from '../../../components/ui';
 import { useAnimatedPresence } from '../../../components/ui/useAnimatedPresence';
 import { cn } from '../../../lib/cn';
+import { lockAppScroll, unlockAppScroll } from '../../../lib/scrollLock';
 import { notifyError } from '../../../services';
 import { getCroppedImg } from './cropImage';
 
@@ -78,12 +79,11 @@ export function ProdutoImagemCropDialog({
     }
 
     document.addEventListener('keydown', onKeyDown);
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    lockAppScroll();
 
     return () => {
       document.removeEventListener('keydown', onKeyDown);
-      document.body.style.overflow = previousOverflow;
+      unlockAppScroll();
     };
   }, [mounted, exiting, onClose, processando]);
 
@@ -132,7 +132,7 @@ export function ProdutoImagemCropDialog({
         )}
         onAnimationEnd={onExitAnimationEnd}
       >
-        <header className="flex shrink-0 flex-col gap-1 border-b border-operator-border px-4 py-4">
+        <header className="flex shrink-0 flex-col gap-1 border-b border-operator-border px-4 py-4 pt-[max(1rem,env(safe-area-inset-top))]">
           <h2
             id="produto-crop-title"
             className="text-title-md font-semibold text-on-surface"
@@ -182,7 +182,7 @@ export function ProdutoImagemCropDialog({
           />
         </div>
 
-        <div className="flex shrink-0 flex-col gap-4 border-t border-operator-border px-4 py-4">
+        <div className="flex shrink-0 flex-col gap-4 border-t border-operator-border px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <label className="flex flex-col gap-2">
             <span className="flex items-center justify-between text-caption text-on-surface-variant">
               <span>Zoom</span>

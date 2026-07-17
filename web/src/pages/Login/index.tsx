@@ -10,7 +10,7 @@ export function Login() {
   }
 
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center px-4 py-8">
+    <main className="relative flex min-h-dvh flex-col items-center justify-center px-4 py-8 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,color-mix(in_srgb,var(--color-primary-container)_6%,transparent)_0%,transparent_50%)]" />
 
       <div className="relative z-10 flex w-full max-w-sm flex-col gap-6">

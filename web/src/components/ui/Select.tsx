@@ -69,8 +69,12 @@ export function Select({
 
       const gap = 8;
       const preferredMax = 280;
-      const spaceBelow = window.innerHeight - rect.bottom - gap - 16;
-      const spaceAbove = rect.top - gap - 16;
+      const vv = window.visualViewport;
+      const viewportHeight = vv?.height ?? window.innerHeight;
+      const viewportOffsetTop = vv?.offsetTop ?? 0;
+      const spaceBelow =
+        viewportOffsetTop + viewportHeight - rect.bottom - gap - 16;
+      const spaceAbove = rect.top - viewportOffsetTop - gap - 16;
       const openUp = spaceBelow < 180 && spaceAbove > spaceBelow;
       const maxHeight = Math.min(
         preferredMax,
@@ -88,9 +92,14 @@ export function Select({
     updatePosition();
     window.addEventListener('resize', updatePosition);
     window.addEventListener('scroll', updatePosition, true);
+    const vv = window.visualViewport;
+    vv?.addEventListener('resize', updatePosition);
+    vv?.addEventListener('scroll', updatePosition);
     return () => {
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition, true);
+      vv?.removeEventListener('resize', updatePosition);
+      vv?.removeEventListener('scroll', updatePosition);
     };
   }, [open, fullWidth]);
 

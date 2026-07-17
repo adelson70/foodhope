@@ -42,7 +42,7 @@ export function ProtectedRoute() {
 
   if (status === 'checking') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-operator-bg">
+      <div className="flex min-h-dvh items-center justify-center bg-operator-bg">
         <div
           className="size-8 animate-pulse rounded-full bg-primary-container/40"
           aria-label="Validando sessão"

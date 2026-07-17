@@ -1,29 +1,46 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 
 import { useHideOnScrollDown } from '../../hooks/useHideOnScrollDown';
+import { useScrollFocusedIntoView } from '../../hooks/useScrollFocusedIntoView';
+import { markScrollRoot } from '../../lib/scrollLock';
 import { useCarrinhoStore } from '../../stores/carrinho.store';
 import { ensureVisitor } from '../../services/visitor';
+import { Button } from '../ui';
 import { FoodHopeLogo } from '../brand/FoodHopeLogo';
 import { ClienteBottomNav } from './ClienteBottomNav';
+
+const MAIN_PB =
+  'pb-[max(7rem,calc(7rem+env(safe-area-inset-bottom)))]';
 
 export function MobileAppLayout() {
   const hydrate = useCarrinhoStore((state) => state.hydrate);
   const [visitorReady, setVisitorReady] = useState(false);
   const [visitorErro, setVisitorErro] = useState<string | null>(null);
+  const [retryToken, setRetryToken] = useState(0);
   const mainRef = useRef<HTMLElement>(null);
   const navHidden = useHideOnScrollDown(mainRef);
+  useScrollFocusedIntoView(mainRef);
 
   useEffect(() => {
+    markScrollRoot(mainRef.current);
+  }, []);
+
+  const iniciarVisitor = useCallback(() => {
     let cancelled = false;
     const baseUrl = (import.meta.env.VITE_API_URL as string | undefined)?.replace(
       /\/$/,
       '',
     );
 
+    setVisitorReady(false);
+    setVisitorErro(null);
+
     if (!baseUrl) {
       setVisitorErro('API não configurada.');
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
 
     ensureVisitor(baseUrl)
@@ -37,6 +54,7 @@ export function MobileAppLayout() {
       })
       .catch(() => {
         if (!cancelled) {
+          setVisitorReady(false);
           setVisitorErro('Não foi possível iniciar a sessão do cardápio.');
         }
       });
@@ -46,19 +64,34 @@ export function MobileAppLayout() {
     };
   }, [hydrate]);
 
+  useEffect(() => {
+    return iniciarVisitor();
+  }, [iniciarVisitor, retryToken]);
+
   return (
     <div className="flex min-h-dvh justify-center bg-background text-on-background">
-      <div className="relative flex h-dvh w-full max-w-md flex-col overflow-hidden bg-background shadow-card">
+      <div className="relative flex h-dvh w-full max-w-md flex-col overflow-hidden bg-background shadow-card pt-[env(safe-area-inset-top)]">
         <header className="sticky top-0 z-20 shrink-0 border-b border-outline-variant/50 bg-surface/90 px-4 py-3 backdrop-blur-sm">
           <FoodHopeLogo
             markClassName="size-8"
             wordmarkClassName="text-title-md tracking-[0.2em]"
           />
         </header>
-        <main ref={mainRef} className="min-h-0 flex-1 overflow-y-auto pb-28">
+        <main
+          ref={mainRef}
+          data-scroll-root=""
+          className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain ${MAIN_PB}`}
+        >
           {visitorErro ? (
-            <div className="flex flex-col gap-2 p-4">
+            <div className="flex flex-col gap-3 p-4">
               <p className="text-body-md text-danger">{visitorErro}</p>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setRetryToken((n) => n + 1)}
+              >
+                Tentar de novo
+              </Button>
             </div>
           ) : visitorReady ? (
             <Outlet />

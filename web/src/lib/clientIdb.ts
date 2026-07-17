@@ -6,6 +6,19 @@ export const STORE_CARRINHO = 'carrinho';
 export const STORE_PEDIDOS = 'pedidosLocais';
 export const STORE_CLIENTE = 'clientePerfil';
 
+export class QuotaExceededIdbError extends Error {
+  constructor(message = 'Armazenamento local sem espaço') {
+    super(message);
+    this.name = 'QuotaExceededIdbError';
+  }
+}
+
+function isQuotaError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const name = 'name' in error ? String(error.name) : '';
+  return name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED';
+}
+
 export function openClientDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -69,7 +82,12 @@ export async function idbPut(
       const request = store.put(value, key);
       request.onsuccess = () => resolve();
       request.onerror = () => {
-        reject(request.error ?? new Error('Falha ao gravar IndexedDB'));
+        const err = request.error ?? new Error('Falha ao gravar IndexedDB');
+        if (isQuotaError(err)) {
+          reject(new QuotaExceededIdbError());
+          return;
+        }
+        reject(err);
       };
     });
   } finally {

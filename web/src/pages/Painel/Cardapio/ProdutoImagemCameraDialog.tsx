@@ -4,6 +4,7 @@ import { Camera } from 'lucide-react';
 import { Button } from '../../../components/ui';
 import { useAnimatedPresence } from '../../../components/ui/useAnimatedPresence';
 import { cn } from '../../../lib/cn';
+import { lockAppScroll, unlockAppScroll } from '../../../lib/scrollLock';
 import { notifyError } from '../../../services';
 
 type ProdutoImagemCameraDialogProps = {
@@ -84,12 +85,11 @@ export function ProdutoImagemCameraDialog({
     }
 
     document.addEventListener('keydown', onKeyDown);
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    lockAppScroll();
 
     return () => {
       document.removeEventListener('keydown', onKeyDown);
-      document.body.style.overflow = previousOverflow;
+      unlockAppScroll();
     };
   }, [mounted, exiting, onClose, capturando]);
 
@@ -162,7 +162,7 @@ export function ProdutoImagemCameraDialog({
         )}
         onAnimationEnd={onExitAnimationEnd}
       >
-        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-operator-border px-4 py-4">
+        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-operator-border px-4 py-4 pt-[max(1rem,env(safe-area-inset-top))]">
           <h2
             id="produto-camera-title"
             className="text-title-md font-semibold text-on-surface"
@@ -188,7 +188,7 @@ export function ProdutoImagemCameraDialog({
           </div>
         </div>
 
-        <div className="flex shrink-0 gap-2 border-t border-operator-border px-4 py-4">
+        <div className="flex shrink-0 gap-2 border-t border-operator-border px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <Button
             type="button"
             variant="secondary"

@@ -55,7 +55,7 @@ export function Carrinho() {
 
     void (async () => {
       const visitorId = await getVisitorId();
-      if (!visitorId || cancelled) return;
+      if (cancelled) return;
       const perfil = await loadClienteLocal(visitorId);
       if (!perfil || cancelled) return;
       reset({
@@ -103,27 +103,24 @@ export function Carrinho() {
     if (!response.sucesso || !response.dados?.pedido) return;
 
     const pedido = response.dados.pedido;
-    const visitorId = await getVisitorId();
-    if (visitorId) {
-      await saveClienteLocal(visitorId, cliente);
-      await appendPedidoLocal(visitorId, {
-        id: pedido.id,
-        numero: String(pedido.numero),
-        nome_completo: pedido.nome_completo,
-        createdAt: pedido.createdAt ?? new Date().toISOString(),
-        itens: itens.map((item) => ({
-          nome: item.nome,
-          qtd: item.qtd,
-          preco: item.preco,
-          adicionais: item.adicionais.map((adic) => ({
-            nome: adic.nome,
-            preco: adic.preco,
-            qtd: adic.qtd,
-          })),
-          observacao: item.observacao,
+    await saveClienteLocal(cliente);
+    await appendPedidoLocal({
+      id: pedido.id,
+      numero: String(pedido.numero),
+      nome_completo: pedido.nome_completo,
+      createdAt: pedido.createdAt ?? new Date().toISOString(),
+      itens: itens.map((item) => ({
+        nome: item.nome,
+        qtd: item.qtd,
+        preco: item.preco,
+        adicionais: item.adicionais.map((adic) => ({
+          nome: adic.nome,
+          preco: adic.preco,
+          qtd: adic.qtd,
         })),
-      });
-    }
+        observacao: item.observacao,
+      })),
+    });
 
     clear();
     navigate('/confirmado', {
@@ -163,6 +160,7 @@ export function Carrinho() {
               <Input
                 id="carrinho-nome"
                 placeholder="Primeiro nome"
+                autoComplete="given-name"
                 error={Boolean(errors.primeiro_nome)}
                 {...register('primeiro_nome')}
               />
@@ -177,6 +175,7 @@ export function Carrinho() {
               <Input
                 id="carrinho-sobrenome"
                 placeholder="Sobrenome"
+                autoComplete="family-name"
                 error={Boolean(errors.sobrenome)}
                 {...register('sobrenome')}
               />
@@ -212,6 +211,7 @@ export function Carrinho() {
               <Input
                 id="carrinho-cidade"
                 placeholder="Cidade"
+                autoComplete="address-level2"
                 error={Boolean(errors.cidade)}
                 {...register('cidade')}
               />

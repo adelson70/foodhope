@@ -10,6 +10,14 @@ export type VisitorSession = {
   verified: boolean;
 };
 
+type StoredVisitorSession = {
+  visitorId: string;
+  publicKey: string;
+  verified: boolean;
+  privateKey?: CryptoKey;
+  privateKeyJwk?: JsonWebKey;
+};
+
 function bufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = '';
@@ -45,28 +53,132 @@ function clearLegacyLocalStorage() {
   }
 }
 
+async function importPrivateKeyFromJwk(jwk: JsonWebKey): Promise<CryptoKey> {
+  return crypto.subtle.importKey(
+    'jwk',
+    jwk,
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    false,
+    ['sign'],
+  );
+}
+
+async function resolvePrivateKey(
+  stored: StoredVisitorSession,
+): Promise<CryptoKey | null> {
+  if (stored.privateKey && typeof stored.privateKey === 'object') {
+    try {
+      await crypto.subtle.sign(
+        { name: 'ECDSA', hash: 'SHA-256' },
+        stored.privateKey,
+        new TextEncoder().encode('foodhope-probe'),
+      );
+      return stored.privateKey;
+    } catch {
+      // fallback JWK
+    }
+  }
+
+  if (stored.privateKeyJwk) {
+    try {
+      return await importPrivateKeyFromJwk(stored.privateKeyJwk);
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
 async function loadSession(): Promise<VisitorSession | null> {
   clearLegacyLocalStorage();
 
   try {
-    const parsed = await idbGet<VisitorSession>(STORE_VISITOR, SESSION_KEY);
-    if (
-      !parsed?.visitorId ||
-      !parsed?.publicKey ||
-      !parsed?.privateKey ||
-      !parsed.verified
-    ) {
+    const parsed = await idbGet<StoredVisitorSession>(STORE_VISITOR, SESSION_KEY);
+    if (!parsed?.visitorId || !parsed?.publicKey || !parsed.verified) {
       return null;
     }
-    return parsed;
+
+    const privateKey = await resolvePrivateKey(parsed);
+    if (!privateKey) return null;
+
+    return {
+      visitorId: parsed.visitorId,
+      publicKey: parsed.publicKey,
+      privateKey,
+      verified: true,
+    };
   } catch {
     return null;
   }
 }
 
-async function saveSession(session: VisitorSession): Promise<void> {
+async function requestPersistentStorage() {
+  try {
+    if (navigator.storage?.persisted && navigator.storage.persist) {
+      const already = await navigator.storage.persisted();
+      if (!already) {
+        await navigator.storage.persist();
+      }
+    }
+  } catch {
+    return;
+  }
+}
+
+async function saveSessionWithCryptoKey(
+  session: VisitorSession,
+): Promise<void> {
+  await idbPut(STORE_VISITOR, SESSION_KEY, {
+    visitorId: session.visitorId,
+    publicKey: session.publicKey,
+    privateKey: session.privateKey,
+    verified: true,
+  } satisfies StoredVisitorSession);
+}
+
+async function saveSessionWithJwk(
+  session: VisitorSession,
+  jwk: JsonWebKey,
+): Promise<void> {
+  await idbPut(STORE_VISITOR, SESSION_KEY, {
+    visitorId: session.visitorId,
+    publicKey: session.publicKey,
+    privateKeyJwk: jwk,
+    verified: true,
+  } satisfies StoredVisitorSession);
+}
+
+async function verifyRoundTrip(session: VisitorSession): Promise<boolean> {
+  const loaded = await loadSession();
+  if (!loaded || loaded.visitorId !== session.visitorId) return false;
+  try {
+    await signMessage(loaded.privateKey, 'foodhope-roundtrip');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function saveSession(
+  session: VisitorSession,
+  extractableJwk: JsonWebKey,
+): Promise<void> {
   clearLegacyLocalStorage();
-  await idbPut(STORE_VISITOR, SESSION_KEY, session);
+
+  try {
+    await saveSessionWithCryptoKey(session);
+    if (await verifyRoundTrip(session)) {
+      return;
+    }
+  } catch {
+    // fallback JWK
+  }
+
+  await saveSessionWithJwk(session, extractableJwk);
+  if (!(await verifyRoundTrip(session))) {
+    throw new Error('Falha ao persistir sessão visitor');
+  }
 }
 
 export async function clearVisitorSession(): Promise<void> {
@@ -86,6 +198,7 @@ export async function getVisitorId(): Promise<string | null> {
 async function generateKeyPair(): Promise<{
   publicKey: string;
   privateKey: CryptoKey;
+  privateKeyJwk: JsonWebKey;
 }> {
   const keyPair = await crypto.subtle.generateKey(
     { name: 'ECDSA', namedCurve: 'P-256' },
@@ -106,6 +219,7 @@ async function generateKeyPair(): Promise<{
   return {
     publicKey: bufferToBase64(spki),
     privateKey,
+    privateKeyJwk: privateJwk,
   };
 }
 
@@ -189,7 +303,8 @@ async function registerAndConfirm(
     privateKey: keys.privateKey,
     verified: true,
   };
-  await saveSession(session);
+  await saveSession(session, keys.privateKeyJwk);
+  await requestPersistentStorage();
   return session;
 }
 
@@ -198,6 +313,7 @@ export async function ensureVisitor(
 ): Promise<VisitorSession> {
   const existing = await loadSession();
   if (existing) {
+    void requestPersistentStorage();
     return existing;
   }
 

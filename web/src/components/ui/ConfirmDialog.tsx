@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
+import { lockAppScroll, unlockAppScroll } from '../../lib/scrollLock';
 import { Button } from './Button';
 import { useAnimatedPresence } from './useAnimatedPresence';
 
@@ -30,22 +31,26 @@ export function ConfirmDialog({
   const { mounted, exiting, onExitAnimationEnd } = useAnimatedPresence(open);
 
   useEffect(() => {
-    if (!mounted || exiting || loading) return;
+    if (!mounted || exiting) return;
 
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !loading) {
         onCancel();
       }
     }
 
     document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
+    lockAppScroll();
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      unlockAppScroll();
+    };
   }, [mounted, exiting, loading, onCancel]);
 
   if (!mounted) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))]">
       <button
         type="button"
         aria-label="Fechar"

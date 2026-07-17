@@ -1,4 +1,5 @@
 import {
+  idbDelete,
   idbGet,
   idbPut,
   STORE_CARRINHO,
@@ -14,58 +15,79 @@ export type {
   PedidoLocalItem,
 } from './clienteTypes';
 
+export const LOCAL_DATA_KEY = 'current';
+const PEDIDOS_CAP = 50;
+
 type CarrinhoRecord = {
   itens: CarrinhoItem[];
 };
 
+async function migrateLegacyKey(
+  storeName: string,
+  legacyVisitorId?: string | null,
+): Promise<void> {
+  const current = await idbGet(storeName, LOCAL_DATA_KEY);
+  if (current !== undefined) return;
+  if (!legacyVisitorId) return;
+
+  const legacy = await idbGet(storeName, legacyVisitorId);
+  if (legacy === undefined) return;
+
+  await idbPut(storeName, LOCAL_DATA_KEY, legacy);
+  try {
+    await idbDelete(storeName, legacyVisitorId);
+  } catch {
+    return;
+  }
+}
+
 export async function loadCarrinho(
-  visitorId: string,
+  legacyVisitorId?: string | null,
 ): Promise<CarrinhoItem[]> {
-  const record = await idbGet<CarrinhoRecord>(STORE_CARRINHO, visitorId);
+  await migrateLegacyKey(STORE_CARRINHO, legacyVisitorId);
+  const record = await idbGet<CarrinhoRecord>(STORE_CARRINHO, LOCAL_DATA_KEY);
   return record?.itens ?? [];
 }
 
-export async function saveCarrinho(
-  visitorId: string,
-  itens: CarrinhoItem[],
-): Promise<void> {
-  await idbPut(STORE_CARRINHO, visitorId, { itens });
+export async function saveCarrinho(itens: CarrinhoItem[]): Promise<void> {
+  await idbPut(STORE_CARRINHO, LOCAL_DATA_KEY, { itens });
 }
 
 export async function loadPedidosLocais(
-  visitorId: string,
+  legacyVisitorId?: string | null,
 ): Promise<PedidoLocal[]> {
-  const list = await idbGet<PedidoLocal[]>(STORE_PEDIDOS, visitorId);
+  await migrateLegacyKey(STORE_PEDIDOS, legacyVisitorId);
+  const list = await idbGet<PedidoLocal[]>(STORE_PEDIDOS, LOCAL_DATA_KEY);
   return list ?? [];
 }
 
 export async function appendPedidoLocal(
-  visitorId: string,
   pedido: PedidoLocal,
 ): Promise<void> {
-  const atual = await loadPedidosLocais(visitorId);
-  const next = [pedido, ...atual.filter((item) => item.id !== pedido.id)];
-  await idbPut(STORE_PEDIDOS, visitorId, next);
+  const atual = await loadPedidosLocais();
+  const next = [pedido, ...atual.filter((item) => item.id !== pedido.id)].slice(
+    0,
+    PEDIDOS_CAP,
+  );
+  await idbPut(STORE_PEDIDOS, LOCAL_DATA_KEY, next);
 }
 
 export async function loadClienteLocal(
-  visitorId: string,
+  legacyVisitorId?: string | null,
 ): Promise<ClienteLocal | null> {
-  const perfil = await idbGet<ClienteLocal>(STORE_CLIENTE, visitorId);
-  if (
-    !perfil?.primeiro_nome ||
-    !perfil?.sobrenome ||
-    !perfil?.contato ||
-    !perfil?.cidade
-  ) {
+  await migrateLegacyKey(STORE_CLIENTE, legacyVisitorId);
+  const perfil = await idbGet<ClienteLocal>(STORE_CLIENTE, LOCAL_DATA_KEY);
+  if (!perfil?.primeiro_nome) {
     return null;
   }
-  return perfil;
+  return {
+    primeiro_nome: perfil.primeiro_nome,
+    sobrenome: perfil.sobrenome ?? '',
+    contato: perfil.contato ?? '',
+    cidade: perfil.cidade ?? '',
+  };
 }
 
-export async function saveClienteLocal(
-  visitorId: string,
-  cliente: ClienteLocal,
-): Promise<void> {
-  await idbPut(STORE_CLIENTE, visitorId, cliente);
+export async function saveClienteLocal(cliente: ClienteLocal): Promise<void> {
+  await idbPut(STORE_CLIENTE, LOCAL_DATA_KEY, cliente);
 }

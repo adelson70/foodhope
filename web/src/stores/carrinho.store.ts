@@ -24,9 +24,7 @@ function somarQtds(itens: CarrinhoItem[]): number {
 }
 
 async function persist(itens: CarrinhoItem[]) {
-  const visitorId = await getVisitorId();
-  if (!visitorId) return;
-  await saveCarrinho(visitorId, itens);
+  await saveCarrinho(itens);
 }
 
 export const useCarrinhoStore = create<CarrinhoState>((set, get) => ({
@@ -35,10 +33,6 @@ export const useCarrinhoStore = create<CarrinhoState>((set, get) => ({
   hydrated: false,
   hydrate: async () => {
     const visitorId = await getVisitorId();
-    if (!visitorId) {
-      set({ itens: [], totalItens: 0, hydrated: true });
-      return;
-    }
     const itens = await loadCarrinho(visitorId);
     set({ itens, totalItens: somarQtds(itens), hydrated: true });
   },

@@ -12,8 +12,14 @@ export function Toaster() {
       visibleToasts={3}
       duration={4200}
       gap={10}
-      offset={16}
-      mobileOffset={12}
+      offset={{
+        top: 'max(1rem, env(safe-area-inset-top))',
+        right: 16,
+      }}
+      mobileOffset={{
+        top: 'max(0.75rem, env(safe-area-inset-top))',
+        right: 12,
+      }}
       className="font-sans"
       toastOptions={{
         unstyled: true,

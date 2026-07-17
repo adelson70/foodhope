@@ -26,7 +26,7 @@ export function PedidosCliente() {
     setLoading(true);
     try {
       const visitorId = await getVisitorId();
-      const lista = visitorId ? await loadPedidosLocais(visitorId) : [];
+      const lista = await loadPedidosLocais(visitorId);
       setTodos(lista);
       const first = lista.slice(0, PAGE_SIZE);
       setVisiveis(first);

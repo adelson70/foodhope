@@ -1,7 +1,9 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 
+import { useScrollFocusedIntoView } from '../../hooks/useScrollFocusedIntoView';
 import { cn } from '../../lib/cn';
+import { lockAppScroll, unlockAppScroll } from '../../lib/scrollLock';
 import { useAnimatedPresence } from './useAnimatedPresence';
 
 type DrawerProps = {
@@ -14,6 +16,8 @@ type DrawerProps = {
 
 export function Drawer({ open, title, onClose, children, footer }: DrawerProps) {
   const { mounted, exiting, onExitAnimationEnd } = useAnimatedPresence(open);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useScrollFocusedIntoView(bodyRef);
 
   useEffect(() => {
     if (!mounted || exiting) return;
@@ -25,12 +29,11 @@ export function Drawer({ open, title, onClose, children, footer }: DrawerProps) 
     }
 
     document.addEventListener('keydown', onKeyDown);
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    lockAppScroll();
 
     return () => {
       document.removeEventListener('keydown', onKeyDown);
-      document.body.style.overflow = previousOverflow;
+      unlockAppScroll();
     };
   }, [mounted, exiting, onClose]);
 
@@ -55,6 +58,7 @@ export function Drawer({ open, title, onClose, children, footer }: DrawerProps) 
         className={cn(
           'relative z-10 flex h-dvh w-full max-w-md flex-col',
           'bg-operator-surface border-x border-operator-border shadow-card',
+          'pt-[env(safe-area-inset-top)]',
           exiting ? 'drawer-exit' : 'drawer-enter',
         )}
         onAnimationEnd={onExitAnimationEnd}
@@ -76,9 +80,14 @@ export function Drawer({ open, title, onClose, children, footer }: DrawerProps) 
             <X size={22} strokeWidth={1.75} />
           </button>
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">{children}</div>
+        <div
+          ref={bodyRef}
+          className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-4"
+        >
+          {children}
+        </div>
         {footer ? (
-          <footer className="shrink-0 border-t border-operator-border px-4 py-4">
+          <footer className="shrink-0 border-t border-operator-border px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
             {footer}
           </footer>
         ) : null}
