@@ -3,12 +3,17 @@ import { ClipboardList, ShoppingCart, UtensilsCrossed } from 'lucide-react';
 import { useCarrinhoStore } from '../../stores/carrinho.store';
 import { FloatingBottomNav } from './FloatingBottomNav';
 
-export function ClienteBottomNav() {
+type ClienteBottomNavProps = {
+  hidden?: boolean;
+};
+
+export function ClienteBottomNav({ hidden }: ClienteBottomNavProps) {
   const totalItens = useCarrinhoStore((state) => state.totalItens);
 
   return (
     <FloatingBottomNav
       aria-label="Navegação do cardápio"
+      hidden={hidden}
       items={[
         { to: '/pedidos', label: 'Pedidos', icon: ClipboardList },
         { to: '/', label: 'Cardápio', icon: UtensilsCrossed, end: true },

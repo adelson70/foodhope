@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 
+import { useHideOnScrollDown } from '../../hooks/useHideOnScrollDown';
 import { useCarrinhoStore } from '../../stores/carrinho.store';
 import { ensureVisitor } from '../../services/visitor';
 import { ClienteBottomNav } from './ClienteBottomNav';
@@ -9,6 +10,8 @@ export function MobileAppLayout() {
   const hydrate = useCarrinhoStore((state) => state.hydrate);
   const [visitorReady, setVisitorReady] = useState(false);
   const [visitorErro, setVisitorErro] = useState<string | null>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  const navHidden = useHideOnScrollDown(mainRef);
 
   useEffect(() => {
     let cancelled = false;
@@ -43,12 +46,12 @@ export function MobileAppLayout() {
   }, [hydrate]);
 
   return (
-    <div className="flex min-h-screen justify-center bg-background text-on-background">
-      <div className="relative flex w-full max-w-md flex-col min-h-screen overflow-hidden bg-background shadow-card">
+    <div className="flex min-h-dvh justify-center bg-background text-on-background">
+      <div className="relative flex h-dvh w-full max-w-md flex-col overflow-hidden bg-background shadow-card">
         <header className="sticky top-0 z-20 shrink-0 border-b border-outline-variant/50 bg-surface/90 px-4 py-3 backdrop-blur-sm">
           <h1 className="text-headline text-primary-container">Food Hope</h1>
         </header>
-        <main className="flex-1 overflow-y-auto pb-28">
+        <main ref={mainRef} className="min-h-0 flex-1 overflow-y-auto pb-28">
           {visitorErro ? (
             <div className="flex flex-col gap-2 p-4">
               <p className="text-body-md text-danger">{visitorErro}</p>
@@ -64,7 +67,7 @@ export function MobileAppLayout() {
             </div>
           )}
         </main>
-        {visitorReady ? <ClienteBottomNav /> : null}
+        {visitorReady ? <ClienteBottomNav hidden={navHidden} /> : null}
       </div>
     </div>
   );

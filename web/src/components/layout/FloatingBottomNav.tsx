@@ -15,6 +15,7 @@ export type FloatingNavItem = {
 type FloatingBottomNavProps = {
   items: readonly FloatingNavItem[];
   'aria-label': string;
+  hidden?: boolean;
 };
 
 const BAR_H = 48;
@@ -49,6 +50,7 @@ function barPath(w: number, h: number, cx: number) {
 export function FloatingBottomNav({
   items,
   'aria-label': ariaLabel,
+  hidden = false,
 }: FloatingBottomNavProps) {
   const { pathname } = useLocation();
   const shellRef = useRef<HTMLDivElement>(null);
@@ -81,12 +83,16 @@ export function FloatingBottomNav({
 
   return (
     <nav
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-md px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+      className={cn(
+        'pointer-events-none fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-md px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] transition-transform duration-300 ease-out',
+        hidden && 'translate-y-[calc(100%+1rem)]',
+      )}
       aria-label={ariaLabel}
+      aria-hidden={hidden}
     >
       <div
         ref={shellRef}
-        className="pointer-events-auto relative"
+        className={cn('relative', !hidden && 'pointer-events-auto')}
         style={{ height: shellH }}
       >
         <svg
