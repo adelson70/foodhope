@@ -1,5 +1,6 @@
 import { api, request } from './api';
 import { clearToken, setToken } from './cookie';
+import { withMutationToast } from './mutation-toast';
 import type {
   ApiResponse,
   LoginDados,
@@ -10,23 +11,35 @@ import type {
 
 export const authService = {
   async login(payload: LoginPayload): Promise<ApiResponse<LoginDados>> {
-    const response = await request(
-      api.post<ApiResponse<LoginDados>>('/auth/login', payload),
-    );
+    return withMutationToast(async () => {
+      const response = await request(
+        api.post<ApiResponse<LoginDados>>('/auth/login', payload),
+      );
 
-    if (response.dados?.access_token) {
-      setToken(response.dados.access_token);
-    }
+      if (response.dados?.access_token) {
+        setToken(response.dados.access_token);
+      }
 
-    return response;
+      return response;
+    }, {
+      success: 'Login realizado com sucesso',
+      error: 'Não foi possível entrar',
+    });
   },
 
   async logout(): Promise<ApiResponse<LogoutDados>> {
-    try {
-      return await request(api.post<ApiResponse<LogoutDados>>('/auth/logout'));
-    } finally {
-      clearToken();
-    }
+    return withMutationToast(async () => {
+      try {
+        return await request(
+          api.post<ApiResponse<LogoutDados>>('/auth/logout'),
+        );
+      } finally {
+        clearToken();
+      }
+    }, {
+      success: 'Logout realizado com sucesso',
+      error: 'Não foi possível sair',
+    });
   },
 
   async me(): Promise<ApiResponse<Operador>> {

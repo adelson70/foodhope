@@ -1,4 +1,5 @@
 import { api, request } from './api';
+import { withMutationToast } from './mutation-toast';
 import type {
   ApiResponse,
   BuscarProdutosDados,
@@ -50,8 +51,15 @@ export const produtoService = {
   },
 
   async criar(input: CriarProdutoInput): Promise<ApiResponse<Produto>> {
-    return request(
-      api.post<ApiResponse<Produto>>('/produto', toProdutoFormData(input)),
+    return withMutationToast(
+      () =>
+        request(
+          api.post<ApiResponse<Produto>>('/produto', toProdutoFormData(input)),
+        ),
+      {
+        success: 'Produto criado com sucesso',
+        error: 'Não foi possível criar o produto',
+      },
     );
   },
 
@@ -59,17 +67,31 @@ export const produtoService = {
     id: string,
     input: EditarProdutoInput,
   ): Promise<ApiResponse<Produto | { mensagem: string }>> {
-    return request(
-      api.put<ApiResponse<Produto | { mensagem: string }>>(
-        `/produto/${id}`,
-        toProdutoFormData(input),
-      ),
+    return withMutationToast(
+      () =>
+        request(
+          api.put<ApiResponse<Produto | { mensagem: string }>>(
+            `/produto/${id}`,
+            toProdutoFormData(input),
+          ),
+        ),
+      {
+        success: 'Produto editado com sucesso',
+        error: 'Não foi possível editar o produto',
+      },
     );
   },
 
   async deletar(id: string): Promise<ApiResponse<{ mensagem: string }>> {
-    return request(
-      api.delete<ApiResponse<{ mensagem: string }>>(`/produto/${id}`),
+    return withMutationToast(
+      () =>
+        request(
+          api.delete<ApiResponse<{ mensagem: string }>>(`/produto/${id}`),
+        ),
+      {
+        success: 'Produto excluído com sucesso',
+        error: 'Não foi possível excluir o produto',
+      },
     );
   },
 };

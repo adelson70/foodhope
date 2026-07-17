@@ -17,6 +17,6 @@ export class LoginDto {
     minLength: 4,
   })
   @IsString()
-  @MinLength(4)
+  @MinLength(4, { message: 'A senha deve ter pelo menos 4 caracteres' })
   senha: string;
 }

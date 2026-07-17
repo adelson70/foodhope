@@ -10,7 +10,7 @@ import { Pedido } from '../pages/Painel/Pedido';
 import { Config } from '../pages/Painel/Config';
 import { Carrinho } from '../pages/Carrinho';
 import { PedidoConfirmado } from '../pages/PedidoConfirmado';
-import { Login } from '../pages/Login'; // <-- Não esqueça de criar essa página!
+import { Login } from '../pages/Login';
 import { Dash } from '../pages/Painel/Dash';
 
 export const router = createBrowserRouter([
