@@ -22,7 +22,7 @@ import {
 import { ProdutoService } from './produto.service.js';
 import { Auth } from '../../common/decorator/auth-mode.decorator.js';
 import { CriarDto } from './dto/criar.dto.js';
-import { EditarDto } from './dto/editar.dto.js';
+import { EditarProdutoDto } from './dto/editar.dto.js';
 import { ListarDto } from './dto/listar.dto.js';
 import { produtoImagemUploadOptions } from './produto-upload.config.js';
 
@@ -61,12 +61,12 @@ export class ProdutoController {
   @Put(':id')
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ type: EditarDto })
+  @ApiBody({ type: EditarProdutoDto })
   @ApiOperation({ summary: 'Edição de Produto' })
   @UseInterceptors(FileInterceptor('imagem', produtoImagemUploadOptions))
   async editar(
     @Param('id') id: string,
-    @Body() dto: EditarDto,
+    @Body() dto: EditarProdutoDto,
     @UploadedFile() file?: Express.Multer.File,
   ) {
     if (

@@ -8,7 +8,7 @@ import {
 import { AdicionalEditarDto } from './adicional.dto.js';
 import { Type } from 'class-transformer';
 
-export class EditarDto {
+export class EditarProdutoDto {
   @ApiProperty({ example: 'X Salada', description: 'Nome do produto', required: false })
   @IsOptional()
   nome?: string;

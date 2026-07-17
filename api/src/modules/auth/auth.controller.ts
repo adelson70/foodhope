@@ -16,7 +16,7 @@ import {
 import { AuthService } from './auth.service.js';
 import { Public } from '../../common/decorator/public.decorator.js';
 import { LoginDto } from './dto/login.dto.js';
-import { EditarDto } from './dto/editar.dto.js';
+import { EditarOperadorDto } from './dto/editar.dto.js';
 import type { AuthUser } from '../../infra/auth/auth.guard.js';
 
 @ApiTags('Auth')
@@ -48,8 +48,8 @@ export class AuthController {
   @Put('me')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Edita nome e/ou senha do operador autenticado' })
-  @ApiBody({ type: EditarDto })
-  async editar(@Req() req: { user: AuthUser }, @Body() dto: EditarDto) {
+  @ApiBody({ type: EditarOperadorDto })
+  async editar(@Req() req: { user: AuthUser }, @Body() dto: EditarOperadorDto) {
     if (!dto.nome && !dto.senha) {
       return { mensagem: 'Nada para editar :)' };
     }

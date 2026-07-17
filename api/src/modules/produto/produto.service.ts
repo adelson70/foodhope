@@ -12,7 +12,7 @@ import { PrismaReadService } from '../../infra/database/prisma-read.service.js';
 import { JwtServiceCustom } from '../../infra/auth/jwt.service.js';
 import { CriarDto } from './dto/criar.dto.js';
 import { Prisma } from '../../../generated/prisma/client.js';
-import { EditarDto } from './dto/editar.dto.js';
+import { EditarProdutoDto } from './dto/editar.dto.js';
 import { ProdutoImagemService } from './produto-imagem.service.js';
 
 @Injectable()
@@ -196,7 +196,7 @@ export class ProdutoService {
     }
   }
 
-  async editarProduto(id: string, dto: EditarDto, file?: Express.Multer.File) {
+  async editarProduto(id: string, dto: EditarProdutoDto, file?: Express.Multer.File) {
     try {
       const dadosUpdate: any = {
         nome: dto.nome,

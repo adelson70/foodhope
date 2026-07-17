@@ -11,7 +11,7 @@ import { PrismaWriteService } from '../../infra/database/prisma-write.service.js
 
 import { JwtServiceCustom } from '../../infra/auth/jwt.service.js';
 import { LoginDto } from './dto/login.dto.js';
-import { EditarDto } from './dto/editar.dto.js';
+import { EditarOperadorDto } from './dto/editar.dto.js';
 
 @Injectable()
 export class AuthService {
@@ -66,7 +66,7 @@ export class AuthService {
     });
   }
 
-  async editar(id: string, dto: EditarDto) {
+  async editar(id: string, dto: EditarOperadorDto) {
     const operador = await this.prisma.operador.findUnique({
       where: { id },
       select: { id: true },

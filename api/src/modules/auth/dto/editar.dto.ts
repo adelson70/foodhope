@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsString, MinLength } from 'class-validator';
 
-export class EditarDto {
+export class EditarOperadorDto {
   @ApiProperty({
     description: 'O nome ou login do usuário',
     example: 'operador',
