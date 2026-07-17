@@ -1,11 +1,12 @@
 import { Navigate, Outlet } from 'react-router-dom';
 
+import { getToken } from '../services/cookie';
+
 export function ProtectedRoute() {
-  const token = localStorage.getItem('token');
+  const token = getToken();
 
   if (!token) {
-    console.log(("não autorizado, enviando para rota home"))
-    return <Navigate to="/" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   return <Outlet />;
