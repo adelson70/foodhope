@@ -14,6 +14,11 @@ import { Prisma } from '../../../generated/prisma/client.js';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { WebsocketGateway } from '../../infra/websocket/websocket.gateway.js';
+import {
+  alinharLinha,
+  formatarMoeda,
+  linhaSeparadora,
+} from '../impressora/impressao-texto.js';
 
 @Injectable()
 export class PedidoService {
@@ -214,6 +219,10 @@ export class PedidoService {
             throw new Error(`Produto com ID ${itemDto.id} não encontrado.`);
           }
 
+          if (!produto.ativo) {
+            throw new Error(`Produto com ID ${itemDto.id} indisponível.`);
+          }
+
           const adicionaisVenda: Array<{ id: string; nome: string; preco: number; qtd: number }> =
             [];
           if (itemDto.adicional && itemDto.adicional.length > 0) {
@@ -291,7 +300,7 @@ export class PedidoService {
         texto: textoParaImprimir
       })
 
-      this.websocket.emitirEvento('novo-pedido', pedidoCompleto)
+      this.websocket.emitirParaOperadores('novo-pedido', pedidoCompleto)
 
       //this.impressora.print(textoParaImprimir);
 
@@ -315,40 +324,12 @@ export class PedidoService {
   }
 
   private formatarParaImpressora(pedido: any, cliente: ClientePedido) {
-    const formatarMoeda = (valor: number | string) => {
-      return Number(valor)
-        .toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-        .replace(/\u00A0/g, ' ')
-        .replace(/\u202F/g, ' ');
-    };
-
-    const alinharLinha = (
-      textoEsq: string,
-      textoDir: string,
-      preenchimento = '.',
-      tamanhoTotal = 48,
-    ) => {
-      const espacoLivre = tamanhoTotal - textoDir.length;
-      let textoLimitado = textoEsq;
-
-      if (textoEsq.length > espacoLivre - 1) {
-        textoLimitado = textoEsq.substring(0, espacoLivre - 2) + preenchimento;
-      }
-
-      const quantidadePreenchimento = tamanhoTotal - textoLimitado.length - textoDir.length;
-      const caracteresPreenchimento = preenchimento.repeat(
-        quantidadePreenchimento > 0 ? quantidadePreenchimento : 0,
-      );
-
-      return `${textoLimitado}${caracteresPreenchimento}${textoDir}`;
-    };
-
     let impressao = '';
 
-    impressao += `${"=".repeat(48)}\n`;;
+    impressao += `${linhaSeparadora('=')}\n`;
     impressao += `PEDIDO #${pedido.numero}\n`;
     impressao += `CLIENTE: ${cliente.primeiro_nome} ${cliente.sobrenome}\n`;
-    impressao += `${"=".repeat(48)}\n\n`;
+    impressao += `${linhaSeparadora('=')}\n\n`;
 
     let valorTotalPedido = 0;
 
@@ -385,15 +366,11 @@ export class PedidoService {
       impressao += '\n';
     });
 
-    impressao += `${"-".repeat(48)}\n`;;
-
-
-    impressao += alinharLinha('TOTAL A PAGAR:', formatarMoeda(valorTotalPedido), ' ') + '\n';
-    // impressao += '================================\n';
-    impressao += `${"=".repeat(48)}\n`;;
-
-    
-
+    impressao += `${linhaSeparadora('-')}\n`;
+    impressao +=
+      alinharLinha('TOTAL A PAGAR:', formatarMoeda(valorTotalPedido), ' ') +
+      '\n';
+    impressao += `${linhaSeparadora('=')}\n`;
     impressao += '\n\n\n';
 
     return impressao;

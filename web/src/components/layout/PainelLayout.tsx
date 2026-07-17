@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 
 import { useHideOnScrollDown } from '../../hooks/useHideOnScrollDown';
 import { cn } from '../../lib/cn';
+import { FoodHopeLogo } from '../brand/FoodHopeLogo';
 import { PainelBottomNav } from './PainelBottomNav';
 
 function isConfigSubtela(pathname: string) {
@@ -19,9 +20,7 @@ export function PainelLayout() {
     <div className="flex min-h-dvh justify-center bg-background text-on-background">
       <div className="relative flex h-dvh w-full max-w-md flex-col overflow-hidden bg-background shadow-card">
         <header className="shrink-0 border-b border-outline-variant/50 bg-surface/90 px-4 py-3">
-          <p className="text-label-sm uppercase tracking-widest text-primary-container">
-            Food Hope
-          </p>
+          <FoodHopeLogo markClassName="size-7" />
         </header>
 
         <main

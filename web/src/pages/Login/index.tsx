@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom';
 
+import { FoodHopeLogo } from '../../components/brand/FoodHopeLogo';
 import { getToken } from '../../services';
 import { LoginForm } from './LoginForm';
 
@@ -14,9 +15,10 @@ export function Login() {
 
       <div className="relative z-10 flex w-full max-w-sm flex-col gap-6">
         <div className="space-y-2 text-center">
-          <p className="text-label-sm uppercase tracking-widest text-primary-container">
-            Food Hope
-          </p>
+          <FoodHopeLogo
+            className="justify-center"
+            markClassName="size-10"
+          />
           <h1 className="text-headline-lg-mobile font-semibold tracking-tight text-on-surface">
             Área Operacional
           </h1>

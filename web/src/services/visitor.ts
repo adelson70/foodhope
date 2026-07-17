@@ -234,6 +234,29 @@ export async function signRequestHeaders(params: {
   };
 }
 
+export async function signSocketAuth(apiBaseUrl: string): Promise<{
+  visitorId: string;
+  timestamp: string;
+  signature: string;
+}> {
+  const session = await ensureVisitor(apiBaseUrl);
+  const timestamp = String(Math.floor(Date.now() / 1000));
+  const bodyHash = await hashBodyBytes('');
+  const canonical = buildRequestCanonical(
+    'GET',
+    '/socket.io/',
+    timestamp,
+    bodyHash,
+  );
+  const signature = await signMessage(session.privateKey, canonical);
+
+  return {
+    visitorId: session.visitorId,
+    timestamp,
+    signature,
+  };
+}
+
 export function pathWithQueryFromUrl(
   url: string,
   baseURL?: string,

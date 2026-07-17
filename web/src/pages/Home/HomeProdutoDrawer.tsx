@@ -34,8 +34,19 @@ export function HomeProdutoDrawer({
     setObservacao('');
   }, [open, produto?.id]);
 
+  useEffect(() => {
+    if (!produto) return;
+    setAdicionais((atual) =>
+      atual.filter((item) => {
+        const disponivel = produto.adicionais?.find((a) => a.id === item.id);
+        return disponivel && disponivel.ativo !== false;
+      }),
+    );
+  }, [produto]);
+
   const imagem = urlImagemProduto(produto?.imagemUrl);
   const adicionaisDisponiveis = produto?.adicionais ?? [];
+  const produtoIndisponivel = produto?.ativo === false;
 
   const totalPreview = useMemo(() => {
     if (!produto) return 0;
@@ -62,7 +73,9 @@ export function HomeProdutoDrawer({
     id: string;
     nome: string;
     preco: string | number;
+    ativo?: boolean;
   }) {
+    if (adicional.ativo === false || produtoIndisponivel) return;
     setAdicionais((atual) => {
       if (atual.some((item) => item.id === adicional.id)) return atual;
       return [
@@ -88,7 +101,7 @@ export function HomeProdutoDrawer({
   }
 
   function handleAdd() {
-    if (!produto) return;
+    if (!produto || produtoIndisponivel) return;
     addItem({
       produtoId: produto.id,
       nome: produto.nome,
@@ -106,13 +119,26 @@ export function HomeProdutoDrawer({
       title={produto?.nome ?? 'Produto'}
       onClose={handleClose}
       footer={
-        <Button type="button" fullWidth onClick={handleAdd} disabled={!produto}>
-          Adicionar · {formatarMoeda(totalPreview)}
+        <Button
+          type="button"
+          fullWidth
+          onClick={handleAdd}
+          disabled={!produto || produtoIndisponivel}
+        >
+          {produtoIndisponivel
+            ? 'Fora de estoque'
+            : `Adicionar · ${formatarMoeda(totalPreview)}`}
         </Button>
       }
     >
       {produto ? (
-        <div className="flex flex-col gap-4">
+        <div
+          className={
+            produtoIndisponivel
+              ? 'flex flex-col gap-4 opacity-50'
+              : 'flex flex-col gap-4'
+          }
+        >
           <div className="aspect-[4/3] overflow-hidden rounded-xl bg-operator-bg">
             {imagem ? (
               <img
@@ -127,6 +153,10 @@ export function HomeProdutoDrawer({
             )}
           </div>
 
+          {produtoIndisponivel ? (
+            <p className="text-caption text-danger">Fora de estoque</p>
+          ) : null}
+
           {produto.descricao ? (
             <p className="text-caption text-on-surface-variant">
               {produto.descricao}
@@ -137,32 +167,36 @@ export function HomeProdutoDrawer({
             {formatarMoeda(Number(produto.preco))}
           </p>
 
-          <div className="flex items-center justify-between rounded-xl border border-operator-border bg-operator-card px-3 py-2">
-            <span className="text-subtitle-md text-on-surface">Quantidade</span>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                className="size-10 px-0 py-0"
-                aria-label="Diminuir quantidade"
-                onClick={() => setQtd((atual) => Math.max(1, atual - 1))}
-              >
-                <Minus size={18} />
-              </Button>
-              <span className="min-w-8 text-center text-body-md text-on-surface">
-                {qtd}
+          {!produtoIndisponivel ? (
+            <div className="flex items-center justify-between rounded-xl border border-operator-border bg-operator-card px-3 py-2">
+              <span className="text-subtitle-md text-on-surface">
+                Quantidade
               </span>
-              <Button
-                type="button"
-                variant="secondary"
-                className="size-10 px-0 py-0"
-                aria-label="Aumentar quantidade"
-                onClick={() => setQtd((atual) => atual + 1)}
-              >
-                <Plus size={18} />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="size-10 px-0 py-0"
+                  aria-label="Diminuir quantidade"
+                  onClick={() => setQtd((atual) => Math.max(1, atual - 1))}
+                >
+                  <Minus size={18} />
+                </Button>
+                <span className="min-w-8 text-center text-body-md text-on-surface">
+                  {qtd}
+                </span>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="size-10 px-0 py-0"
+                  aria-label="Aumentar quantidade"
+                  onClick={() => setQtd((atual) => atual + 1)}
+                >
+                  <Plus size={18} />
+                </Button>
+              </div>
             </div>
-          </div>
+          ) : null}
 
           <HomeProdutoAdicionais
             disponiveis={adicionaisDisponiveis}
@@ -171,21 +205,23 @@ export function HomeProdutoDrawer({
             onChangeQtd={setAdicionalQtd}
           />
 
-          <div className="flex flex-col gap-2">
-            <label
-              htmlFor="home-produto-obs"
-              className="text-subtitle-md text-on-surface"
-            >
-              Observação
-            </label>
-            <Textarea
-              id="home-produto-obs"
-              value={observacao}
-              maxLength={140}
-              placeholder="Ex.: sem cebola"
-              onChange={(event) => setObservacao(event.target.value)}
-            />
-          </div>
+          {!produtoIndisponivel ? (
+            <div className="flex flex-col gap-2">
+              <label
+                htmlFor="home-produto-obs"
+                className="text-subtitle-md text-on-surface"
+              >
+                Observação
+              </label>
+              <Textarea
+                id="home-produto-obs"
+                value={observacao}
+                maxLength={140}
+                placeholder="Ex.: sem cebola"
+                onChange={(event) => setObservacao(event.target.value)}
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
     </Drawer>

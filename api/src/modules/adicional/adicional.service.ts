@@ -6,6 +6,7 @@ import {
 import { Prisma } from '../../../generated/prisma/client.js';
 import { PrismaReadService } from '../../infra/database/prisma-read.service.js';
 import { PrismaWriteService } from '../../infra/database/prisma-write.service.js';
+import { WebsocketGateway } from '../../infra/websocket/websocket.gateway.js';
 import { CriarAdicionalDto } from './dto/criar.dto.js';
 import { EditarAdicionalDto } from './dto/editar.dto.js';
 
@@ -14,6 +15,7 @@ export class AdicionalService {
   constructor(
     private readonly prismaRead: PrismaReadService,
     private readonly prismaWrite: PrismaWriteService,
+    private readonly websocket: WebsocketGateway,
   ) {}
 
   async listar() {
@@ -52,6 +54,15 @@ export class AdicionalService {
 
   async editar(id: string, dto: EditarAdicionalDto) {
     try {
+      const existente = await this.prismaRead.adicionalGlobal.findUnique({
+        where: { id },
+        select: { ativo: true },
+      });
+
+      if (!existente) {
+        throw new NotFoundException('Adicional não encontrado.');
+      }
+
       const data: { nome?: string; preco?: number; ativo?: boolean } = {};
 
       if (dto.nome !== undefined) data.nome = dto.nome.trim();
@@ -63,9 +74,21 @@ export class AdicionalService {
         data,
       });
 
+      if (dto.ativo !== undefined && dto.ativo !== existente.ativo) {
+        this.websocket.emitirAdicionalAtivo({
+          id,
+          ativo: dto.ativo,
+          escopo: 'global',
+        });
+      }
+
       return { mensagem: 'Adicional editado com sucesso', dados: adicional };
     } catch (erro) {
       console.error('Erro ao editar adicional global:', erro);
+
+      if (erro instanceof NotFoundException) {
+        throw erro;
+      }
 
       if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2025') {
         throw new NotFoundException('Adicional não encontrado.');

@@ -14,6 +14,8 @@ type CarrinhoState = {
   addItem: (item: Omit<CarrinhoItem, 'id'>) => void;
   setQtd: (id: string, qtd: number) => void;
   removeItem: (id: string) => void;
+  removeByProdutoId: (produtoId: string) => void;
+  removeAdicionalId: (adicionalId: string) => void;
   clear: () => void;
 };
 
@@ -59,6 +61,25 @@ export const useCarrinhoStore = create<CarrinhoState>((set, get) => ({
   },
   removeItem: (id) => {
     const next = get().itens.filter((item) => item.id !== id);
+    set({ itens: next, totalItens: somarQtds(next) });
+    void persist(next);
+  },
+  removeByProdutoId: (produtoId) => {
+    const next = get().itens.filter((item) => item.produtoId !== produtoId);
+    if (next.length === get().itens.length) return;
+    set({ itens: next, totalItens: somarQtds(next) });
+    void persist(next);
+  },
+  removeAdicionalId: (adicionalId) => {
+    const next = get().itens.map((item) => ({
+      ...item,
+      adicionais: item.adicionais.filter((a) => a.id !== adicionalId),
+    }));
+    const mudou = next.some(
+      (item, index) =>
+        item.adicionais.length !== get().itens[index]?.adicionais.length,
+    );
+    if (!mudou) return;
     set({ itens: next, totalItens: somarQtds(next) });
     void persist(next);
   },

@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import {
+  type CardapioAdicionalEvento,
+  type CardapioProdutoEvento,
+} from '../../hooks/useCardapioCarrinhoRealtime';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useDeferredLoading } from '../../hooks/useDeferredLoading';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
-import { getApiErrorMensagens, produtoService } from '../../services';
+import { getApiErrorMensagens, produtoService, socket } from '../../services';
 import type { Produto } from '../../services/types';
 import { HomeLista } from './HomeLista';
 import { HomeProdutoDrawer } from './HomeProdutoDrawer';
@@ -11,6 +15,38 @@ import { HomeSearch } from './HomeSearch';
 import { HomeSkeleton } from './HomeSkeleton';
 
 const LISTAR_LIMIT = 20;
+
+function aplicarProdutoAtivo(
+  produto: Produto,
+  payload: CardapioProdutoEvento,
+): Produto {
+  if (produto.id !== payload.id) return produto;
+  return { ...produto, ativo: payload.ativo };
+}
+
+function aplicarAdicionalAtivo(
+  produto: Produto,
+  payload: CardapioAdicionalEvento,
+): Produto {
+  if (payload.escopo === 'produto' && payload.produtoId !== produto.id) {
+    return produto;
+  }
+
+  const patchLista = <T extends { id: string; ativo?: boolean }>(
+    lista: T[] | undefined,
+  ): T[] | undefined => {
+    if (!lista) return lista;
+    return lista.map((item) =>
+      item.id === payload.id ? { ...item, ativo: payload.ativo } : item,
+    );
+  };
+
+  return {
+    ...produto,
+    adicionais: patchLista(produto.adicionais),
+    adicionaisEspecificos: patchLista(produto.adicionaisEspecificos),
+  };
+}
 
 export function Home() {
   const [buscaInput, setBuscaInput] = useState('');
@@ -98,6 +134,35 @@ export function Home() {
   useEffect(() => {
     void carregar(busca);
   }, [busca, carregar]);
+
+  useEffect(() => {
+    function onProduto(payload: CardapioProdutoEvento) {
+      if (!payload?.id) return;
+      setProdutos((atual) =>
+        atual.map((produto) => aplicarProdutoAtivo(produto, payload)),
+      );
+      setProdutoSelecionado((atual) =>
+        atual ? aplicarProdutoAtivo(atual, payload) : atual,
+      );
+    }
+
+    function onAdicional(payload: CardapioAdicionalEvento) {
+      if (!payload?.id) return;
+      setProdutos((atual) =>
+        atual.map((produto) => aplicarAdicionalAtivo(produto, payload)),
+      );
+      setProdutoSelecionado((atual) =>
+        atual ? aplicarAdicionalAtivo(atual, payload) : atual,
+      );
+    }
+
+    socket.on('cardapio:produto', onProduto);
+    socket.on('cardapio:adicional', onAdicional);
+    return () => {
+      socket.off('cardapio:produto', onProduto);
+      socket.off('cardapio:adicional', onAdicional);
+    };
+  }, []);
 
   const sentinelRef = useInfiniteScroll({
     enabled: hasNextPage && !loading && !loadingMore && !busca,

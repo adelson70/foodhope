@@ -3,6 +3,7 @@ export { adicionalService } from './adicional.service';
 export { authService } from './auth.service';
 export { clearToken, getToken, setToken } from './cookie';
 export { dashService } from './dash.service';
+export { impressoraService } from './impressora.service';
 export { withMutationToast } from './mutation-toast';
 export { notifyError, notifySuccess } from './notify';
 export { pedidoService } from './pedido.service';

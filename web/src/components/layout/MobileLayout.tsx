@@ -4,6 +4,7 @@ import { Outlet } from 'react-router-dom';
 import { useHideOnScrollDown } from '../../hooks/useHideOnScrollDown';
 import { useCarrinhoStore } from '../../stores/carrinho.store';
 import { ensureVisitor } from '../../services/visitor';
+import { FoodHopeLogo } from '../brand/FoodHopeLogo';
 import { ClienteBottomNav } from './ClienteBottomNav';
 
 export function MobileAppLayout() {
@@ -49,7 +50,10 @@ export function MobileAppLayout() {
     <div className="flex min-h-dvh justify-center bg-background text-on-background">
       <div className="relative flex h-dvh w-full max-w-md flex-col overflow-hidden bg-background shadow-card">
         <header className="sticky top-0 z-20 shrink-0 border-b border-outline-variant/50 bg-surface/90 px-4 py-3 backdrop-blur-sm">
-          <h1 className="text-headline text-primary-container">Food Hope</h1>
+          <FoodHopeLogo
+            markClassName="size-8"
+            wordmarkClassName="text-title-md tracking-[0.2em]"
+          />
         </header>
         <main ref={mainRef} className="min-h-0 flex-1 overflow-y-auto pb-28">
           {visitorErro ? (

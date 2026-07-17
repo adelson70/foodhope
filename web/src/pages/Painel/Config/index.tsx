@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChefHat, ChevronRight, UserRound } from 'lucide-react';
+import { ChefHat, ChevronRight, Printer, UserRound } from 'lucide-react';
 
+import { ConfigImpressoraDrawer } from './ConfigImpressoraDrawer';
 import { ConfigLogout } from './ConfigLogout';
 import { ConfigUsuarioDrawer } from './ConfigUsuarioDrawer';
 
 export function Config() {
   const [usuarioAberto, setUsuarioAberto] = useState(false);
+  const [impressoraAberta, setImpressoraAberta] = useState(false);
 
   return (
     <div className="flex flex-col gap-6">
@@ -70,6 +72,32 @@ export function Config() {
             />
           </Link>
         </li>
+
+        <li>
+          <button
+            type="button"
+            onClick={() => setImpressoraAberta(true)}
+            className="flex w-full items-center gap-3 rounded-xl border border-operator-border bg-operator-card p-4 text-left shadow-card transition-colors hover:border-primary/40"
+          >
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-container/30 text-primary">
+              <Printer size={22} strokeWidth={1.75} aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-body-md font-medium text-on-surface">
+                Impressora
+              </span>
+              <span className="block text-caption text-on-surface-variant">
+                IP e conexão da impressora
+              </span>
+            </span>
+            <ChevronRight
+              size={20}
+              strokeWidth={1.75}
+              className="shrink-0 text-on-surface-variant"
+              aria-hidden
+            />
+          </button>
+        </li>
       </ul>
 
       <div className="border-t border-operator-border pt-4">
@@ -79,6 +107,11 @@ export function Config() {
       <ConfigUsuarioDrawer
         open={usuarioAberto}
         onClose={() => setUsuarioAberto(false)}
+      />
+
+      <ConfigImpressoraDrawer
+        open={impressoraAberta}
+        onClose={() => setImpressoraAberta(false)}
       />
     </div>
   );

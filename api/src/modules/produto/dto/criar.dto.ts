@@ -7,6 +7,7 @@ import {
   Min,
   IsNumber,
   IsOptional,
+  IsBoolean,
   ValidateNested,
   IsArray,
   IsUUID,
@@ -41,6 +42,14 @@ export class CriarDto {
   @Min(0)
   @IsObrigatorio({ message: 'Ei, você esqueceu de colocar o preço do lanche!' })
   preco: number;
+
+  @ApiPropertyOptional({
+    description: 'Se o produto está disponível no cardápio',
+    default: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  ativo?: boolean;
 
   @ApiPropertyOptional({
     description: 'Lista de adicionais específicos do lanche',

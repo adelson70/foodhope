@@ -1,12 +1,18 @@
 import { useEffect } from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { Toaster } from './components/ui/Toaster';
+import { useCardapioCarrinhoRealtime } from './hooks/useCardapioCarrinhoRealtime';
 import { router } from './routes';
 import { connectSocket, disconnectSocket, socket } from './services/socket';
 
+function AppRealtime() {
+  useCardapioCarrinhoRealtime();
+  return null;
+}
+
 function App() {
   useEffect(() => {
-    connectSocket();
+    void connectSocket();
 
     socket.on('connect', () => {
       console.log('Socket conectado:', socket.id);
@@ -25,6 +31,7 @@ function App() {
 
   return (
     <>
+      <AppRealtime />
       <RouterProvider router={router} />
       <Toaster />
     </>

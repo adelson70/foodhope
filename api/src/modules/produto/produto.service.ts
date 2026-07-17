@@ -14,6 +14,7 @@ import { CriarDto } from './dto/criar.dto.js';
 import { Prisma } from '../../../generated/prisma/client.js';
 import { EditarProdutoDto } from './dto/editar.dto.js';
 import { ProdutoImagemService } from './produto-imagem.service.js';
+import { WebsocketGateway } from '../../infra/websocket/websocket.gateway.js';
 
 type AdicionalEspecificoRow = {
   id: string;
@@ -38,6 +39,7 @@ type ProdutoComAdicionais = {
   descricao: string | null;
   preco: Prisma.Decimal | number;
   imagemUrl: string | null;
+  ativo: boolean;
   createdAt?: Date;
   updatedAt?: Date;
   adicionais: AdicionalEspecificoRow[];
@@ -75,23 +77,25 @@ function montarRespostaProduto(produto: ProdutoComAdicionais) {
     (v) => v.adicional_global_id,
   );
 
-  const especificosAtivos = adicionaisEspecificos
-    .filter((a) => a.ativo)
-    .map((a) => ({ id: a.id, nome: a.nome, preco: a.preco }));
+  const especificos = adicionaisEspecificos.map((a) => ({
+    id: a.id,
+    nome: a.nome,
+    preco: a.preco,
+    ativo: a.ativo,
+  }));
 
-  const globaisAtivos = produto.adicionaisGlobais
-    .filter((v) => v.adicionalGlobal.ativo)
-    .map((v) => ({
-      id: v.adicionalGlobal.id,
-      nome: v.adicionalGlobal.nome,
-      preco: v.adicionalGlobal.preco,
-    }));
+  const globais = produto.adicionaisGlobais.map((v) => ({
+    id: v.adicionalGlobal.id,
+    nome: v.adicionalGlobal.nome,
+    preco: v.adicionalGlobal.preco,
+    ativo: v.adicionalGlobal.ativo,
+  }));
 
   const { adicionais: _a, adicionaisGlobais: _g, ...rest } = produto;
 
   return {
     ...rest,
-    adicionais: [...especificosAtivos, ...globaisAtivos],
+    adicionais: [...especificos, ...globais],
     adicionaisEspecificos,
     adicionalGlobalIds,
   };
@@ -105,6 +109,7 @@ export class ProdutoService {
 
     private readonly jwt: JwtServiceCustom,
     private readonly produtoImagem: ProdutoImagemService,
+    private readonly websocket: WebsocketGateway,
   ) {}
 
   private async validarGlobaisEColisao(
@@ -288,6 +293,7 @@ export class ProdutoService {
             nome: dto.nome,
             descricao: dto.descricao,
             preco: dto.preco,
+            ativo: dto.ativo ?? true,
           },
         });
 
@@ -330,6 +336,9 @@ export class ProdutoService {
 
   async editarProduto(id: string, dto: EditarProdutoDto) {
     try {
+      let ativoAnterior: boolean | undefined;
+      const adicionaisAtivoAntes = new Map<string, boolean>();
+
       const produtoEditado = await this.prismaWrite.$transaction(async (tx) => {
         const existente = await tx.produto.findUnique({
           where: { id },
@@ -342,6 +351,11 @@ export class ProdutoService {
           throw new NotFoundException('Produto não encontrado.');
         }
 
+        ativoAnterior = existente.ativo;
+        for (const a of existente.adicionais) {
+          adicionaisAtivoAntes.set(a.id, a.ativo);
+        }
+
         const dadosUpdate: Prisma.ProdutoUpdateInput = {};
 
         if (dto.nome !== undefined) dadosUpdate.nome = dto.nome;
@@ -349,6 +363,7 @@ export class ProdutoService {
           dadosUpdate.descricao = dto.descricao.trim() === '' ? null : dto.descricao;
         }
         if (dto.preco !== undefined) dadosUpdate.preco = dto.preco;
+        if (dto.ativo !== undefined) dadosUpdate.ativo = dto.ativo;
 
         if (dto.adicionais && dto.adicionais.length > 0) {
           const deletados = dto.adicionais.filter((a) => a.foiDeletado && a.id);
@@ -429,6 +444,36 @@ export class ProdutoService {
           include: produtoAdicionaisInclude,
         });
       });
+
+      if (
+        dto.ativo !== undefined &&
+        ativoAnterior !== undefined &&
+        dto.ativo !== ativoAnterior
+      ) {
+        this.websocket.emitirProdutoAtivo({
+          id,
+          ativo: dto.ativo,
+        });
+      }
+
+      if (dto.adicionais) {
+        for (const a of dto.adicionais) {
+          if (
+            a.id &&
+            !a.foiDeletado &&
+            a.ativo !== undefined &&
+            adicionaisAtivoAntes.has(a.id) &&
+            a.ativo !== adicionaisAtivoAntes.get(a.id)
+          ) {
+            this.websocket.emitirAdicionalAtivo({
+              id: a.id,
+              ativo: a.ativo,
+              escopo: 'produto',
+              produtoId: id,
+            });
+          }
+        }
+      }
 
       return {
         mensagem: 'Produto editado com sucesso',

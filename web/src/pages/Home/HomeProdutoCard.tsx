@@ -1,4 +1,5 @@
 import { formatarMoeda } from '../../lib/currency';
+import { cn } from '../../lib/cn';
 import { urlImagemProduto } from '../../lib/produtoImagem';
 import type { Produto } from '../../services/types';
 
@@ -9,12 +10,16 @@ type HomeProdutoCardProps = {
 
 export function HomeProdutoCard({ produto, onSelect }: HomeProdutoCardProps) {
   const imagem = urlImagemProduto(produto.imagemUrl);
+  const indisponivel = produto.ativo === false;
 
   return (
     <button
       type="button"
       onClick={() => onSelect(produto)}
-      className="flex w-full items-center gap-3 rounded-xl bg-surface-container-low p-2 text-left shadow-card transition-colors active:bg-surface-container-high"
+      className={cn(
+        'flex w-full items-center gap-3 rounded-xl bg-surface-container-low p-2 text-left shadow-card transition-colors active:bg-surface-container-high',
+        indisponivel && 'opacity-50',
+      )}
     >
       <div className="size-20 shrink-0 overflow-hidden rounded-lg bg-surface-container-lowest">
         {imagem ? (
@@ -39,7 +44,9 @@ export function HomeProdutoCard({ produto, onSelect }: HomeProdutoCardProps) {
             {formatarMoeda(Number(produto.preco))}
           </span>
         </div>
-        {produto.descricao ? (
+        {indisponivel ? (
+          <p className="mt-0.5 text-caption text-danger">Fora de estoque</p>
+        ) : produto.descricao ? (
           <p className="mt-0.5 line-clamp-1 text-caption text-on-surface-variant">
             {produto.descricao}
           </p>

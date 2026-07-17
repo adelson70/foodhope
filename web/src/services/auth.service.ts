@@ -40,6 +40,7 @@ export const authService = {
       } finally {
         clearToken();
         disconnectSocket();
+        void connectSocket();
       }
     }, {
       success: 'Logout realizado com sucesso',

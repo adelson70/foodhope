@@ -1,6 +1,14 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 
 import { PrismaReadService } from '../../infra/database/prisma-read.service.js';
+import { formatarRelatorioDia } from '../impressora/impressao-texto.js';
+import { ImpressoraService } from '../impressora/impressora.service.js';
 
 type ResumoRow = {
   comprasHoje: number | bigint | string;
@@ -30,7 +38,11 @@ function toNumber(value: number | bigint | string | null | undefined): number {
 
 @Injectable()
 export class DashService {
-  constructor(private readonly prismaRead: PrismaReadService) {}
+  constructor(
+    private readonly prismaRead: PrismaReadService,
+    private readonly impressora: ImpressoraService,
+    @InjectQueue('fila-impressao') private readonly filaImpressao: Queue,
+  ) {}
 
   async obterResumo() {
     try {
@@ -139,6 +151,38 @@ export class DashService {
     } catch {
       throw new InternalServerErrorException(
         'Não foi possível carregar o resumo do dashboard.',
+      );
+    }
+  }
+
+  async gerarRelatorio() {
+    if (!this.impressora.estaConfigurada()) {
+      throw new BadRequestException(
+        'Impressora não configurada. Configure o IP em Configurações > Impressora.',
+      );
+    }
+
+    try {
+      const { dados } = await this.obterResumo();
+      const texto = formatarRelatorioDia({
+        faturamentoHoje: dados.faturamentoHoje,
+        comprasHoje: dados.comprasHoje,
+        topProdutos: dados.topProdutos,
+        topAdicionais: dados.topAdicionais,
+        geradoEm: new Date(),
+      });
+
+      await this.filaImpressao.add('imprimir-relatorio', { texto });
+
+      return {
+        mensagem: 'Relatório enviado para a impressora',
+        dados: {},
+      };
+    } catch (erro) {
+      if (erro instanceof BadRequestException) throw erro;
+      if (erro instanceof InternalServerErrorException) throw erro;
+      throw new InternalServerErrorException(
+        'Não foi possível gerar o relatório. Tente novamente.',
       );
     }
   }

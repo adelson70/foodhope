@@ -1,5 +1,6 @@
 import { Minus, Plus } from 'lucide-react';
 
+import { cn } from '../../lib/cn';
 import { formatarMoeda } from '../../lib/currency';
 
 export type AdicionalDraft = {
@@ -13,6 +14,7 @@ type AdicionalDisponivel = {
   id: string;
   nome: string;
   preco: string | number;
+  ativo?: boolean;
 };
 
 type HomeProdutoAdicionaisProps = {
@@ -43,25 +45,31 @@ export function HomeProdutoAdicionais({
         {disponiveis.map((adicional, index) => {
           const draft = selecionados.find((item) => item.id === adicional.id);
           const preco = Number(adicional.preco);
+          const indisponivel = adicional.ativo === false;
 
           return (
             <li
               key={adicional.id}
-              className={
-                index > 0 ? 'border-t border-operator-border' : undefined
-              }
+              className={cn(
+                index > 0 ? 'border-t border-operator-border' : undefined,
+                indisponivel && 'opacity-50',
+              )}
             >
               <div className="flex min-h-14 items-center gap-3 px-3 py-2.5">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-body-md text-on-surface">
                     {adicional.nome}
                   </p>
-                  <p className="text-caption text-on-surface-variant">
-                    + {formatarMoeda(preco)}
-                  </p>
+                  {indisponivel ? (
+                    <p className="text-caption text-danger">Fora de estoque</p>
+                  ) : (
+                    <p className="text-caption text-on-surface-variant">
+                      + {formatarMoeda(preco)}
+                    </p>
+                  )}
                 </div>
 
-                {draft ? (
+                {indisponivel ? null : draft ? (
                   <div className="flex shrink-0 items-center gap-1 rounded-full border border-primary-container/40 bg-primary-container/10 px-1">
                     <button
                       type="button"

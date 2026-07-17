@@ -1,60 +1,140 @@
 import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import {
-    WebSocketGateway,
-    WebSocketServer,
-    OnGatewayConnection,
-    OnGatewayDisconnect,
-    OnGatewayInit,
+  WebSocketGateway,
+  WebSocketServer,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  OnGatewayInit,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 
+import { PrismaReadService } from '../database/prisma-read.service.js';
+import { RedisService } from '../cache/redis.service.js';
+import { validateVisitorSocketAuth } from '../auth/visitor-auth.js';
+
+export const WS_ROOM_OPERADORES = 'operadores';
+export const WS_ROOM_CLIENTES = 'clientes';
+
+export type CardapioProdutoPayload = {
+  id: string;
+  ativo: boolean;
+};
+
+export type CardapioAdicionalPayload = {
+  id: string;
+  ativo: boolean;
+  escopo: 'global' | 'produto';
+  produtoId?: string;
+};
+
+type SocketUser =
+  | { tipo: 'operador'; id: string }
+  | { tipo: 'visitor'; id: string };
+
 @WebSocketGateway({ cors: { origin: '*' } })
-export class WebsocketGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+export class WebsocketGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
+  @WebSocketServer()
+  server: Server;
 
-    @WebSocketServer()
-    server: Server;
+  private readonly logger = new Logger(WebsocketGateway.name);
 
-    private readonly logger = new Logger(WebsocketGateway.name);
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly prismaRead: PrismaReadService,
+    private readonly redis: RedisService,
+  ) {}
 
-    constructor(private readonly jwtService: JwtService) {}
+  afterInit(server: Server) {
+    server.use(async (socket, next) => {
+      try {
+        const token =
+          socket.handshake.auth?.token ||
+          socket.handshake.headers?.authorization?.split(' ')[1];
 
-    afterInit(server: Server) {
-        server.use(async (socket, next) => {
-            try {
-                const token = 
-                    socket.handshake.auth?.token || 
-                    socket.handshake.headers?.authorization?.split(' ')[1];
+        if (token) {
+          const payload = await this.jwtService.verifyAsync<{ id: string }>(
+            token,
+            { secret: process.env.JWT_SECRET },
+          );
 
-                if (!token) {
-                    return next(new Error('Acesso negado: Token não fornecido'));
-                }
+          if (!payload?.id) {
+            return next(new Error('Acesso negado: Token inválido'));
+          }
 
-                const payload = await this.jwtService.verifyAsync(token, {
-                    secret: process.env.JWT_SECRET 
-                });
+          socket.data.user = {
+            tipo: 'operador',
+            id: payload.id,
+          } satisfies SocketUser;
+          return next();
+        }
 
-                socket.data.user = payload; 
-                
-                return next(); 
-            } catch (error) {
-                next(new Error('Acesso negado: Token inválido ou expirado'));
-            }
+        const visitorId = socket.handshake.auth?.visitorId as
+          | string
+          | undefined;
+        const timestamp = socket.handshake.auth?.timestamp as
+          | string
+          | undefined;
+        const signature = socket.handshake.auth?.signature as
+          | string
+          | undefined;
+
+        if (!visitorId || !timestamp || !signature) {
+          return next(new Error('Acesso negado: Credenciais não fornecidas'));
+        }
+
+        const visitor = await validateVisitorSocketAuth({
+          visitorId,
+          timestamp,
+          signature,
+          prismaRead: this.prismaRead,
+          redis: this.redis,
         });
 
-        this.logger.debug('Servidor WebSocket ON');
+        socket.data.user = visitor satisfies SocketUser;
+        return next();
+      } catch {
+        next(new Error('Acesso negado: Autenticação inválida ou expirada'));
+      }
+    });
+
+    this.logger.debug('Servidor WebSocket ON');
+  }
+
+  handleConnection(client: Socket) {
+    const user = client.data.user as SocketUser | undefined;
+
+    if (user?.tipo === 'operador') {
+      void client.join(WS_ROOM_OPERADORES);
+    } else if (user?.tipo === 'visitor') {
+      void client.join(WS_ROOM_CLIENTES);
     }
 
-    handleConnection(client: Socket) {
-        const user = client.data.user;
-        this.logger.log(`[WebSocket] Cliente conectado: ${client.id} (User ID: ${user?.sub || user?.id})`);
-    }
+    this.logger.log(
+      `[WebSocket] Cliente conectado: ${client.id} (${user?.tipo ?? 'desconhecido'}:${user?.id ?? '-'})`,
+    );
+  }
 
-    handleDisconnect(client: Socket) {
-        this.logger.log(`[WebSocket] Cliente desconectado: ${client.id}`);
-    }
+  handleDisconnect(client: Socket) {
+    this.logger.log(`[WebSocket] Cliente desconectado: ${client.id}`);
+  }
 
-    emitirEvento(evento: string, payload: any) {
-        this.server.emit(evento, payload);
-    }
+  emitirParaOperadores(evento: string, payload: unknown) {
+    this.server.to(WS_ROOM_OPERADORES).emit(evento, payload);
+  }
+
+  emitirCardapio(evento: string, payload: unknown) {
+    this.server.to(WS_ROOM_CLIENTES).emit(evento, payload);
+    this.server.to(WS_ROOM_OPERADORES).emit(evento, payload);
+  }
+
+  emitirProdutoAtivo(payload: CardapioProdutoPayload) {
+    this.emitirCardapio('cardapio:produto', payload);
+  }
+
+  emitirAdicionalAtivo(payload: CardapioAdicionalPayload) {
+    this.emitirCardapio('cardapio:adicional', payload);
+  }
 }

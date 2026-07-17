@@ -70,11 +70,13 @@ export function PedidoCriarDrawer({
 
   const produtoOptions = useMemo(
     () =>
-      produtos.map((produto) => ({
-        value: produto.id,
-        label: produto.nome,
-        description: formatarMoeda(Number(produto.preco)),
-      })),
+      produtos
+        .filter((produto) => produto.ativo !== false)
+        .map((produto) => ({
+          value: produto.id,
+          label: produto.nome,
+          description: formatarMoeda(Number(produto.preco)),
+        })),
     [produtos],
   );
 
@@ -330,11 +332,13 @@ export function PedidoCriarDrawer({
               </div>
 
               {produtoSelecionado?.adicionais &&
-              produtoSelecionado.adicionais.length > 0 ? (
+              produtoSelecionado.adicionais.some((a) => a.ativo !== false) ? (
                 <div className="space-y-2">
                   <Label>Adicionais</Label>
                   <ul className="flex flex-col gap-2">
-                    {produtoSelecionado.adicionais.map((adicional) => {
+                    {produtoSelecionado.adicionais
+                      .filter((adicional) => adicional.ativo !== false)
+                      .map((adicional) => {
                       const selecionado = adicionaisDraft.find(
                         (a) => a.id === adicional.id,
                       );

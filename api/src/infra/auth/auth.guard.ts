@@ -15,14 +15,8 @@ import {
 import { IS_PUBLIC_KEY } from '../../common/decorator/public.decorator.js';
 import { PrismaReadService } from '../database/prisma-read.service.js';
 import { RedisService } from '../cache/redis.service.js';
-import {
-  buildRequestCanonical,
-  isTimestampFresh,
-  parseSpkiPublicKey,
-  sha256Hex,
-  verifyEcdsaP256Sha256,
-  VISITOR_REPLAY_TTL_SECONDS,
-} from './visitor-crypto.js';
+import { sha256Hex } from './visitor-crypto.js';
+import { validateVisitorCredentials } from './visitor-auth.js';
 
 export type AuthUser =
   | { tipo: 'operador'; id: string }
@@ -109,52 +103,19 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedException('Operação não autorizada');
     }
 
-    const timestampSeconds = Number(timestamp);
-    if (!Number.isFinite(timestampSeconds) || !isTimestampFresh(timestampSeconds)) {
-      throw new UnauthorizedException('Operação não autorizada');
-    }
-
-    const visitor = await this.prismaRead.visitor.findUnique({
-      where: { id: visitorId },
-    });
-
-    if (!visitor || !visitor.verified) {
-      throw new UnauthorizedException('Operação não autorizada');
-    }
-
-    let publicKey;
-    try {
-      publicKey = parseSpkiPublicKey(visitor.publicKey);
-    } catch {
-      throw new UnauthorizedException('Operação não autorizada');
-    }
-
     const bodyHash = this.bodyHashHex(req);
     const pathWithQuery = req.originalUrl || req.url;
-    const canonical = buildRequestCanonical(
-      req.method,
-      pathWithQuery,
+
+    req.user = await validateVisitorCredentials({
+      visitorId,
       timestamp,
-      bodyHash,
-    );
-
-    const valid = verifyEcdsaP256Sha256(publicKey, canonical, signature);
-    if (!valid) {
-      throw new UnauthorizedException('Operação não autorizada');
-    }
-
-    const replayKey = `sig:${visitorId}:${timestamp}:${sha256Hex(signature)}`;
-    const stored = await this.redis.setNx(
-      replayKey,
-      '1',
-      VISITOR_REPLAY_TTL_SECONDS,
-    );
-
-    if (!stored) {
-      throw new UnauthorizedException('Operação não autorizada');
-    }
-
-    req.user = { tipo: 'visitor', id: visitor.id };
+      signature,
+      method: req.method,
+      pathWithQuery,
+      bodyHashHex: bodyHash,
+      prismaRead: this.prismaRead,
+      redis: this.redis,
+    });
   }
 
   private bodyHashHex(req: RequestWithAuth): string {

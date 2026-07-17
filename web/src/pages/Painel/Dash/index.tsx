@@ -5,6 +5,7 @@ import { dashService, getApiErrorMensagens } from '../../../services';
 import type { DashDados } from '../../../services/types';
 import { DashCharts } from './DashCharts';
 import { DashDestaques } from './DashDestaques';
+import { DashHeader } from './DashHeader';
 import { DashKpis } from './DashKpis';
 import { DashSkeleton } from './DashSkeleton';
 
@@ -12,6 +13,7 @@ export function Dash() {
   const [dados, setDados] = useState<DashDados | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+  const [gerando, setGerando] = useState(false);
   const showSkeleton = useDeferredLoading(loading);
 
   useEffect(() => {
@@ -46,6 +48,17 @@ export function Dash() {
     };
   }, []);
 
+  async function onGerarRelatorio() {
+    setGerando(true);
+    try {
+      await dashService.gerarRelatorio();
+    } catch {
+      return;
+    } finally {
+      setGerando(false);
+    }
+  }
+
   if (showSkeleton) {
     return <DashSkeleton />;
   }
@@ -66,14 +79,7 @@ export function Dash() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-title-md font-semibold text-on-surface">
-          Dashboard
-        </h1>
-        <p className="text-caption text-on-surface-variant">
-          Resumo do dia com base nos pedidos e leads
-        </p>
-      </div>
+      <DashHeader gerando={gerando} onGerarRelatorio={() => void onGerarRelatorio()} />
 
       <DashKpis
         faturamentoHoje={dados.faturamentoHoje}

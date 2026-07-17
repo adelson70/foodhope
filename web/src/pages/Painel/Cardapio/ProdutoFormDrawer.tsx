@@ -40,6 +40,7 @@ function valoresIniciais(produto: Produto | null): ProdutoFormValues {
       nome: '',
       descricao: '',
       preco: 0,
+      ativo: true,
       adicionais: [],
       adicionalGlobalIds: [],
     };
@@ -49,6 +50,7 @@ function valoresIniciais(produto: Produto | null): ProdutoFormValues {
     nome: produto.nome,
     descricao: produto.descricao ?? '',
     preco: Number(produto.preco),
+    ativo: produto.ativo ?? true,
     adicionais: (produto.adicionaisEspecificos ?? []).map((item) => ({
       id: item.id,
       nome: item.nome,
@@ -217,6 +219,7 @@ export function ProdutoFormDrawer({
           nome: values.nome.trim(),
           descricao,
           preco: values.preco,
+          ativo: values.ativo,
           adicionais: adicionaisAtuais.map((item) => ({
             nome: item.nome.trim(),
             preco: item.preco,
@@ -244,6 +247,7 @@ export function ProdutoFormDrawer({
         nome: values.nome.trim(),
         descricao: descricao ?? '',
         preco: values.preco,
+        ativo: values.ativo,
         adicionais: adicionais.length > 0 ? adicionais : undefined,
         adicionalGlobalIds: values.adicionalGlobalIds,
         imagem: imagemFile ?? undefined,
@@ -347,6 +351,34 @@ export function ProdutoFormDrawer({
           {errors.preco ? (
             <p className="text-caption text-danger">{errors.preco.message}</p>
           ) : null}
+        </div>
+
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-operator-border bg-operator-card px-3 py-3">
+          <div className="min-w-0">
+            <Label htmlFor="produto-ativo">Disponível no cardápio</Label>
+            <p className="text-caption text-on-surface-variant">
+              Desative para marcar como fora de estoque
+            </p>
+          </div>
+          <button
+            type="button"
+            id="produto-ativo"
+            role="switch"
+            aria-checked={watch('ativo')}
+            disabled={isSubmitting}
+            onClick={() => setValue('ativo', !watch('ativo'), { shouldDirty: true })}
+            className={cn(
+              'relative h-8 w-14 shrink-0 rounded-full transition-colors',
+              watch('ativo') ? 'bg-primary' : 'bg-outline-variant',
+            )}
+          >
+            <span
+              className={cn(
+                'absolute top-1 size-6 rounded-full bg-surface shadow-card transition-transform',
+                watch('ativo') ? 'left-7' : 'left-1',
+              )}
+            />
+          </button>
         </div>
 
         <div className="space-y-3">

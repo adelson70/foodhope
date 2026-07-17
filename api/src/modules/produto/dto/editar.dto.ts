@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
+  IsBoolean,
   IsNumber,
   IsOptional,
   IsUUID,
@@ -27,6 +28,13 @@ export class EditarProdutoDto {
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   preco?: number;
+
+  @ApiPropertyOptional({
+    description: 'Se o produto está disponível no cardápio',
+  })
+  @IsOptional()
+  @IsBoolean()
+  ativo?: boolean;
 
   @ApiProperty({
     description:

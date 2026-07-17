@@ -40,6 +40,7 @@ export type Produto = {
   descricao: string | null;
   preco: string | number;
   imagemUrl: string | null;
+  ativo?: boolean;
   createdAt?: string;
   updatedAt?: string;
   adicionais?: Adicional[];
@@ -104,6 +105,7 @@ export type CriarProdutoInput = {
   nome: string;
   descricao?: string;
   preco: number;
+  ativo?: boolean;
   adicionais?: AdicionalCriarInput[];
   adicionalGlobalIds?: string[];
   imagem?: File;
@@ -113,6 +115,7 @@ export type EditarProdutoInput = {
   nome?: string;
   descricao?: string;
   preco?: number;
+  ativo?: boolean;
   adicionais?: AdicionalEditarInput[];
   adicionalGlobalIds?: string[];
   imagem?: File;
@@ -207,4 +210,13 @@ export type DashDados = {
   adicionalMaisVendido: DashItemRank | null;
   topProdutos: DashItemRank[];
   topAdicionais: DashItemRank[];
+};
+
+export type ConfigImpressora = {
+  ip: string | null;
+};
+
+export type TestarImpressoraDados = {
+  conectada: boolean;
+  ip: string;
 };

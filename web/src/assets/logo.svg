@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 100" fill="none">
+  <g>
+    <path
+      d="M50 11.5A38.5 38.5 0 1 1 11.5 50"
+      stroke="#D4AF37"
+      stroke-width="7"
+      stroke-linecap="butt"
+    />
+    <g fill="#D4AF37" transform="translate(5.5 0.8)">
+      <rect x="24.5" y="30" width="10" height="40" />
+      <rect x="45.5" y="30" width="10" height="40" />
+      <rect x="34.5" y="48" width="21" height="10" />
+      <path d="M55.5 30a14.25 14.25 0 0 1 0 28.5V52a7.75 7.75 0 0 0 0-15.5V30z" />
+    </g>
+  </g>
+  <text
+    x="118"
+    y="58"
+    fill="#D4AF37"
+    font-family="Plus Jakarta Sans, Helvetica Neue, Arial, sans-serif"
+    font-size="22"
+    font-weight="500"
+    letter-spacing="0.28em"
+  >FOOD HOPE</text>
+</svg>
