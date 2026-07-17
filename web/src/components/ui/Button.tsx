@@ -8,7 +8,7 @@ const variants = {
   secondary:
     'bg-on-surface/5 text-on-surface border border-operator-border hover:bg-on-surface/10',
   ghost: 'bg-transparent text-primary hover:bg-primary/5',
-  danger: 'bg-danger text-on-surface hover:bg-danger/80',
+  danger: 'bg-danger text-customer-bg hover:bg-danger/80',
   icon: 'bg-primary-container text-on-primary hover:scale-105 size-12 p-0',
 } as const;
 
