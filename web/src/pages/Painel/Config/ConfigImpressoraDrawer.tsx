@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Printer } from 'lucide-react';
+import { Check, Printer } from 'lucide-react';
 
 import {
   Button,
@@ -132,11 +132,20 @@ export function ConfigImpressoraDrawer({
             <Button
               type="button"
               fullWidth
-              variant="secondary"
+              variant={testadoOk ? 'success' : 'info'}
               disabled={testando || isSubmitting}
               onClick={() => void onTestar()}
             >
-              {testando ? 'Testando…' : 'Testar conexão'}
+              {testando ? (
+                'Testando…'
+              ) : testadoOk ? (
+                <>
+                  <Check size={18} strokeWidth={2.25} />
+                  Conexão OK
+                </>
+              ) : (
+                'Testar conexão'
+              )}
             </Button>
             <Button
               type="submit"
