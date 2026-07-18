@@ -24,6 +24,10 @@ const CONFIG_ID = 'default';
 const DISPOSITIVO_RE =
   /^(?:\/dev\/(?:usb\/)?lp\d+|\/dev\/tty(?:USB|ACM)\d+|\/dev\/serial\/by-id\/[A-Za-z0-9._+-]+|COM\d+)$/i;
 
+const COMANDO_CORTE = Buffer.from([
+  0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x1b, 0x69,
+]);
+
 type DestinoImpressora =
   | { tipo: 'rede'; ip: string }
   | { tipo: 'local'; dispositivo: string };
@@ -186,7 +190,7 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
 
     try {
       this.impressora.println(textoFormatado);
-      this.impressora.cut();
+      this.impressora.add(COMANDO_CORTE);
       await this.impressora.execute();
       this.impressora.clear();
       this.logger.log('Impressão concluída com sucesso!');

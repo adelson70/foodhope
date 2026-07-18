@@ -1,8 +1,10 @@
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { useEffect } from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { Toaster } from './components/ui/Toaster';
 import { useCardapioCarrinhoRealtime } from './hooks/useCardapioCarrinhoRealtime';
 import { router } from './routes';
+import { persistOptions, queryClient } from './services/queryClient';
 import { connectSocket, disconnectSocket, socket } from './services/socket';
 
 function AppRealtime() {
@@ -30,11 +32,14 @@ function App() {
   }, []);
 
   return (
-    <>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={persistOptions}
+    >
       <AppRealtime />
       <RouterProvider router={router} />
       <Toaster />
-    </>
+    </PersistQueryClientProvider>
   );
 }
 

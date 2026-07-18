@@ -4,6 +4,7 @@ export { CurrencyInput } from './CurrencyInput';
 export { Drawer } from './Drawer';
 export { Input } from './Input';
 export { Label } from './Label';
+export { Loading } from './Loading';
 export { PhoneInput } from './PhoneInput';
 export { Select } from './Select';
 export type { SelectOption } from './select.utils';

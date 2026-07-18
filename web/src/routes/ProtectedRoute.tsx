@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 
+import { Loading } from '../components/ui';
 import { authService, getToken } from '../services';
 
 type GuardStatus = 'checking' | 'ok' | 'denied';
@@ -42,12 +43,7 @@ export function ProtectedRoute() {
 
   if (status === 'checking') {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-operator-bg">
-        <div
-          className="size-8 animate-pulse rounded-full bg-primary-container/40"
-          aria-label="Validando sessão"
-        />
-      </div>
+      <Loading fullScreen className="bg-operator-bg" label="Validando sessão" />
     );
   }
 

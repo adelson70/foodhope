@@ -8,8 +8,8 @@ import {
   Drawer,
   Input,
   Label,
+  Loading,
   Select,
-  Skeleton,
 } from '../../../components/ui';
 import {
   impressoraSchema,
@@ -185,14 +185,7 @@ export function ConfigImpressoraDrawer({
         ) : null
       }
     >
-      {loading ? (
-        <div className="flex flex-col gap-4" aria-busy="true">
-          <Skeleton className="h-12 w-full rounded-xl" />
-          {mostrarPortas ? (
-            <Skeleton className="h-12 w-full rounded-xl" />
-          ) : null}
-        </div>
-      ) : null}
+      {loading ? <Loading label="Carregando impressora" /> : null}
 
       {!loading && erro ? (
         <div className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-caption text-danger">

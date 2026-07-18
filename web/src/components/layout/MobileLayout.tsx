@@ -7,7 +7,7 @@ import { cn } from '../../lib/cn';
 import { markScrollRoot } from '../../lib/scrollLock';
 import { useCarrinhoStore } from '../../stores/carrinho.store';
 import { ensureVisitor } from '../../services/visitor';
-import { Button } from '../ui';
+import { Button, Loading } from '../ui';
 import { FoodHopeLogo } from '../brand/FoodHopeLogo';
 import { ClienteBottomNav } from './ClienteBottomNav';
 
@@ -108,12 +108,7 @@ export function MobileAppLayout() {
           ) : visitorReady ? (
             <Outlet />
           ) : (
-            <div className="flex items-center justify-center p-8">
-              <div
-                className="size-8 animate-pulse rounded-full bg-primary-container/40"
-                aria-label="Iniciando sessão"
-              />
-            </div>
+            <Loading label="Iniciando sessão" />
           )}
         </main>
         {visitorReady && !semBottomNav ? (

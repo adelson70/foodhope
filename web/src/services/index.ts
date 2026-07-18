@@ -9,6 +9,7 @@ export { withMutationToast } from './mutation-toast';
 export { notifyError, notifySuccess } from './notify';
 export { pedidoService } from './pedido.service';
 export { produtoService } from './produto.service';
+export { persistOptions, queryClient } from './queryClient';
 export { connectSocket, disconnectSocket, socket } from './socket';
 export {
   clearVisitorSession,

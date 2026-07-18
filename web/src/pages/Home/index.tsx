@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   type CardapioAdicionalEvento,
@@ -7,7 +8,7 @@ import {
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useDeferredLoading } from '../../hooks/useDeferredLoading';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
-import { getApiErrorMensagens, produtoService, socket } from '../../services';
+import { getApiErrorMensagens, socket } from '../../services';
 import type { Produto, ProdutoCategoria } from '../../services/types';
 import {
   HOME_CATEGORIA_OUTROS,
@@ -19,41 +20,15 @@ import { HomeLista } from './HomeLista';
 import { HomeProdutoDrawer } from './HomeProdutoDrawer';
 import { HomeSearch } from './HomeSearch';
 import { HomeSkeleton } from './HomeSkeleton';
+import {
+  aplicarAdicionalAtivo,
+  aplicarProdutoAtivo,
+  patchCardapioCache,
+  useCardapioBusca,
+  useCardapioInfinito,
+} from './useCardapioQueries';
 
-const LISTAR_LIMIT = 20;
 const SCROLL_SPY_PAD = 8;
-
-function aplicarProdutoAtivo(
-  produto: Produto,
-  payload: CardapioProdutoEvento,
-): Produto {
-  if (produto.id !== payload.id) return produto;
-  return { ...produto, ativo: payload.ativo };
-}
-
-function aplicarAdicionalAtivo(
-  produto: Produto,
-  payload: CardapioAdicionalEvento,
-): Produto {
-  if (payload.escopo === 'produto' && payload.produtoId !== produto.id) {
-    return produto;
-  }
-
-  const patchLista = <T extends { id: string; ativo?: boolean }>(
-    lista: T[] | undefined,
-  ): T[] | undefined => {
-    if (!lista) return lista;
-    return lista.map((item) =>
-      item.id === payload.id ? { ...item, ativo: payload.ativo } : item,
-    );
-  };
-
-  return {
-    ...produto,
-    adicionais: patchLista(produto.adicionais),
-    adicionaisEspecificos: patchLista(produto.adicionaisEspecificos),
-  };
-}
 
 function montarPills(
   categorias: ProdutoCategoria[],
@@ -144,24 +119,58 @@ function categoriaAtivaNoScroll(): string | null {
 }
 
 export function Home() {
+  const queryClient = useQueryClient();
   const [buscaInput, setBuscaInput] = useState('');
   const busca = useDebouncedValue(buscaInput.trim());
-  const [pills, setPills] = useState<HomeCategoriaPill[]>([]);
+  const buscaAtiva = Boolean(busca);
   const [pillAtiva, setPillAtiva] = useState<string | null>(null);
-  const [produtos, setProdutos] = useState<Produto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasNextPage, setHasNextPage] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
   const [produtoSelecionado, setProdutoSelecionado] = useState<Produto | null>(
     null,
   );
+
+  const listaQuery = useCardapioInfinito();
+  const buscaQuery = useCardapioBusca(busca);
+  const {
+    data: listaData,
+    isLoading: listaLoading,
+    isFetchingNextPage,
+    hasNextPage: listaHasNextPage,
+    isError: listaIsError,
+    error: listaError,
+    fetchNextPage,
+  } = listaQuery;
+
+  const produtos = useMemo(() => {
+    if (buscaAtiva) {
+      return buscaQuery.data?.produtos ?? [];
+    }
+    return listaData?.pages.flatMap((page) => page.data) ?? [];
+  }, [buscaAtiva, buscaQuery.data, listaData]);
+
+  const pills = useMemo(() => {
+    const meta = listaData?.pages[0]?.meta;
+    if (!meta?.categorias) return [];
+    return montarPills(meta.categorias, Boolean(meta.temOutros));
+  }, [listaData]);
+
+  const loading = buscaAtiva ? buscaQuery.isLoading : listaLoading;
+  const loadingMore = isFetchingNextPage;
+  const hasNextPage = !buscaAtiva && Boolean(listaHasNextPage);
+
+  const erroAtivo = buscaAtiva ? buscaQuery.isError : listaIsError;
+  const erroFonte = buscaAtiva ? buscaQuery.error : listaError;
+  const erro = erroAtivo
+    ? (getApiErrorMensagens(erroFonte)[0] ??
+      (buscaAtiva
+        ? 'Não foi possível buscar o cardápio.'
+        : 'Não foi possível carregar o cardápio.'))
+    : null;
+
   const initialPending = loading && produtos.length === 0;
   const showSkeleton = useDeferredLoading(initialPending);
   const showMoreSkeleton = useDeferredLoading(loadingMore);
   const buscaRef = useRef(busca);
   buscaRef.current = busca;
-  const nextCursorRef = useRef<string | null>(null);
   const pendingScrollRef = useRef<string | null>(null);
   const hasNextPageRef = useRef(false);
   hasNextPageRef.current = hasNextPage;
@@ -180,19 +189,16 @@ export function Home() {
     }
   }, []);
 
-  const travarScrollAlvo = useCallback(
-    (categoriaId: string) => {
-      scrollAlvoRef.current = categoriaId;
-      if (scrollAlvoTimerRef.current) {
-        clearTimeout(scrollAlvoTimerRef.current);
-      }
-      scrollAlvoTimerRef.current = setTimeout(() => {
-        scrollAlvoRef.current = null;
-        scrollAlvoTimerRef.current = null;
-      }, 1500);
-    },
-    [],
-  );
+  const travarScrollAlvo = useCallback((categoriaId: string) => {
+    scrollAlvoRef.current = categoriaId;
+    if (scrollAlvoTimerRef.current) {
+      clearTimeout(scrollAlvoTimerRef.current);
+    }
+    scrollAlvoTimerRef.current = setTimeout(() => {
+      scrollAlvoRef.current = null;
+      scrollAlvoTimerRef.current = null;
+    }, 1500);
+  }, []);
 
   const marcarPill = useCallback((categoriaId: string) => {
     if (pillAtivaRef.current === categoriaId) return;
@@ -200,93 +206,23 @@ export function Home() {
     scrollPillIntoView(categoriaId);
   }, []);
 
-  const carregar = useCallback(async (termo: string) => {
-    setLoading(true);
-    setErro(null);
-    setHasNextPage(false);
-    nextCursorRef.current = null;
-    pendingScrollRef.current = null;
-    liberarScrollAlvo();
-
-    try {
-      if (termo) {
-        const response = await produtoService.buscar(termo);
-        if (!response.sucesso || !response.dados) {
-          setErro('Não foi possível buscar o cardápio.');
-          setProdutos([]);
-          return;
-        }
-        setProdutos(response.dados.produtos ?? []);
-        return;
-      }
-
-      const response = await produtoService.listar({ limit: LISTAR_LIMIT });
-      if (!response.sucesso || !response.dados) {
-        setErro('Não foi possível carregar o cardápio.');
-        setProdutos([]);
-        return;
-      }
-      setProdutos(response.dados.data ?? []);
-      setHasNextPage(response.dados.meta.hasNextPage);
-      nextCursorRef.current = response.dados.meta.nextCursor;
-      if (response.dados.meta.categorias) {
-        const proximas = montarPills(
-          response.dados.meta.categorias,
-          Boolean(response.dados.meta.temOutros),
-        );
-        setPills(proximas);
-        if (proximas[0] && !pillAtivaRef.current) {
-          setPillAtiva(proximas[0].id);
-        }
-      }
-    } catch (error: unknown) {
-      const mensagens = getApiErrorMensagens(error);
-      setErro(mensagens[0] ?? 'Não foi possível carregar o cardápio.');
-      setProdutos([]);
-      setHasNextPage(false);
-      nextCursorRef.current = null;
-    } finally {
-      setLoading(false);
-    }
-  }, [liberarScrollAlvo]);
-
-  const carregarMais = useCallback(async () => {
-    if (buscaRef.current || !nextCursorRef.current) return;
-
-    const cursor = nextCursorRef.current;
-    setLoadingMore(true);
-
-    try {
-      const response = await produtoService.listar({
-        limit: LISTAR_LIMIT,
-        cursor,
-      });
-      if (!response.sucesso || !response.dados) return;
-
-      const novos = response.dados.data ?? [];
-      setProdutos((atual) => {
-        const ids = new Set(atual.map((item) => item.id));
-        return [...atual, ...novos.filter((item) => !ids.has(item.id))];
-      });
-      setHasNextPage(response.dados.meta.hasNextPage);
-      nextCursorRef.current = response.dados.meta.nextCursor;
-    } catch {
+  const carregarMais = useCallback(() => {
+    if (buscaRef.current || !listaHasNextPage || isFetchingNextPage) {
       return;
-    } finally {
-      setLoadingMore(false);
     }
-  }, []);
+    void fetchNextPage();
+  }, [listaHasNextPage, isFetchingNextPage, fetchNextPage]);
 
   useEffect(() => {
-    void carregar(busca);
-  }, [busca, carregar]);
+    if (pills[0] && !pillAtivaRef.current) {
+      setPillAtiva(pills[0].id);
+    }
+  }, [pills]);
 
   useEffect(() => {
     function onProduto(payload: CardapioProdutoEvento) {
       if (!payload?.id) return;
-      setProdutos((atual) =>
-        atual.map((produto) => aplicarProdutoAtivo(produto, payload)),
-      );
+      patchCardapioCache(queryClient, payload, 'produto');
       setProdutoSelecionado((atual) =>
         atual ? aplicarProdutoAtivo(atual, payload) : atual,
       );
@@ -294,9 +230,7 @@ export function Home() {
 
     function onAdicional(payload: CardapioAdicionalEvento) {
       if (!payload?.id) return;
-      setProdutos((atual) =>
-        atual.map((produto) => aplicarAdicionalAtivo(produto, payload)),
-      );
+      patchCardapioCache(queryClient, payload, 'adicional');
       setProdutoSelecionado((atual) =>
         atual ? aplicarAdicionalAtivo(atual, payload) : atual,
       );
@@ -308,7 +242,7 @@ export function Home() {
       socket.off('cardapio:produto', onProduto);
       socket.off('cardapio:adicional', onAdicional);
     };
-  }, []);
+  }, [queryClient]);
 
   useEffect(() => {
     const alvo = pendingScrollRef.current;
@@ -321,7 +255,7 @@ export function Home() {
     }
 
     if (hasNextPageRef.current) {
-      void carregarMais();
+      carregarMais();
       return;
     }
 
@@ -372,7 +306,7 @@ export function Home() {
     }
     pendingScrollRef.current = categoriaId;
     if (hasNextPage && !loadingMore && !busca) {
-      void carregarMais();
+      carregarMais();
     }
   }
 

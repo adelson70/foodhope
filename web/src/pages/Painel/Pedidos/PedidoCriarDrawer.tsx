@@ -8,6 +8,7 @@ import {
   Drawer,
   Input,
   Label,
+  Loading,
   PhoneInput,
   Select,
 } from '../../../components/ui';
@@ -343,9 +344,11 @@ export function PedidoCriarDrawer({
           </h3>
 
           {produtosLoading ? (
-            <div className="flex min-h-16 items-center justify-center">
-              <div className="size-6 animate-pulse rounded-full bg-primary-container/40" />
-            </div>
+            <Loading
+              className="min-h-16 py-0"
+              dotClassName="size-6"
+              label="Carregando produtos"
+            />
           ) : null}
 
           {produtosErro ? (
