@@ -1,14 +1,29 @@
-import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { mkdir, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
+import convert from 'heic-convert';
 import sharp from 'sharp';
 
 const MIME_TIPOS_PERMITIDOS = new Set([
   'image/jpeg',
+  'image/jpg',
+  'image/pjpeg',
   'image/png',
   'image/webp',
   'image/gif',
+  'image/heic',
+  'image/heif',
+  'image/heic-sequence',
+  'image/heif-sequence',
+  'application/octet-stream',
 ]);
+
+const EXT_HEIC = /\.(heic|heif)$/i;
+const EXT_IMAGEM = /\.(jpe?g|png|webp|gif|heic|heif)$/i;
 
 @Injectable()
 export class ProdutoImagemService {
@@ -23,11 +38,48 @@ export class ProdutoImagemService {
   }
 
   validarArquivo(file: Express.Multer.File) {
-    if (!MIME_TIPOS_PERMITIDOS.has(file.mimetype)) {
-      throw new BadRequestException(
-        'Formato de imagem inválido. Use JPEG, PNG, WebP ou GIF.',
-      );
+    const mime = (file.mimetype || '').toLowerCase();
+    const nome = file.originalname || '';
+
+    if (MIME_TIPOS_PERMITIDOS.has(mime)) {
+      if (mime === 'application/octet-stream' && !EXT_IMAGEM.test(nome)) {
+        throw new BadRequestException(
+          'Formato de imagem inválido. Use JPEG, PNG, WebP, GIF ou HEIC.',
+        );
+      }
+      return;
     }
+
+    if (EXT_IMAGEM.test(nome)) return;
+
+    throw new BadRequestException(
+      'Formato de imagem inválido. Use JPEG, PNG, WebP, GIF ou HEIC.',
+    );
+  }
+
+  private ehHeic(file: Express.Multer.File) {
+    const mime = (file.mimetype || '').toLowerCase();
+    return (
+      mime.includes('heic') ||
+      mime.includes('heif') ||
+      EXT_HEIC.test(file.originalname || '')
+    );
+  }
+
+  private async bufferParaProcessar(
+    file: Express.Multer.File,
+  ): Promise<Buffer> {
+    if (!this.ehHeic(file)) {
+      return file.buffer;
+    }
+
+    const convertido = await convert({
+      buffer: file.buffer,
+      format: 'JPEG',
+      quality: 0.9,
+    });
+
+    return Buffer.from(convertido);
   }
 
   async salvar(produtoId: string, file: Express.Multer.File): Promise<string> {
@@ -37,8 +89,9 @@ export class ProdutoImagemService {
       await mkdir(this.pastaProduto, { recursive: true });
 
       const destino = this.caminhoAbsoluto(produtoId);
+      const buffer = await this.bufferParaProcessar(file);
 
-      await sharp(file.buffer)
+      await sharp(buffer)
         .rotate()
         .resize({
           width: 1200,

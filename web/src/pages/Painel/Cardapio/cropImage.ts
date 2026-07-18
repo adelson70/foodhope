@@ -5,8 +5,13 @@ export type CropArea = {
   height: number;
 };
 
-const MAX_OUTPUT = 1200;
+const MAX_OUTPUT = 1024;
 const JPEG_QUALITY = 0.82;
+
+function liberarCanvas(canvas: HTMLCanvasElement) {
+  canvas.width = 0;
+  canvas.height = 0;
+}
 
 function carregarImagem(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -86,19 +91,24 @@ export async function getCroppedImg(
 
   const ctx = canvas.getContext('2d', { alpha: false });
   if (!ctx) {
+    liberarCanvas(canvas);
     throw new Error('Canvas não disponível neste navegador.');
   }
 
-  ctx.fillStyle = '#FFFFFF';
-  ctx.fillRect(0, 0, size, size);
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
+  try {
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, size, size);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
-  const srcX = pixelCrop.x + (pixelCrop.width - side) / 2;
-  const srcY = pixelCrop.y + (pixelCrop.height - side) / 2;
+    const srcX = pixelCrop.x + (pixelCrop.width - side) / 2;
+    const srcY = pixelCrop.y + (pixelCrop.height - side) / 2;
 
-  ctx.drawImage(image, srcX, srcY, side, side, 0, 0, size, size);
+    ctx.drawImage(image, srcX, srcY, side, side, 0, 0, size, size);
 
-  const blob = await canvasParaJpeg(canvas);
-  return new File([blob], fileName, { type: 'image/jpeg' });
+    const blob = await canvasParaJpeg(canvas);
+    return new File([blob], fileName, { type: 'image/jpeg' });
+  } finally {
+    liberarCanvas(canvas);
+  }
 }
