@@ -146,6 +146,8 @@ export function HomeProdutoDrawer({
                   src={imagem}
                   alt={produto.nome}
                   className="size-full object-cover"
+                  loading="lazy"
+                  decoding="async"
                 />
                 <p className="pointer-events-none absolute inset-x-0 bottom-0 bg-on-surface/45 px-2 py-1.5 text-center text-caption text-surface-container-low">
                   Imagem meramente ilustrativa

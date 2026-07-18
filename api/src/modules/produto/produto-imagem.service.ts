@@ -40,15 +40,14 @@ export class ProdutoImagemService {
 
       await sharp(file.buffer)
         .rotate()
-        .ensureAlpha()
         .resize({
           width: 1200,
           height: 1200,
-          fit: 'inside',
+          fit: 'cover',
+          position: 'centre',
           withoutEnlargement: true,
-          background: { r: 0, g: 0, b: 0, alpha: 0 },
         })
-        .webp({ quality: 80, alphaQuality: 100 })
+        .webp({ quality: 75, effort: 4 })
         .toFile(destino);
 
       return this.urlPublica(produtoId);

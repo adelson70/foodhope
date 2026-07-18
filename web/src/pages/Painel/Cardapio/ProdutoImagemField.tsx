@@ -61,8 +61,8 @@ export function ProdutoImagemField({
     setCropOpen(false);
   }, []);
 
-  const limparCrop = useCallback((sessionAoFechar: number) => {
-    if (cropSessionRef.current !== sessionAoFechar) return;
+  const limparSessao = useCallback((session: number) => {
+    if (cropSessionRef.current !== session) return;
     setCropOpen(false);
     setCropFile(null);
   }, []);
@@ -120,6 +120,8 @@ export function ProdutoImagemField({
             src={previewSrc}
             alt="Prévia do produto"
             className="aspect-square w-full object-cover"
+            loading="lazy"
+            decoding="async"
           />
         ) : (
           <div className="flex aspect-square w-full flex-col items-center justify-center gap-2 text-on-surface-variant">
@@ -188,7 +190,7 @@ export function ProdutoImagemField({
           open={cropOpen}
           file={cropFile}
           onClose={fecharCrop}
-          onExited={() => limparCrop(cropSession)}
+          onExited={() => limparSessao(cropSession)}
           onConfirm={(proximo) => {
             onChange(proximo);
             fecharCrop();

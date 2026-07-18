@@ -28,6 +28,7 @@ export function HomeProdutoCard({ produto, onSelect }: HomeProdutoCardProps) {
             alt=""
             className="size-full object-cover"
             loading="lazy"
+            decoding="async"
           />
         ) : (
           <div className="flex size-full items-center justify-center text-caption text-on-surface-variant">

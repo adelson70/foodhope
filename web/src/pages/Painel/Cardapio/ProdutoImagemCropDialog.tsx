@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
   type AnimationEvent,
 } from 'react';
@@ -14,54 +15,24 @@ import { lockAppScroll, unlockAppScroll } from '../../../lib/scrollLock';
 import { notifyError } from '../../../services';
 import { getCroppedImg } from './cropImage';
 
-const ZOOM_SLIDER_MIN = -10;
+const ZOOM_SLIDER_MIN = 0;
 const ZOOM_SLIDER_MAX = 100;
-const CROP_ZOOM_MIN = 0.4;
+const CROP_ZOOM_MIN = 1;
 const CROP_ZOOM_MAX = 4;
 const CROP_ZOOM_DEFAULT = 1;
-const LAYOUT_READY_MS = 50;
+const LAYOUT_READY_MS = 80;
 
 function sliderParaZoom(slider: number): number {
-  if (slider <= 0) {
-    return (
-      CROP_ZOOM_MIN +
-      ((slider - ZOOM_SLIDER_MIN) / (0 - ZOOM_SLIDER_MIN)) *
-        (CROP_ZOOM_DEFAULT - CROP_ZOOM_MIN)
-    );
-  }
-
   return (
-    CROP_ZOOM_DEFAULT +
-    (slider / ZOOM_SLIDER_MAX) * (CROP_ZOOM_MAX - CROP_ZOOM_DEFAULT)
+    CROP_ZOOM_MIN +
+    (slider / ZOOM_SLIDER_MAX) * (CROP_ZOOM_MAX - CROP_ZOOM_MIN)
   );
 }
 
 function zoomParaSlider(zoom: number): number {
-  if (zoom <= CROP_ZOOM_DEFAULT) {
-    const t =
-      (zoom - CROP_ZOOM_MIN) / (CROP_ZOOM_DEFAULT - CROP_ZOOM_MIN);
-    return ZOOM_SLIDER_MIN + t * (0 - ZOOM_SLIDER_MIN);
-  }
-
   const t =
-    (zoom - CROP_ZOOM_DEFAULT) / (CROP_ZOOM_MAX - CROP_ZOOM_DEFAULT);
+    (zoom - CROP_ZOOM_MIN) / (CROP_ZOOM_MAX - CROP_ZOOM_MIN);
   return t * ZOOM_SLIDER_MAX;
-}
-
-function lerArquivoComoDataUrl(arquivo: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        resolve(reader.result);
-        return;
-      }
-      reject(new Error('Não foi possível ler a imagem.'));
-    };
-    reader.onerror = () =>
-      reject(new Error('Não foi possível ler a imagem.'));
-    reader.readAsDataURL(arquivo);
-  });
 }
 
 type ProdutoImagemCropDialogProps = {
@@ -80,6 +51,12 @@ export function ProdutoImagemCropDialog({
   onConfirm,
 }: ProdutoImagemCropDialogProps) {
   const { mounted, exiting, onExitAnimationEnd } = useAnimatedPresence(open);
+  const onExitedRef = useRef(onExited);
+  onExitedRef.current = onExited;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const saiuRef = useRef(false);
+
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [layoutPronto, setLayoutPronto] = useState(false);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -89,58 +66,61 @@ export function ProdutoImagemCropDialog({
   const [imagemPronta, setImagemPronta] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-
-    void lerArquivoComoDataUrl(file)
-      .then((dataUrl) => {
-        if (cancelled) return;
-        setImageSrc(dataUrl);
-        setCrop({ x: 0, y: 0 });
-        setZoom(CROP_ZOOM_DEFAULT);
-        setCroppedAreaPixels(null);
-        setProcessando(false);
-        setImagemPronta(false);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        notifyError(null, 'Não foi possível carregar a imagem.');
-        onClose();
-      });
+    const url = URL.createObjectURL(file);
+    setImageSrc(url);
+    setLayoutPronto(false);
+    setImagemPronta(false);
+    setCrop({ x: 0, y: 0 });
+    setZoom(CROP_ZOOM_DEFAULT);
+    setCroppedAreaPixels(null);
+    setProcessando(false);
 
     return () => {
-      cancelled = true;
+      URL.revokeObjectURL(url);
     };
-  }, [file, onClose]);
+  }, [file]);
 
   useEffect(() => {
-    if (!mounted || exiting || !imageSrc) {
-      setLayoutPronto(false);
-      return;
-    }
+    if (!mounted || exiting || !imageSrc) return;
 
     const timeoutId = window.setTimeout(() => {
       setLayoutPronto(true);
     }, LAYOUT_READY_MS);
 
-    return () => {
-      window.clearTimeout(timeoutId);
-      setLayoutPronto(false);
-    };
+    return () => window.clearTimeout(timeoutId);
   }, [mounted, exiting, imageSrc]);
 
   useEffect(() => {
-    if (open || !mounted) {
-      if (!open && !mounted) onExited();
+    if (open) {
+      saiuRef.current = false;
       return;
     }
-  }, [open, mounted, onExited]);
+
+    if (mounted) return;
+
+    if (saiuRef.current) return;
+    saiuRef.current = true;
+    onExitedRef.current();
+  }, [open, mounted]);
+
+  useEffect(() => {
+    if (!open || !mounted || !exiting) return;
+
+    const timeoutId = window.setTimeout(() => {
+      if (saiuRef.current) return;
+      saiuRef.current = true;
+      onExitedRef.current();
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [open, mounted, exiting]);
 
   useEffect(() => {
     if (!mounted || exiting) return;
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape' && !processando) {
-        onClose();
+        onCloseRef.current();
       }
     }
 
@@ -151,7 +131,7 @@ export function ProdutoImagemCropDialog({
       document.removeEventListener('keydown', onKeyDown);
       unlockAppScroll();
     };
-  }, [mounted, exiting, onClose, processando]);
+  }, [mounted, exiting, processando]);
 
   const onCropComplete = useCallback((_: Area, pixels: Area) => {
     setCroppedAreaPixels(pixels);
@@ -220,14 +200,15 @@ export function ProdutoImagemCropDialog({
         <div className="relative min-h-0 flex-1 overflow-hidden bg-operator-bg">
           {mostrarCropper ? (
             <Cropper
-              key={imageSrc}
               image={imageSrc}
               crop={crop}
               zoom={zoom}
               minZoom={CROP_ZOOM_MIN}
               maxZoom={CROP_ZOOM_MAX}
               aspect={1}
+              objectFit="cover"
               showGrid
+              restrictPosition
               zoomWithScroll={false}
               onCropChange={setCrop}
               onZoomChange={setZoom}
@@ -246,7 +227,7 @@ export function ProdutoImagemCropDialog({
             <img
               src={imageSrc}
               alt=""
-              className="size-full object-contain"
+              className="size-full object-cover"
               draggable={false}
             />
           ) : (

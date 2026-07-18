@@ -5,6 +5,9 @@ export type CropArea = {
   height: number;
 };
 
+const MAX_OUTPUT = 1200;
+const JPEG_QUALITY = 0.82;
+
 function carregarImagem(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
@@ -19,57 +22,31 @@ function carregarImagem(src: string): Promise<HTMLImageElement> {
 export async function getCroppedImg(
   imageSrc: string,
   pixelCrop: CropArea,
-  fileName = 'produto.png',
+  fileName = 'produto.jpg',
 ): Promise<File> {
   const image = await carregarImagem(imageSrc);
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d', { alpha: true });
 
+  const side = Math.max(1, Math.min(pixelCrop.width, pixelCrop.height));
+  const size = Math.max(1, Math.min(MAX_OUTPUT, Math.round(side)));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+
+  const ctx = canvas.getContext('2d', { alpha: false });
   if (!ctx) {
     throw new Error('Canvas não disponível neste navegador.');
   }
 
-  const size = Math.max(
-    1,
-    Math.round(Math.min(pixelCrop.width, pixelCrop.height)),
-  );
-  canvas.width = size;
-  canvas.height = size;
-  ctx.clearRect(0, 0, size, size);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, size, size);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
 
-  const srcX = Math.max(0, pixelCrop.x);
-  const srcY = Math.max(0, pixelCrop.y);
-  const srcRight = Math.min(
-    image.naturalWidth,
-    pixelCrop.x + pixelCrop.width,
-  );
-  const srcBottom = Math.min(
-    image.naturalHeight,
-    pixelCrop.y + pixelCrop.height,
-  );
-  const srcW = srcRight - srcX;
-  const srcH = srcBottom - srcY;
+  const srcX = pixelCrop.x + (pixelCrop.width - side) / 2;
+  const srcY = pixelCrop.y + (pixelCrop.height - side) / 2;
 
-  if (srcW > 0 && srcH > 0) {
-    const scaleX = size / pixelCrop.width;
-    const scaleY = size / pixelCrop.height;
-    const destX = (srcX - pixelCrop.x) * scaleX;
-    const destY = (srcY - pixelCrop.y) * scaleY;
-    const destW = srcW * scaleX;
-    const destH = srcH * scaleY;
-
-    ctx.drawImage(
-      image,
-      srcX,
-      srcY,
-      srcW,
-      srcH,
-      destX,
-      destY,
-      destW,
-      destH,
-    );
-  }
+  ctx.drawImage(image, srcX, srcY, side, side, 0, 0, size, size);
 
   const blob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
@@ -80,9 +57,10 @@ export async function getCroppedImg(
         }
         resolve(resultado);
       },
-      'image/png',
+      'image/jpeg',
+      JPEG_QUALITY,
     );
   });
 
-  return new File([blob], fileName, { type: 'image/png' });
+  return new File([blob], fileName, { type: 'image/jpeg' });
 }
