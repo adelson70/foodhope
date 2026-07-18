@@ -126,6 +126,7 @@ export function ProdutoFormDrawer({
 }: ProdutoFormDrawerProps) {
   const isEdicao = Boolean(produto);
   const [imagemFile, setImagemFile] = useState<File | null>(null);
+  const [imagemSessao, setImagemSessao] = useState(0);
   const [removerImagem, setRemoverImagem] = useState(false);
   const [animarPrimeiroAdicional, setAnimarPrimeiroAdicional] = useState(false);
   const [adicionaisSaindo, setAdicionaisSaindo] = useState<Set<string>>(
@@ -158,6 +159,7 @@ export function ProdutoFormDrawer({
     if (!open) return;
     reset(valoresIniciais(produto));
     setImagemFile(null);
+    setImagemSessao((sessao) => sessao + 1);
     setRemoverImagem(false);
     setAnimarPrimeiroAdicional(false);
     setAdicionaisSaindo(new Set());
@@ -316,6 +318,7 @@ export function ProdutoFormDrawer({
         <div className="space-y-2">
           <Label>Foto do produto</Label>
           <ProdutoImagemField
+            key={imagemSessao}
             file={imagemFile}
             imagemUrlAtual={removerImagem ? null : produto?.imagemUrl}
             imagemCacheKey={removerImagem ? null : produto?.updatedAt}
