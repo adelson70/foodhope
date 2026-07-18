@@ -18,6 +18,12 @@ type HomeListaProps = {
   onSelect: (produto: Produto) => void;
 };
 
+type HomeSecao = {
+  id: string;
+  nome: string;
+  produtos: Produto[];
+};
+
 const LOAD_MORE_SKELETON_COUNT = 2;
 
 function chaveCategoria(produto: Produto) {
@@ -26,6 +32,26 @@ function chaveCategoria(produto: Produto) {
 
 function tituloCategoria(produto: Produto) {
   return produto.categoria?.nome ?? 'Outros';
+}
+
+function agruparPorCategoria(produtos: Produto[]): HomeSecao[] {
+  const secoes: HomeSecao[] = [];
+
+  for (const produto of produtos) {
+    const id = chaveCategoria(produto);
+    const ultima = secoes[secoes.length - 1];
+    if (ultima && ultima.id === id) {
+      ultima.produtos.push(produto);
+      continue;
+    }
+    secoes.push({
+      id,
+      nome: tituloCategoria(produto),
+      produtos: [produto],
+    });
+  }
+
+  return secoes;
 }
 
 export function HomeLista({
@@ -57,47 +83,45 @@ export function HomeLista({
     );
   }
 
-  return (
-    <ul className="flex flex-col gap-3">
-      {produtos.map((produto, index) => {
-        const anterior = index > 0 ? produtos[index - 1] : null;
-        const chave = chaveCategoria(produto);
-        const mostrarDivisor =
-          !anterior || chaveCategoria(anterior) !== chave;
+  const secoes = agruparPorCategoria(produtos);
 
-        return (
-          <li key={produto.id} className="flex flex-col gap-3">
-            {mostrarDivisor ? (
-              <div
-                id={homeCategoriaAnchorId(chave)}
-                data-home-categoria={chave}
-                className={
-                  index === 0
-                    ? 'scroll-mt-36 pt-1'
-                    : 'mt-2 scroll-mt-36 border-t border-outline-variant/60 pt-4'
-                }
-              >
-                <h2 className="text-subtitle-md font-semibold uppercase tracking-wide text-on-surface-variant">
-                  {tituloCategoria(produto)}
-                </h2>
-              </div>
-            ) : null}
-            <HomeProdutoCard produto={produto} onSelect={onSelect} />
-          </li>
-        );
-      })}
+  return (
+    <div className="flex flex-col gap-6">
+      {secoes.map((secao, index) => (
+        <section
+          key={secao.id}
+          id={homeCategoriaAnchorId(secao.id)}
+          data-home-categoria={secao.id}
+          className={
+            index === 0
+              ? 'scroll-mt-36'
+              : 'scroll-mt-36 border-t border-outline-variant/60 pt-4'
+          }
+        >
+          <h2 className="mb-3 text-subtitle-md font-semibold uppercase tracking-wide text-on-surface-variant">
+            {secao.nome}
+          </h2>
+          <ul className="flex flex-col gap-3">
+            {secao.produtos.map((produto) => (
+              <li key={produto.id}>
+                <HomeProdutoCard produto={produto} onSelect={onSelect} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
       {loadingMore
         ? Array.from({ length: LOAD_MORE_SKELETON_COUNT }, (_, index) => (
-            <li key={`more-${index}`}>
+            <div key={`more-${index}`}>
               <HomeProdutoCardSkeleton />
-            </li>
+            </div>
           ))
         : null}
       {hasNextPage ? (
-        <li aria-hidden>
+        <div aria-hidden>
           <div ref={sentinelRef} className="h-1" />
-        </li>
+        </div>
       ) : null}
-    </ul>
+    </div>
   );
 }

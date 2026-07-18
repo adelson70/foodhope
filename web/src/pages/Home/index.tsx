@@ -21,6 +21,7 @@ import { HomeSearch } from './HomeSearch';
 import { HomeSkeleton } from './HomeSkeleton';
 
 const LISTAR_LIMIT = 20;
+const SCROLL_SPY_PAD = 8;
 
 function aplicarProdutoAtivo(
   produto: Produto,
@@ -68,10 +69,26 @@ function montarPills(
   return pills;
 }
 
+function getScrollRoot(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('[data-scroll-root]');
+}
+
+function getStickyOffset(): number {
+  const sticky = document.querySelector<HTMLElement>('[data-home-sticky]');
+  return sticky?.offsetHeight ?? 144;
+}
+
 function scrollParaSecao(categoriaId: string) {
+  const root = getScrollRoot();
   const el = document.getElementById(homeCategoriaAnchorId(categoriaId));
-  if (!el) return false;
-  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (!root || !el) return false;
+
+  const rootRect = root.getBoundingClientRect();
+  const elRect = el.getBoundingClientRect();
+  const top =
+    root.scrollTop + (elRect.top - rootRect.top) - getStickyOffset();
+
+  root.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
   return true;
 }
 
@@ -79,15 +96,51 @@ function scrollPillIntoView(categoriaId: string) {
   const pill = document.querySelector<HTMLElement>(
     `[data-home-pill="${CSS.escape(categoriaId)}"]`,
   );
-  pill?.scrollIntoView({
+  const track = pill?.parentElement;
+  if (!pill || !track) return;
+
+  const left =
+    pill.offsetLeft - track.clientWidth / 2 + pill.clientWidth / 2;
+  track.scrollTo({
+    left: Math.max(0, left),
     behavior: 'smooth',
-    inline: 'center',
-    block: 'nearest',
   });
 }
 
-function getScrollRoot(): Element | null {
-  return document.querySelector('[data-scroll-root]');
+function categoriaAtivaNoScroll(): string | null {
+  const root = getScrollRoot();
+  if (!root) return null;
+
+  const secoes = Array.from(
+    document.querySelectorAll<HTMLElement>('[data-home-categoria]'),
+  );
+  if (secoes.length === 0) return null;
+
+  const limite =
+    root.getBoundingClientRect().top + getStickyOffset() + SCROLL_SPY_PAD;
+  let ativoId = secoes[0].dataset.homeCategoria ?? null;
+
+  for (let i = 0; i < secoes.length; i++) {
+    const secao = secoes[i];
+    const id = secao.dataset.homeCategoria;
+    if (!id) continue;
+
+    const rect = secao.getBoundingClientRect();
+    const meio = rect.top + rect.height / 2;
+
+    if (meio <= limite) {
+      const proxima = secoes[i + 1];
+      ativoId = proxima?.dataset.homeCategoria ?? id;
+      continue;
+    }
+
+    if (rect.top <= limite) {
+      ativoId = id;
+    }
+    break;
+  }
+
+  return ativoId;
 }
 
 export function Home() {
@@ -112,9 +165,34 @@ export function Home() {
   const pendingScrollRef = useRef<string | null>(null);
   const hasNextPageRef = useRef(false);
   hasNextPageRef.current = hasNextPage;
-  const ignoreObserverUntilRef = useRef(0);
+  const scrollAlvoRef = useRef<string | null>(null);
+  const scrollAlvoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const pillAtivaRef = useRef<string | null>(null);
   pillAtivaRef.current = pillAtiva;
+
+  const liberarScrollAlvo = useCallback(() => {
+    scrollAlvoRef.current = null;
+    if (scrollAlvoTimerRef.current) {
+      clearTimeout(scrollAlvoTimerRef.current);
+      scrollAlvoTimerRef.current = null;
+    }
+  }, []);
+
+  const travarScrollAlvo = useCallback(
+    (categoriaId: string) => {
+      scrollAlvoRef.current = categoriaId;
+      if (scrollAlvoTimerRef.current) {
+        clearTimeout(scrollAlvoTimerRef.current);
+      }
+      scrollAlvoTimerRef.current = setTimeout(() => {
+        scrollAlvoRef.current = null;
+        scrollAlvoTimerRef.current = null;
+      }, 1500);
+    },
+    [],
+  );
 
   const marcarPill = useCallback((categoriaId: string) => {
     if (pillAtivaRef.current === categoriaId) return;
@@ -128,6 +206,7 @@ export function Home() {
     setHasNextPage(false);
     nextCursorRef.current = null;
     pendingScrollRef.current = null;
+    liberarScrollAlvo();
 
     try {
       if (termo) {
@@ -169,7 +248,7 @@ export function Home() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [liberarScrollAlvo]);
 
   const carregarMais = useCallback(async () => {
     if (buscaRef.current || !nextCursorRef.current) return;
@@ -237,6 +316,7 @@ export function Home() {
 
     if (scrollParaSecao(alvo)) {
       pendingScrollRef.current = null;
+      travarScrollAlvo(alvo);
       return;
     }
 
@@ -246,60 +326,32 @@ export function Home() {
     }
 
     pendingScrollRef.current = null;
-  }, [produtos, loadingMore, carregarMais]);
+  }, [produtos, loadingMore, carregarMais, travarScrollAlvo]);
 
   useEffect(() => {
-    if (pills.length === 0 || produtos.length === 0) return;
+    if (busca || pills.length === 0 || produtos.length === 0) return;
 
     const root = getScrollRoot();
-    const secoes = Array.from(
-      document.querySelectorAll<HTMLElement>('[data-home-categoria]'),
-    );
-    if (secoes.length === 0) return;
+    if (!root) return;
 
-    const visiveis = new Map<string, number>();
+    const sincronizar = () => {
+      const ativoId = categoriaAtivaNoScroll();
+      if (!ativoId) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (Date.now() < ignoreObserverUntilRef.current) return;
-
-        for (const entry of entries) {
-          const id = (entry.target as HTMLElement).dataset.homeCategoria;
-          if (!id) continue;
-          if (entry.isIntersecting) {
-            visiveis.set(id, entry.intersectionRatio);
-          } else {
-            visiveis.delete(id);
-          }
+      if (scrollAlvoRef.current) {
+        if (ativoId === scrollAlvoRef.current) {
+          liberarScrollAlvo();
         }
+        return;
+      }
 
-        if (visiveis.size === 0) return;
+      marcarPill(ativoId);
+    };
 
-        let melhorId: string | null = null;
-        let melhorRatio = -1;
-        for (const pill of pills) {
-          const ratio = visiveis.get(pill.id);
-          if (ratio !== undefined && ratio > melhorRatio) {
-            melhorRatio = ratio;
-            melhorId = pill.id;
-          }
-        }
-
-        if (melhorId) marcarPill(melhorId);
-      },
-      {
-        root,
-        rootMargin: '-30% 0px -55% 0px',
-        threshold: [0, 0.25, 0.5, 0.75, 1],
-      },
-    );
-
-    for (const secao of secoes) {
-      observer.observe(secao);
-    }
-
-    return () => observer.disconnect();
-  }, [pills, produtos, marcarPill]);
+    sincronizar();
+    root.addEventListener('scroll', sincronizar, { passive: true });
+    return () => root.removeEventListener('scroll', sincronizar);
+  }, [busca, pills, produtos, marcarPill, liberarScrollAlvo]);
 
   const sentinelRef = useInfiniteScroll({
     enabled:
@@ -312,7 +364,7 @@ export function Home() {
   });
 
   function handlePillSelect(categoriaId: string) {
-    ignoreObserverUntilRef.current = Date.now() + 800;
+    travarScrollAlvo(categoriaId);
     marcarPill(categoriaId);
     if (scrollParaSecao(categoriaId)) {
       pendingScrollRef.current = null;
@@ -326,14 +378,19 @@ export function Home() {
 
   return (
     <div className="flex flex-col">
-      <div className="sticky top-0 z-10 bg-background px-4 pt-4 pb-3">
+      <div
+        data-home-sticky=""
+        className="sticky top-0 z-10 bg-background px-4 pt-4 pb-3"
+      >
         <div className="flex flex-col gap-3">
           <HomeSearch value={buscaInput} onChange={setBuscaInput} />
-          <HomeCategoriaPills
-            pills={pills}
-            ativoId={pillAtiva}
-            onSelect={handlePillSelect}
-          />
+          {!busca ? (
+            <HomeCategoriaPills
+              pills={pills}
+              ativoId={pillAtiva}
+              onSelect={handlePillSelect}
+            />
+          ) : null}
         </div>
       </div>
 
