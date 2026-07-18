@@ -139,13 +139,18 @@ export function HomeProdutoDrawer({
               : 'flex flex-col gap-4'
           }
         >
-          <div className="aspect-square overflow-hidden rounded-xl bg-operator-bg">
+          <div className="relative aspect-square overflow-hidden rounded-xl bg-operator-bg">
             {imagem ? (
-              <img
-                src={imagem}
-                alt={produto.nome}
-                className="size-full object-cover"
-              />
+              <>
+                <img
+                  src={imagem}
+                  alt={produto.nome}
+                  className="size-full object-cover"
+                />
+                <p className="pointer-events-none absolute inset-x-0 bottom-0 bg-on-surface/45 px-2 py-1.5 text-center text-caption text-surface-container-low">
+                  Imagem meramente ilustrativa
+                </p>
+              </>
             ) : (
               <div className="flex size-full items-center justify-center text-caption text-on-surface-variant">
                 Sem foto
