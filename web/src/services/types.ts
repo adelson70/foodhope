@@ -250,9 +250,21 @@ export type DashDados = {
 
 export type ConfigImpressora = {
   ip: string | null;
+  dispositivo: string | null;
+};
+
+export type PortaImpressora = {
+  path: string;
+  label: string;
 };
 
 export type TestarImpressoraDados = {
   conectada: boolean;
-  ip: string;
+  ip: string | null;
+  dispositivo: string | null;
+};
+
+export type ConfigurarImpressoraInput = {
+  ip?: string;
+  dispositivo?: string;
 };

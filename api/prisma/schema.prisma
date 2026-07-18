@@ -170,10 +170,11 @@ model PedidoItem {
 }
 
 model ConfigImpressora {
-  id        String   @id @default("default")
-  ip        String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default("default")
+  ip          String?
+  dispositivo String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@map("config_impressora")
 }

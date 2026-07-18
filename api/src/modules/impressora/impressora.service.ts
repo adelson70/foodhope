@@ -6,6 +6,8 @@ import {
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
+import { readdir, realpath } from 'node:fs/promises';
+import { join } from 'node:path';
 import {
   BreakLine,
   CharacterSet,
@@ -18,6 +20,13 @@ import { PrismaWriteService } from '../../infra/database/prisma-write.service.js
 import { ConfigurarImpressoraDto } from './dto/configurar.dto.js';
 
 const CONFIG_ID = 'default';
+
+const DISPOSITIVO_RE =
+  /^(?:\/dev\/(?:usb\/)?lp\d+|\/dev\/tty(?:USB|ACM)\d+|\/dev\/serial\/by-id\/[A-Za-z0-9._+-]+|COM\d+)$/i;
+
+type DestinoImpressora =
+  | { tipo: 'rede'; ip: string }
+  | { tipo: 'local'; dispositivo: string };
 
 @Injectable()
 export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
@@ -33,16 +42,16 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
     this.logger.log('Iniciando comunicação com a impressora...');
 
     try {
-      const ip = await this.resolverIpInicial();
+      const destino = await this.resolverDestinoInicial();
 
-      if (!ip) {
+      if (!destino) {
         this.logger.warn(
-          'IP da impressora não configurado. Configure em Configurações > Impressora.',
+          'Impressora não configurada. Configure em Configurações > Impressora.',
         );
         return;
       }
 
-      await this.reconfigurar(ip);
+      await this.reconfigurar(destino);
     } catch (error) {
       this.logger.error('Falha ao configurar a impressora no boot do sistema', error);
     }
@@ -56,10 +65,15 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
     try {
       const config = await this.prismaRead.configImpressora.findUnique({
         where: { id: CONFIG_ID },
-        select: { ip: true },
+        select: { ip: true, dispositivo: true },
       });
 
-      return { dados: { ip: config?.ip ?? null } };
+      return {
+        dados: {
+          ip: config?.ip ?? null,
+          dispositivo: config?.dispositivo ?? null,
+        },
+      };
     } catch (erro) {
       this.logger.error('Erro ao obter config da impressora', erro);
       throw new InternalServerErrorException(
@@ -68,44 +82,72 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  async listarPortas() {
+    try {
+      const portas = await this.descobrirPortasLocais();
+      return { dados: { portas } };
+    } catch (erro) {
+      this.logger.error('Erro ao listar portas da impressora', erro);
+      return { dados: { portas: [] as { path: string; label: string }[] } };
+    }
+  }
+
   async testar(dto: ConfigurarImpressoraDto) {
-    const ip = dto.ip.trim();
-    const conectada = await this.verificarConexao(ip);
+    const destino = this.resolverDestinoDto(dto);
+    const conectada = await this.verificarConexao(destino);
 
     if (!conectada) {
       throw new BadRequestException(
-        'A impressora não está respondendo. Verifique o IP, se ela está ligada e na mesma rede.',
+        destino.tipo === 'rede'
+          ? 'A impressora não está respondendo. Verifique o IP, se ela está ligada e na mesma rede.'
+          : 'A impressora não está respondendo neste dispositivo. Verifique se está ligada e conectada.',
       );
     }
 
     return {
       mensagem: 'Conexão com a impressora OK',
-      dados: { conectada: true, ip },
+      dados: {
+        conectada: true,
+        ip: destino.tipo === 'rede' ? destino.ip : null,
+        dispositivo: destino.tipo === 'local' ? destino.dispositivo : null,
+      },
     };
   }
 
   async salvar(dto: ConfigurarImpressoraDto) {
-    const ip = dto.ip.trim();
-    const conectada = await this.verificarConexao(ip);
+    const destino = this.resolverDestinoDto(dto);
+    const conectada = await this.verificarConexao(destino);
 
     if (!conectada) {
       throw new BadRequestException(
-        'Não foi possível salvar: a impressora não está respondendo neste IP.',
+        destino.tipo === 'rede'
+          ? 'Não foi possível salvar: a impressora não está respondendo neste IP.'
+          : 'Não foi possível salvar: a impressora não está respondendo neste dispositivo.',
       );
     }
+
+    const ip = destino.tipo === 'rede' ? destino.ip : null;
+    const dispositivo = destino.tipo === 'local' ? destino.dispositivo : null;
 
     try {
       const config = await this.prismaWrite.configImpressora.upsert({
         where: { id: CONFIG_ID },
-        create: { id: CONFIG_ID, ip },
-        update: { ip },
+        create: { id: CONFIG_ID, ip, dispositivo },
+        update: { ip, dispositivo },
       });
 
-      await this.reconfigurar(config.ip);
+      await this.reconfigurar(
+        config.dispositivo
+          ? { tipo: 'local', dispositivo: config.dispositivo }
+          : { tipo: 'rede', ip: config.ip! },
+      );
 
       return {
         mensagem: 'Impressora configurada com sucesso',
-        dados: { ip: config.ip },
+        dados: {
+          ip: config.ip ?? null,
+          dispositivo: config.dispositivo ?? null,
+        },
       };
     } catch (erro) {
       if (erro instanceof BadRequestException) throw erro;
@@ -116,17 +158,20 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async reconfigurar(ip: string) {
-    const impressora = this.criarInstancia(ip);
+  async reconfigurar(destino: DestinoImpressora) {
+    const impressora = this.criarInstancia(destino);
     const conectada = await impressora.isPrinterConnected();
 
     this.impressora = impressora;
 
+    const alvo =
+      destino.tipo === 'rede' ? destino.ip : destino.dispositivo;
+
     if (conectada) {
-      this.logger.debug(`Impressora conectada com sucesso no IP: ${ip}`);
+      this.logger.debug(`Impressora conectada com sucesso em: ${alvo}`);
     } else {
       this.logger.error(
-        `A impressora no IP ${ip} não está respondendo. Verifique se ela está ligada e na mesma rede.`,
+        `A impressora em ${alvo} não está respondendo. Verifique se ela está ligada.`,
       );
     }
   }
@@ -156,14 +201,46 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
     return this.impressora !== null;
   }
 
-  private async resolverIpInicial(): Promise<string | null> {
+  private resolverDestinoDto(dto: ConfigurarImpressoraDto): DestinoImpressora {
+    const ip = dto.ip?.trim() || null;
+    const dispositivo = dto.dispositivo?.trim() || null;
+
+    if (ip && dispositivo) {
+      throw new BadRequestException(
+        'Informe apenas o IP ou o dispositivo local, não os dois.',
+      );
+    }
+
+    if (dispositivo) {
+      if (!DISPOSITIVO_RE.test(dispositivo)) {
+        throw new BadRequestException(
+          'Informe um dispositivo válido (/dev/usb/lp0, /dev/ttyUSB0, COM1, …)',
+        );
+      }
+      return { tipo: 'local', dispositivo };
+    }
+
+    if (ip) {
+      return { tipo: 'rede', ip };
+    }
+
+    throw new BadRequestException(
+      'Informe o IP da impressora ou escolha um dispositivo local.',
+    );
+  }
+
+  private async resolverDestinoInicial(): Promise<DestinoImpressora | null> {
     const config = await this.prismaRead.configImpressora.findUnique({
       where: { id: CONFIG_ID },
-      select: { ip: true },
+      select: { ip: true, dispositivo: true },
     });
 
+    if (config?.dispositivo) {
+      return { tipo: 'local', dispositivo: config.dispositivo };
+    }
+
     if (config?.ip) {
-      return config.ip;
+      return { tipo: 'rede', ip: config.ip };
     }
 
     const envIp = process.env.IP_IMPRESSORA?.trim();
@@ -172,33 +249,101 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
     }
 
     await this.prismaWrite.configImpressora.create({
-      data: { id: CONFIG_ID, ip: envIp },
+      data: { id: CONFIG_ID, ip: envIp, dispositivo: null },
     });
 
     this.logger.log(
       `IP da impressora migrado do .env para o banco (${envIp}).`,
     );
 
-    return envIp;
+    return { tipo: 'rede', ip: envIp };
   }
 
-  private criarInstancia(ip: string) {
+  private criarInstancia(destino: DestinoImpressora) {
+    const iface =
+      destino.tipo === 'local'
+        ? destino.dispositivo
+        : `tcp://${destino.ip}`;
+
     return new ThermalPrinter({
       type: PrinterTypes.EPSON,
-      interface: `tcp://${ip}`,
+      interface: iface,
       characterSet: CharacterSet.PC860_PORTUGUESE,
       removeSpecialCharacters: true,
       breakLine: BreakLine.WORD,
     });
   }
 
-  private async verificarConexao(ip: string): Promise<boolean> {
+  private async verificarConexao(destino: DestinoImpressora): Promise<boolean> {
+    const alvo =
+      destino.tipo === 'rede' ? destino.ip : destino.dispositivo;
+
     try {
-      const impressora = this.criarInstancia(ip);
+      const impressora = this.criarInstancia(destino);
       return await impressora.isPrinterConnected();
     } catch (error) {
-      this.logger.error(`Falha ao testar impressora em ${ip}`, error);
+      this.logger.error(`Falha ao testar impressora em ${alvo}`, error);
       return false;
     }
+  }
+
+  private async descobrirPortasLocais(): Promise<
+    { path: string; label: string }[]
+  > {
+    const portas: { path: string; label: string }[] = [];
+    const resolvidos = new Set<string>();
+
+    try {
+      const byId = await readdir('/dev/serial/by-id');
+      for (const nome of byId) {
+        const path = join('/dev/serial/by-id', nome);
+        try {
+          resolvidos.add(await realpath(path));
+        } catch {
+          // symlink quebrado
+        }
+        portas.push({
+          path,
+          label: nome
+            .replace(/^usb-/i, '')
+            .replace(/-if\d+$/i, '')
+            .replace(/_/g, ' '),
+        });
+      }
+    } catch {
+      // /dev/serial/by-id pode não existir
+    }
+
+    try {
+      const usbEntries = await readdir('/dev/usb');
+      for (const nome of usbEntries) {
+        if (!/^lp\d+$/i.test(nome)) continue;
+        const path = join('/dev/usb', nome);
+        if (resolvidos.has(path)) continue;
+        portas.push({ path, label: path });
+      }
+    } catch {
+      // /dev/usb pode não existir
+    }
+
+    try {
+      const entries = await readdir('/dev');
+      for (const nome of entries) {
+        if (
+          !/^lp\d+$/i.test(nome) &&
+          !/^ttyUSB\d+$/i.test(nome) &&
+          !/^ttyACM\d+$/i.test(nome)
+        ) {
+          continue;
+        }
+        const path = join('/dev', nome);
+        if (resolvidos.has(path)) continue;
+        portas.push({ path, label: path });
+      }
+    } catch {
+      // /dev inacessível
+    }
+
+    return portas.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
   }
 }

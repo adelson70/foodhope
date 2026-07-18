@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useEffect, useState, type ChangeEvent } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Check, Printer } from 'lucide-react';
 
@@ -8,6 +8,7 @@ import {
   Drawer,
   Input,
   Label,
+  Select,
   Skeleton,
 } from '../../../components/ui';
 import {
@@ -15,6 +16,7 @@ import {
   type ImpressoraFormValues,
 } from '../../../schemas/impressora.schema';
 import { getApiErrorMensagens, impressoraService } from '../../../services';
+import type { PortaImpressora } from '../../../services/types';
 
 type ConfigImpressoraDrawerProps = {
   open: boolean;
@@ -22,6 +24,14 @@ type ConfigImpressoraDrawerProps = {
 };
 
 const FORM_ID = 'config-impressora-form';
+
+function payloadFromValues(values: ImpressoraFormValues) {
+  const dispositivo = values.dispositivo?.trim() || null;
+  if (dispositivo) {
+    return { dispositivo };
+  }
+  return { ip: values.ip.trim() };
+}
 
 export function ConfigImpressoraDrawer({
   open,
@@ -31,25 +41,29 @@ export function ConfigImpressoraDrawer({
   const [erro, setErro] = useState<string | null>(null);
   const [testadoOk, setTestadoOk] = useState(false);
   const [testando, setTestando] = useState(false);
+  const [portas, setPortas] = useState<PortaImpressora[]>([]);
 
   const {
     register,
+    control,
     handleSubmit,
     reset,
     watch,
+    setValue,
     trigger,
     getValues,
     formState: { errors, isSubmitting },
   } = useForm<ImpressoraFormValues>({
     resolver: zodResolver(impressoraSchema),
-    defaultValues: { ip: '' },
+    defaultValues: { ip: '', dispositivo: null },
   });
 
   const ipAtual = watch('ip');
+  const dispositivoAtual = watch('dispositivo');
 
   useEffect(() => {
     setTestadoOk(false);
-  }, [ipAtual]);
+  }, [ipAtual, dispositivoAtual]);
 
   useEffect(() => {
     if (!open) return;
@@ -58,16 +72,24 @@ export function ConfigImpressoraDrawer({
     setLoading(true);
     setErro(null);
     setTestadoOk(false);
+    setPortas([]);
 
-    impressoraService
-      .obter()
-      .then((response) => {
+    Promise.all([impressoraService.obter(), impressoraService.listarPortas()])
+      .then(([configResponse, portasResponse]) => {
         if (cancelled) return;
-        if (!response.sucesso) {
+
+        if (!configResponse.sucesso) {
           setErro('Não foi possível carregar a configuração da impressora.');
           return;
         }
-        reset({ ip: response.dados?.ip ?? '' });
+
+        reset({
+          ip: configResponse.dados?.ip ?? '',
+          dispositivo: configResponse.dados?.dispositivo ?? null,
+        });
+        setPortas(
+          portasResponse.sucesso ? (portasResponse.dados?.portas ?? []) : [],
+        );
         setTestadoOk(false);
       })
       .catch((error: unknown) => {
@@ -88,14 +110,16 @@ export function ConfigImpressoraDrawer({
   }, [open, reset]);
 
   async function onTestar() {
-    const valido = await trigger('ip');
+    const valido = await trigger();
     if (!valido) return;
 
     setTestando(true);
     setTestadoOk(false);
 
     try {
-      const response = await impressoraService.testar(getValues('ip').trim());
+      const response = await impressoraService.testar(
+        payloadFromValues(getValues()),
+      );
       if (response.sucesso && response.dados?.conectada) {
         setTestadoOk(true);
       }
@@ -110,7 +134,7 @@ export function ConfigImpressoraDrawer({
     if (!testadoOk) return;
 
     try {
-      const response = await impressoraService.salvar(values.ip);
+      const response = await impressoraService.salvar(payloadFromValues(values));
       if (response.sucesso) {
         onClose();
       }
@@ -120,6 +144,8 @@ export function ConfigImpressoraDrawer({
   }
 
   const formPronto = !loading && !erro;
+  const mostrarPortas = portas.length > 0;
+  const ipField = register('ip');
 
   return (
     <Drawer
@@ -162,6 +188,9 @@ export function ConfigImpressoraDrawer({
       {loading ? (
         <div className="flex flex-col gap-4" aria-busy="true">
           <Skeleton className="h-12 w-full rounded-xl" />
+          {mostrarPortas ? (
+            <Skeleton className="h-12 w-full rounded-xl" />
+          ) : null}
         </div>
       ) : null}
 
@@ -186,19 +215,63 @@ export function ConfigImpressoraDrawer({
               placeholder="192.168.1.50:9100"
               error={Boolean(errors.ip)}
               leftIcon={<Printer size={17} strokeWidth={1.75} />}
-              disabled={isSubmitting || testando}
-              {...register('ip')}
+              disabled={isSubmitting || testando || Boolean(dispositivoAtual)}
+              {...ipField}
+              onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                void ipField.onChange(event);
+                if (getValues('dispositivo')) {
+                  setValue('dispositivo', null, { shouldValidate: true });
+                }
+              }}
             />
             {errors.ip ? (
               <p className="px-1 text-caption text-danger">
                 {errors.ip.message}
               </p>
             ) : null}
-            <p className="px-1 text-caption text-on-surface-variant">
-              Use o IP ou host:porta (porta padrão 9100). Teste a conexão antes
-              de salvar.
-            </p>
           </div>
+
+          {mostrarPortas ? (
+            <div className="space-y-2">
+              <Label htmlFor="impressora-dispositivo">Porta local</Label>
+              <Controller
+                name="dispositivo"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    id="impressora-dispositivo"
+                    value={field.value ?? ''}
+                    onChange={(value) => {
+                      field.onChange(value || null);
+                      if (value) {
+                        setValue('ip', '', { shouldValidate: true });
+                      }
+                    }}
+                    options={portas.map((porta) => ({
+                      value: porta.path,
+                      label: porta.label,
+                    }))}
+                    placeholder="Escolher porta…"
+                    searchPlaceholder="Buscar porta…"
+                    emptyMessage="Nenhuma porta"
+                    error={Boolean(errors.dispositivo)}
+                    disabled={isSubmitting || testando}
+                  />
+                )}
+              />
+              {errors.dispositivo ? (
+                <p className="px-1 text-caption text-danger">
+                  {errors.dispositivo.message}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          <p className="px-1 text-caption text-on-surface-variant">
+            {mostrarPortas
+              ? 'Use o IP (host:porta, padrão 9100) ou uma porta local encontrada. Teste a conexão antes de salvar.'
+              : 'Use o IP ou host:porta (porta padrão 9100). Teste a conexão antes de salvar.'}
+          </p>
         </form>
       ) : null}
     </Drawer>

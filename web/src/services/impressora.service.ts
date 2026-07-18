@@ -3,6 +3,8 @@ import { withMutationToast } from './mutation-toast';
 import type {
   ApiResponse,
   ConfigImpressora,
+  ConfigurarImpressoraInput,
+  PortaImpressora,
   TestarImpressoraDados,
 } from './types';
 
@@ -11,13 +13,22 @@ export const impressoraService = {
     return request(api.get<ApiResponse<ConfigImpressora>>('/impressora'));
   },
 
-  async testar(ip: string): Promise<ApiResponse<TestarImpressoraDados>> {
+  async listarPortas(): Promise<ApiResponse<{ portas: PortaImpressora[] }>> {
+    return request(
+      api.get<ApiResponse<{ portas: PortaImpressora[] }>>('/impressora/portas'),
+    );
+  },
+
+  async testar(
+    input: ConfigurarImpressoraInput,
+  ): Promise<ApiResponse<TestarImpressoraDados>> {
     return withMutationToast(
       () =>
         request(
-          api.post<ApiResponse<TestarImpressoraDados>>('/impressora/testar', {
-            ip,
-          }),
+          api.post<ApiResponse<TestarImpressoraDados>>(
+            '/impressora/testar',
+            input,
+          ),
         ),
       {
         success: 'Conexão com a impressora OK',
@@ -26,11 +37,13 @@ export const impressoraService = {
     );
   },
 
-  async salvar(ip: string): Promise<ApiResponse<ConfigImpressora>> {
+  async salvar(
+    input: ConfigurarImpressoraInput,
+  ): Promise<ApiResponse<ConfigImpressora>> {
     return withMutationToast(
       () =>
         request(
-          api.put<ApiResponse<ConfigImpressora>>('/impressora', { ip }),
+          api.put<ApiResponse<ConfigImpressora>>('/impressora', input),
         ),
       {
         success: 'Impressora configurada com sucesso',

@@ -87,7 +87,7 @@ export function Config() {
                 Impressora
               </span>
               <span className="block text-caption text-on-surface-variant">
-                IP e conexão da impressora
+                IP, porta local e conexão
               </span>
             </span>
             <ChevronRight

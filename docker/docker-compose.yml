@@ -49,8 +49,17 @@ services:
       SWAGGER_USER: ${SWAGGER_USER}
       SWAGGER_PASSWORD: ${SWAGGER_PASSWORD}
       IP_IMPRESSORA: ${IP_IMPRESSORA:-}
+    group_add:
+      - "${DIALOUT_GID:-18}"
+      - "${LP_GID:-7}"
+    device_cgroup_rules:
+      - "c 166:* rmw"
+      - "c 188:* rmw"
+      - "c 180:* rmw"
+      - "c 6:* rmw"
     volumes:
       - produto-imagens:/app/public/produto
+      - /dev:/dev
     depends_on:
       postgres:
         condition: service_healthy
