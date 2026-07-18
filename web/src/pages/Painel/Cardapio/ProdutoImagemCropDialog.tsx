@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Cropper, { type Area } from 'react-easy-crop';
 import 'react-easy-crop/react-easy-crop.css';
 
@@ -44,30 +44,65 @@ function zoomParaSlider(zoom: number): number {
 
 type ProdutoImagemCropDialogProps = {
   open: boolean;
-  imageSrc: string | null;
+  file: File;
   onClose: () => void;
+  onExited: () => void;
   onConfirm: (file: File) => void;
 };
 
 export function ProdutoImagemCropDialog({
   open,
-  imageSrc,
+  file,
   onClose,
+  onExited,
   onConfirm,
 }: ProdutoImagemCropDialogProps) {
   const { mounted, exiting, onExitAnimationEnd } = useAnimatedPresence(open);
+  const onExitedRef = useRef(onExited);
+  onExitedRef.current = onExited;
+  const saiuRef = useRef(false);
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(CROP_ZOOM_DEFAULT);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [processando, setProcessando] = useState(false);
+  const [imagemPronta, setImagemPronta] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
+    const url = URL.createObjectURL(file);
+    setImageSrc(url);
+    setImagemPronta(false);
     setCrop({ x: 0, y: 0 });
     setZoom(CROP_ZOOM_DEFAULT);
     setCroppedAreaPixels(null);
     setProcessando(false);
-  }, [open, imageSrc]);
+    saiuRef.current = false;
+
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [file]);
+
+  useEffect(() => {
+    if (open) {
+      saiuRef.current = false;
+      return;
+    }
+
+    function finalizar() {
+      if (saiuRef.current) return;
+      saiuRef.current = true;
+      onExitedRef.current();
+    }
+
+    if (!mounted) {
+      finalizar();
+      return;
+    }
+
+    const timeoutId = window.setTimeout(finalizar, 400);
+    return () => window.clearTimeout(timeoutId);
+  }, [open, mounted]);
 
   useEffect(() => {
     if (!mounted || exiting) return;
@@ -96,8 +131,8 @@ export function ProdutoImagemCropDialog({
 
     setProcessando(true);
     try {
-      const file = await getCroppedImg(imageSrc, croppedAreaPixels);
-      onConfirm(file);
+      const cortada = await getCroppedImg(imageSrc, croppedAreaPixels);
+      onConfirm(cortada);
       onClose();
     } catch {
       notifyError(null, 'Não foi possível cortar a imagem.');
@@ -166,11 +201,13 @@ export function ProdutoImagemCropDialog({
             minZoom={CROP_ZOOM_MIN}
             maxZoom={CROP_ZOOM_MAX}
             aspect={1}
+            objectFit="cover"
             showGrid
-            restrictPosition={false}
+            zoomWithScroll={false}
             onCropChange={setCrop}
             onZoomChange={setZoom}
             onCropComplete={onCropComplete}
+            onMediaLoaded={() => setImagemPronta(true)}
             style={{
               containerStyle: {
                 backgroundColor: 'transparent',
@@ -194,7 +231,7 @@ export function ProdutoImagemCropDialog({
               max={ZOOM_SLIDER_MAX}
               step={1}
               value={zoomSlider}
-              disabled={processando}
+              disabled={processando || !imagemPronta}
               onChange={(event) =>
                 setZoom(sliderParaZoom(Number(event.target.value)))
               }
@@ -215,7 +252,7 @@ export function ProdutoImagemCropDialog({
             <Button
               type="button"
               className="flex-1"
-              disabled={processando || !croppedAreaPixels}
+              disabled={processando || !croppedAreaPixels || !imagemPronta}
               onClick={handleConfirm}
             >
               {processando ? 'Processando...' : 'Usar foto'}

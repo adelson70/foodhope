@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent } from 'react';
 import { Camera, ImagePlus, Trash2 } from 'lucide-react';
 
 import { Button } from '../../../components/ui';
@@ -36,8 +36,9 @@ export function ProdutoImagemField({
   const galeriaId = useId();
   const galeriaRef = useRef<HTMLInputElement>(null);
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
-  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [cropFile, setCropFile] = useState<File | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
+  const [cropSession, setCropSession] = useState(0);
   const [cameraOpen, setCameraOpen] = useState(false);
 
   useEffect(() => {
@@ -51,29 +52,23 @@ export function ProdutoImagemField({
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
-  useEffect(() => {
-    return () => {
-      if (cropSrc) URL.revokeObjectURL(cropSrc);
-    };
-  }, [cropSrc]);
-
   const previewSrc =
     objectUrl ?? urlImagemProduto(imagemUrlAtual, imagemCacheKey);
   const podeRemover = Boolean(file || imagemUrlAtual);
 
-  function abrirCrop(arquivo: File) {
-    if (cropSrc) URL.revokeObjectURL(cropSrc);
-    const url = URL.createObjectURL(arquivo);
-    setCropSrc(url);
-    setCropOpen(true);
-  }
-
-  function fecharCrop() {
+  const fecharCrop = useCallback(() => {
     setCropOpen(false);
-    if (cropSrc) {
-      URL.revokeObjectURL(cropSrc);
-      setCropSrc(null);
-    }
+  }, []);
+
+  const limparCrop = useCallback(() => {
+    setCropOpen(false);
+    setCropFile(null);
+  }, []);
+
+  function abrirCrop(arquivo: File) {
+    setCropFile(arquivo);
+    setCropSession((atual) => atual + 1);
+    setCropOpen(true);
   }
 
   function validarESelecionar(arquivo: File | undefined) {
@@ -183,12 +178,19 @@ export function ProdutoImagemField({
         onCapture={validarESelecionar}
       />
 
-      <ProdutoImagemCropDialog
-        open={cropOpen}
-        imageSrc={cropSrc}
-        onClose={fecharCrop}
-        onConfirm={onChange}
-      />
+      {cropFile ? (
+        <ProdutoImagemCropDialog
+          key={cropSession}
+          open={cropOpen}
+          file={cropFile}
+          onClose={fecharCrop}
+          onExited={limparCrop}
+          onConfirm={(proximo) => {
+            onChange(proximo);
+            fecharCrop();
+          }}
+        />
+      ) : null}
     </div>
   );
 }
