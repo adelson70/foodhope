@@ -85,8 +85,9 @@ model Produto {
   descricao String?
   preco     Decimal @db.Decimal(10, 2)
   imagemUrl String? @map("imagem_url")
-  ativo     Boolean @default(true)
-  ordem     Int     @default(0)
+  ativo             Boolean @default(true)
+  imprimirSeparado  Boolean @default(false) @map("imprimir_separado")
+  ordem             Int     @default(0)
 
   categoria_id String?    @map("categoria_id")
   categoria    Categoria? @relation(fields: [categoria_id], references: [id], onDelete: SetNull)

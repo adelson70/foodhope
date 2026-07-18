@@ -53,6 +53,14 @@ export class CriarDto {
   ativo?: boolean;
 
   @ApiPropertyOptional({
+    description: 'Se o produto deve ser impresso em cupom separado',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  imprimirSeparado?: boolean;
+
+  @ApiPropertyOptional({
     description: 'Lista de adicionais específicos do lanche',
     type: [AdicionalDto],
   })

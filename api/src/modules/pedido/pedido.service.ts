@@ -304,15 +304,37 @@ export class PedidoService {
         return { ...pedidoCriado, numero: pedidoCriado.numero.toString() };
       });
 
-      const textoParaImprimir = this.formatarParaImpressora(pedidoCompleto, dto.cliente);
+      const itensNormais = pedidoCompleto.itens.filter(
+        (item: { produto?: { imprimirSeparado?: boolean } }) =>
+          !item.produto?.imprimirSeparado,
+      );
+      const itensSeparados = pedidoCompleto.itens.filter(
+        (item: { produto?: { imprimirSeparado?: boolean } }) =>
+          Boolean(item.produto?.imprimirSeparado),
+      );
 
-      await this.filaImpressao.add('imprimir-pedido', {
-        texto: textoParaImprimir
-      })
+      if (itensNormais.length > 0) {
+        const textoPrincipal = this.formatarParaImpressora(
+          { ...pedidoCompleto, itens: itensNormais },
+          dto.cliente,
+        );
+        await this.filaImpressao.add('imprimir-pedido', {
+          texto: textoPrincipal,
+        });
+      }
+
+      for (const item of itensSeparados) {
+        const textoSeparado = this.formatarItemSeparado(
+          pedidoCompleto,
+          item,
+          dto.cliente,
+        );
+        await this.filaImpressao.add('imprimir-pedido', {
+          texto: textoSeparado,
+        });
+      }
 
       this.websocket.emitirParaOperadores('novo-pedido', pedidoCompleto)
-
-      //this.impressora.print(textoParaImprimir);
 
       return {
         mensagem: 'Pedido criado com sucesso',
@@ -383,6 +405,62 @@ export class PedidoService {
     impressao +=
       alinharLinha('TOTAL A PAGAR:', formatarMoeda(valorTotalPedido), ' ') +
       '\n';
+    impressao += `${linhaSeparadora('=')}\n`;
+    impressao += '\n\n\n';
+
+    return impressao;
+  }
+
+  private formatarItemSeparado(
+    pedido: any,
+    item: any,
+    cliente: ClientePedido,
+  ) {
+    let impressao = '';
+
+    impressao += `${linhaSeparadora('=')}\n`;
+    impressao += `PEDIDO #${pedido.numero}\n`;
+    const nomeCliente = [cliente.primeiro_nome, cliente.sobrenome]
+      .filter(Boolean)
+      .join(' ');
+    impressao += `CLIENTE: ${nomeCliente}\n`;
+    impressao += `ITEM A PARTE\n`;
+    impressao += `${linhaSeparadora('=')}\n\n`;
+
+    let valorTotal = 0;
+
+    const subtotalLanche = item.quantidade * Number(item.preco_produto);
+    valorTotal += subtotalLanche;
+
+    const nomeProduto = item.produto?.nome || 'Lanche';
+    const textoEsqLanche = `${item.quantidade}x ${nomeProduto.toUpperCase()} `;
+    const textoDirLanche = ` ${formatarMoeda(subtotalLanche)}`;
+    impressao += alinharLinha(textoEsqLanche, textoDirLanche, '.') + '\n';
+
+    if (
+      item.adicional_venda &&
+      Array.isArray(item.adicional_venda) &&
+      item.adicional_venda.length > 0
+    ) {
+      item.adicional_venda.forEach((add: any) => {
+        const subtotalAdicional = add.qtd * Number(add.preco);
+        valorTotal += subtotalAdicional;
+
+        const textoEsqAdic = `  + ${add.qtd}x Adic: ${add.nome} `;
+        const textoDirAdic = ` ${formatarMoeda(subtotalAdicional)}`;
+
+        impressao += alinharLinha(textoEsqAdic, textoDirAdic, '.') + '\n';
+      });
+    }
+
+    if (item.observacao && item.observacao.trim() !== '') {
+      impressao += `  OBS: ${item.observacao}\n`;
+    }
+
+    impressao += '\n';
+    impressao += `${linhaSeparadora('-')}\n`;
+    impressao +=
+      alinharLinha('TOTAL:', formatarMoeda(valorTotal), ' ') + '\n';
     impressao += `${linhaSeparadora('=')}\n`;
     impressao += '\n\n\n';
 

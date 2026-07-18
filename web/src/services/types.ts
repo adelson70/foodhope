@@ -55,6 +55,7 @@ export type Produto = {
   preco: string | number;
   imagemUrl: string | null;
   ativo?: boolean;
+  imprimirSeparado?: boolean;
   ordem?: number;
   categoria?: ProdutoCategoria | null;
   createdAt?: string;
@@ -137,6 +138,7 @@ export type CriarProdutoInput = {
   descricao?: string;
   preco: number;
   ativo?: boolean;
+  imprimirSeparado?: boolean;
   categoriaId?: string | null;
   adicionais?: AdicionalCriarInput[];
   adicionalGlobalIds?: string[];
@@ -148,6 +150,7 @@ export type EditarProdutoInput = {
   descricao?: string;
   preco?: number;
   ativo?: boolean;
+  imprimirSeparado?: boolean;
   ordem?: number;
   categoriaId?: string | null;
   adicionais?: AdicionalEditarInput[];

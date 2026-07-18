@@ -48,6 +48,7 @@ function valoresIniciais(produto: Produto | null): ProdutoFormValues {
       descricao: '',
       preco: 0,
       ativo: true,
+      imprimirSeparado: false,
       categoriaId: null,
       adicionais: [],
       adicionalGlobalIds: [],
@@ -59,6 +60,7 @@ function valoresIniciais(produto: Produto | null): ProdutoFormValues {
     descricao: produto.descricao ?? '',
     preco: Number(produto.preco),
     ativo: produto.ativo ?? true,
+    imprimirSeparado: produto.imprimirSeparado ?? false,
     categoriaId: produto.categoria?.id ?? null,
     adicionais: (produto.adicionaisEspecificos ?? []).map((item) => ({
       id: item.id,
@@ -244,6 +246,7 @@ export function ProdutoFormDrawer({
           descricao,
           preco: values.preco,
           ativo: values.ativo,
+          imprimirSeparado: values.imprimirSeparado,
           categoriaId: values.categoriaId,
           adicionais: adicionaisAtuais.map((item) => ({
             nome: item.nome.trim(),
@@ -273,6 +276,7 @@ export function ProdutoFormDrawer({
         descricao: descricao ?? '',
         preco: values.preco,
         ativo: values.ativo,
+        imprimirSeparado: values.imprimirSeparado,
         categoriaId: values.categoriaId,
         adicionais: adicionais.length > 0 ? adicionais : undefined,
         adicionalGlobalIds: values.adicionalGlobalIds,
@@ -442,6 +446,38 @@ export function ProdutoFormDrawer({
               className={cn(
                 'absolute top-0.5 left-0.5 size-4 rounded-full bg-surface shadow-card transition-transform',
                 watch('ativo') && 'translate-x-4',
+              )}
+            />
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-operator-border bg-operator-card px-3 py-3">
+          <div className="min-w-0">
+            <Label htmlFor="produto-imprimir-separado">Imprimir à parte</Label>
+            <p className="text-caption text-on-surface-variant">
+              Sai em um cupom separado, referenciando o pedido
+            </p>
+          </div>
+          <button
+            type="button"
+            id="produto-imprimir-separado"
+            role="switch"
+            aria-checked={watch('imprimirSeparado')}
+            disabled={isSubmitting}
+            onClick={() =>
+              setValue('imprimirSeparado', !watch('imprimirSeparado'), {
+                shouldDirty: true,
+              })
+            }
+            className={cn(
+              'relative h-5 w-9 shrink-0 rounded-full transition-colors',
+              watch('imprimirSeparado') ? 'bg-primary' : 'bg-outline-variant',
+            )}
+          >
+            <span
+              className={cn(
+                'absolute top-0.5 left-0.5 size-4 rounded-full bg-surface shadow-card transition-transform',
+                watch('imprimirSeparado') && 'translate-x-4',
               )}
             />
           </button>

@@ -40,6 +40,13 @@ export class EditarProdutoDto {
   ativo?: boolean;
 
   @ApiPropertyOptional({
+    description: 'Se o produto deve ser impresso em cupom separado',
+  })
+  @IsOptional()
+  @IsBoolean()
+  imprimirSeparado?: boolean;
+
+  @ApiPropertyOptional({
     example: 0,
     description: 'Ordem dentro da categoria (0 = primeiro do grupo)',
   })

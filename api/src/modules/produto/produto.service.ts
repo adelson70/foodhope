@@ -46,6 +46,7 @@ type ProdutoComAdicionais = {
   preco: Prisma.Decimal | number;
   imagemUrl: string | null;
   ativo: boolean;
+  imprimirSeparado?: boolean;
   ordem?: number;
   categoria_id?: string | null;
   createdAt?: Date;
@@ -436,6 +437,7 @@ export class ProdutoService {
             descricao: dto.descricao,
             preco: dto.preco,
             ativo: dto.ativo ?? true,
+            imprimirSeparado: dto.imprimirSeparado ?? false,
             ordem,
             ...(categoriaId
               ? { categoria: { connect: { id: categoriaId } } }
@@ -526,6 +528,9 @@ export class ProdutoService {
         }
         if (dto.preco !== undefined) dadosUpdate.preco = dto.preco;
         if (dto.ativo !== undefined) dadosUpdate.ativo = dto.ativo;
+        if (dto.imprimirSeparado !== undefined) {
+          dadosUpdate.imprimirSeparado = dto.imprimirSeparado;
+        }
 
         if (dto.categoriaId !== undefined) {
           const categoriaId = await this.validarCategoriaId(tx, dto.categoriaId);
