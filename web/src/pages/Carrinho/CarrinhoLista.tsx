@@ -1,4 +1,4 @@
-import { Minus, Plus, Trash2 } from 'lucide-react';
+import { Minus, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { Button } from '../../components/ui';
@@ -15,7 +15,6 @@ type CarrinhoListaProps = {
 
 export function CarrinhoLista({ itens }: CarrinhoListaProps) {
   const setQtd = useCarrinhoStore((state) => state.setQtd);
-  const removeItem = useCarrinhoStore((state) => state.removeItem);
 
   if (itens.length === 0) {
     return (
@@ -38,43 +37,36 @@ export function CarrinhoLista({ itens }: CarrinhoListaProps) {
       {itens.map((item) => (
         <li
           key={item.id}
-          className="rounded-xl border border-operator-border bg-operator-card p-3"
+          className="flex items-center justify-between gap-3 rounded-xl border border-operator-border bg-operator-card p-3"
         >
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <p className="text-subtitle-md text-on-surface">{item.nome}</p>
-              {item.adicionais.length > 0 ? (
-                <p className="mt-1 text-caption text-on-surface-variant">
-                  {item.adicionais
-                    .map((adic) => `${adic.nome} ×${adic.qtd}`)
-                    .join(', ')}
-                </p>
-              ) : null}
-              {item.observacao ? (
-                <p className="mt-1 text-caption text-on-surface-variant">
-                  Obs.: {item.observacao}
-                </p>
-              ) : null}
-              <p className="mt-2 text-body-md font-medium text-primary">
-                {formatarMoeda(totalItemCarrinho(item))}
+          <div className="min-w-0 flex-1">
+            <p className="text-subtitle-md text-on-surface">{item.nome}</p>
+            {item.adicionais.length > 0 ? (
+              <p className="mt-1 text-caption text-on-surface-variant">
+                {item.adicionais
+                  .map((adic) => `${adic.nome} ×${adic.qtd}`)
+                  .join(', ')}
               </p>
-            </div>
-            <Button
-              type="button"
-              variant="dangerGhost"
-              className="size-10 shrink-0 px-0 py-0"
-              aria-label={`Remover ${item.nome}`}
-              onClick={() => removeItem(item.id)}
-            >
-              <Trash2 size={18} />
-            </Button>
+            ) : null}
+            {item.observacao ? (
+              <p className="mt-1 text-caption text-on-surface-variant">
+                Obs.: {item.observacao}
+              </p>
+            ) : null}
+            <p className="mt-2 text-body-md font-medium text-primary">
+              {formatarMoeda(totalItemCarrinho(item))}
+            </p>
           </div>
-          <div className="mt-3 flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <Button
               type="button"
               variant="secondary"
               className="size-10 px-0 py-0"
-              aria-label={`Diminuir ${item.nome}`}
+              aria-label={
+                item.qtd <= 1
+                  ? `Remover ${item.nome}`
+                  : `Diminuir ${item.nome}`
+              }
               onClick={() => setQtd(item.id, item.qtd - 1)}
             >
               <Minus size={18} />
