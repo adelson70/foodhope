@@ -396,13 +396,13 @@ export function ProdutoFormDrawer({
                   field.onChange(value === SEM_CATEGORIA ? null : value)
                 }
                 options={[
-                  { value: SEM_CATEGORIA, label: 'Sem categoria' },
+                  { value: SEM_CATEGORIA, label: 'Outros' },
                   ...categorias.map((item) => ({
                     value: item.id,
                     label: item.nome,
                   })),
                 ]}
-                placeholder="Sem categoria"
+                placeholder="Outros"
                 searchPlaceholder="Buscar categoria…"
                 emptyMessage="Nenhuma categoria"
                 disabled={isSubmitting}
@@ -410,11 +410,10 @@ export function ProdutoFormDrawer({
               />
             )}
           />
-          {categorias.length === 0 ? (
-            <p className="text-caption text-on-surface-variant">
-              Cadastre categorias em Configurações → Cozinha → Categorias.
-            </p>
-          ) : null}
+          <p className="text-caption text-on-surface-variant">
+            “Outros” é a seção dos produtos sem categoria (não cria registro no
+            banco).
+          </p>
         </div>
 
         <div className="flex items-center justify-between gap-3 rounded-xl border border-operator-border bg-operator-card px-3 py-3">
@@ -501,7 +500,7 @@ export function ProdutoFormDrawer({
               disabled={isSubmitting}
               onClick={handleAdicionarAdicional}
             >
-              <Plus size={16} strokeWidth={1.75} />
+              <Plus size={14} strokeWidth={1.75} />
               Adicionar
             </Button>
           </div>
@@ -619,7 +618,7 @@ export function ProdutoFormDrawer({
                           disabled={isSubmitting || saindo}
                           onClick={() => handleRemoverAdicional(field.id)}
                         >
-                          <Trash2 size={20} strokeWidth={1.75} />
+                          <Trash2 size={17} strokeWidth={1.75} />
                         </Button>
                       </div>
                     </div>

@@ -19,7 +19,7 @@ function DestaqueCard({
   return (
     <article className="rounded-xl border border-operator-border bg-operator-card px-4 py-3">
       <div className="mb-2 flex items-center gap-2 text-on-surface-variant">
-        <Icon size={16} strokeWidth={1.75} aria-hidden />
+        <Icon size={14} strokeWidth={1.75} aria-hidden />
         <p className="text-caption">{titulo}</p>
       </div>
       {item ? (

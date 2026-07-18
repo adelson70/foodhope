@@ -46,6 +46,7 @@ type ProdutoComAdicionais = {
   preco: Prisma.Decimal | number;
   imagemUrl: string | null;
   ativo: boolean;
+  ordem?: number;
   categoria_id?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
@@ -53,8 +54,6 @@ type ProdutoComAdicionais = {
   adicionais: AdicionalEspecificoRow[];
   adicionaisGlobais: AdicionalGlobalVinculoRow[];
 };
-
-const ORDEM_SENTINEL = 2_147_483_647;
 
 const produtoAdicionaisInclude = {
   categoria: {
@@ -76,18 +75,12 @@ const produtoAdicionaisInclude = {
 
 const produtoOrderBy = [
   { categoria: { ordem: 'asc' as const } },
-  { preco: 'asc' as const },
+  { ordem: 'asc' as const },
   { id: 'asc' as const },
 ];
 
 function normalizarNome(nome: string) {
   return nome.trim().toLowerCase();
-}
-
-function ordemDoProduto(produto: {
-  categoria?: CategoriaRow;
-}): number {
-  return produto.categoria?.ordem ?? ORDEM_SENTINEL;
 }
 
 function montarRespostaProduto(produto: ProdutoComAdicionais) {
@@ -222,44 +215,73 @@ export class ProdutoService {
     return categoriaId;
   }
 
-  private montarWhereAposCursor(cursor: {
-    ordem: number;
-    preco: string;
-    id: string;
-  }): Prisma.ProdutoWhereInput {
-    const preco = new Prisma.Decimal(cursor.preco);
+  private async proximaOrdemNoGrupo(
+    tx: Prisma.TransactionClient,
+    categoriaId: string | null,
+  ) {
+    const agregacao = await tx.produto.aggregate({
+      where:
+        categoriaId === null
+          ? { categoria_id: null }
+          : { categoria_id: categoriaId },
+      _max: { ordem: true },
+    });
+    return (agregacao._max.ordem ?? -1) + 1;
+  }
 
-    if (cursor.ordem >= ORDEM_SENTINEL) {
-      return {
-        AND: [
-          { categoria_id: null },
-          {
-            OR: [
-              { preco: { gt: preco } },
-              { AND: [{ preco }, { id: { gt: cursor.id } }] },
-            ],
-          },
-        ],
-      };
+  private async compactarGrupo(
+    tx: Prisma.TransactionClient,
+    categoriaId: string | null,
+  ) {
+    const doGrupo = await tx.produto.findMany({
+      where:
+        categoriaId === null
+          ? { categoria_id: null }
+          : { categoria_id: categoriaId },
+      orderBy: [{ ordem: 'asc' }, { id: 'asc' }],
+      select: { id: true },
+    });
+
+    for (let index = 0; index < doGrupo.length; index += 1) {
+      await tx.produto.update({
+        where: { id: doGrupo[index].id },
+        data: { ordem: index },
+      });
+    }
+  }
+
+  private async reordenarNoGrupo(
+    tx: Prisma.TransactionClient,
+    id: string,
+    categoriaId: string | null,
+    ordemNova: number,
+  ) {
+    const doGrupo = await tx.produto.findMany({
+      where:
+        categoriaId === null
+          ? { categoria_id: null }
+          : { categoria_id: categoriaId },
+      orderBy: [{ ordem: 'asc' }, { id: 'asc' }],
+      select: { id: true },
+    });
+
+    if (ordemNova >= doGrupo.length) {
+      throw new BadRequestException('Ordem inválida.');
     }
 
-    return {
-      OR: [
-        { categoria: { ordem: { gt: cursor.ordem } } },
-        {
-          AND: [
-            { categoria: { ordem: cursor.ordem } },
-            {
-              OR: [
-                { preco: { gt: preco } },
-                { AND: [{ preco }, { id: { gt: cursor.id } }] },
-              ],
-            },
-          ],
-        },
-        { categoria_id: null },
-      ],
-    };
+    const semAtual = doGrupo.filter((p) => p.id !== id);
+    const reordenados = [
+      ...semAtual.slice(0, ordemNova),
+      { id },
+      ...semAtual.slice(ordemNova),
+    ];
+
+    for (let index = 0; index < reordenados.length; index += 1) {
+      await tx.produto.update({
+        where: { id: reordenados[index].id },
+        data: { ordem: index },
+      });
+    }
   }
 
   async listarProduto(dto: ListarDto) {
@@ -267,18 +289,13 @@ export class ProdutoService {
       const limit = dto.limit || 10;
       const cursorStr = dto.cursor;
 
-      let decodedCursor: { id: string; ordem: number; preco: string } | null =
-        null;
+      let decodedCursor: { id: string } | null = null;
 
       if (cursorStr) {
         try {
           const jsonString = Buffer.from(cursorStr, 'base64').toString('utf-8');
           decodedCursor = JSON.parse(jsonString);
-          if (
-            !decodedCursor?.id ||
-            typeof decodedCursor.ordem !== 'number' ||
-            decodedCursor.preco === undefined
-          ) {
+          if (!decodedCursor?.id) {
             throw new Error('cursor incompleto');
           }
         } catch {
@@ -289,9 +306,8 @@ export class ProdutoService {
       const [produtos, categorias, semCategoria] = await Promise.all([
         this.prismaRead.produto.findMany({
           take: limit + 1,
-          where: decodedCursor
-            ? this.montarWhereAposCursor(decodedCursor)
-            : undefined,
+          cursor: decodedCursor ? { id: decodedCursor.id } : undefined,
+          skip: decodedCursor ? 1 : 0,
           orderBy: produtoOrderBy,
           include: produtoAdicionaisInclude,
         }),
@@ -315,11 +331,7 @@ export class ProdutoService {
       if (hasNextPage) {
         produtos.pop();
         const lastItem = produtos[produtos.length - 1];
-        const cursorPayload = JSON.stringify({
-          id: lastItem.id,
-          ordem: ordemDoProduto(lastItem),
-          preco: String(lastItem.preco),
-        });
+        const cursorPayload = JSON.stringify({ id: lastItem.id });
         nextCursor = Buffer.from(cursorPayload).toString('base64');
       }
 
@@ -416,6 +428,7 @@ export class ProdutoService {
         );
 
         const categoriaId = await this.validarCategoriaId(tx, dto.categoriaId);
+        const ordem = await this.proximaOrdemNoGrupo(tx, categoriaId ?? null);
 
         const novoProduto = await tx.produto.create({
           data: {
@@ -423,6 +436,7 @@ export class ProdutoService {
             descricao: dto.descricao,
             preco: dto.preco,
             ativo: dto.ativo ?? true,
+            ordem,
             ...(categoriaId
               ? { categoria: { connect: { id: categoriaId } } }
               : {}),
@@ -488,6 +502,22 @@ export class ProdutoService {
           adicionaisAtivoAntes.set(a.id, a.ativo);
         }
 
+        const categoriaAnterior = existente.categoria_id;
+        let mudouCategoria = false;
+
+        if (
+          dto.ordem !== undefined &&
+          dto.ordem !== existente.ordem &&
+          dto.categoriaId === undefined
+        ) {
+          await this.reordenarNoGrupo(
+            tx,
+            id,
+            existente.categoria_id,
+            dto.ordem,
+          );
+        }
+
         const dadosUpdate: Prisma.ProdutoUpdateInput = {};
 
         if (dto.nome !== undefined) dadosUpdate.nome = dto.nome;
@@ -499,10 +529,19 @@ export class ProdutoService {
 
         if (dto.categoriaId !== undefined) {
           const categoriaId = await this.validarCategoriaId(tx, dto.categoriaId);
-          dadosUpdate.categoria =
-            categoriaId === null
-              ? { disconnect: true }
-              : { connect: { id: categoriaId } };
+          const categoriaNova = categoriaId ?? null;
+
+          if (categoriaAnterior !== categoriaNova) {
+            mudouCategoria = true;
+            dadosUpdate.categoria =
+              categoriaNova === null
+                ? { disconnect: true }
+                : { connect: { id: categoriaNova } };
+            dadosUpdate.ordem = await this.proximaOrdemNoGrupo(
+              tx,
+              categoriaNova,
+            );
+          }
         }
 
         if (dto.adicionais && dto.adicionais.length > 0) {
@@ -548,6 +587,10 @@ export class ProdutoService {
             where: { id },
             data: dadosUpdate,
           });
+        }
+
+        if (mudouCategoria) {
+          await this.compactarGrupo(tx, categoriaAnterior);
         }
 
         if (dto.adicionalGlobalIds !== undefined || dto.adicionais !== undefined) {

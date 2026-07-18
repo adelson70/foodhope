@@ -151,7 +151,7 @@ export function FloatingBottomNav({
                       isItemActive && 'invisible',
                     )}
                   >
-                    <Icon size={20} strokeWidth={1.75} aria-hidden />
+                    <Icon size={17} strokeWidth={1.75} aria-hidden />
                     {badge}
                   </span>
                 </NavLink>
@@ -177,7 +177,7 @@ export function FloatingBottomNav({
               }}
             >
               <span className="relative flex size-10 items-center justify-center">
-                <Icon size={20} strokeWidth={2.25} />
+                <Icon size={17} strokeWidth={2.25} />
                 {badge}
               </span>
             </span>

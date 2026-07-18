@@ -124,7 +124,7 @@ export function ProdutoImagemField({
           />
         ) : (
           <div className="flex aspect-square w-full flex-col items-center justify-center gap-2 text-on-surface-variant">
-            <ImagePlus size={32} strokeWidth={1.5} />
+            <ImagePlus size={27} strokeWidth={1.5} />
             <span className="text-caption">Sem imagem</span>
           </div>
         )}
@@ -138,7 +138,7 @@ export function ProdutoImagemField({
           className="flex-1"
           onClick={() => galeriaRef.current?.click()}
         >
-          <ImagePlus size={18} strokeWidth={1.75} />
+          <ImagePlus size={15} strokeWidth={1.75} />
           Galeria
         </Button>
         <Button
@@ -148,7 +148,7 @@ export function ProdutoImagemField({
           className="flex-1"
           onClick={() => setCameraOpen(true)}
         >
-          <Camera size={18} strokeWidth={1.75} />
+          <Camera size={15} strokeWidth={1.75} />
           Tirar foto
         </Button>
         {podeRemover ? (
@@ -161,7 +161,7 @@ export function ProdutoImagemField({
             onClick={handleRemover}
             title="Remover imagem"
           >
-            <Trash2 size={20} strokeWidth={1.75} />
+            <Trash2 size={17} strokeWidth={1.75} />
           </Button>
         ) : null}
       </div>

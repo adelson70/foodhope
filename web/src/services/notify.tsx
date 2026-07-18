@@ -31,13 +31,13 @@ function showToast(tone: ToastTone, message: string) {
         {tone === 'success' ? (
           <CheckCircle2
             className="mt-0.5 shrink-0 text-success"
-            size={20}
+            size={17}
             strokeWidth={1.75}
           />
         ) : (
           <XCircle
             className="mt-0.5 shrink-0 text-danger"
-            size={20}
+            size={17}
             strokeWidth={1.75}
           />
         )}

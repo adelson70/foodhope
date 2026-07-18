@@ -51,7 +51,7 @@ export function PedidoCard({ pedido, onDelete }: PedidoCardProps) {
           className="size-10 shrink-0 px-0 py-0"
           onClick={() => onDelete(pedido)}
         >
-          <Trash2 size={20} strokeWidth={1.75} />
+          <Trash2 size={17} strokeWidth={1.75} />
         </Button>
       </div>
     </article>

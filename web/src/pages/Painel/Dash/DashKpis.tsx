@@ -48,7 +48,7 @@ export function DashKpis({
         >
           <div className="flex items-center gap-3">
             <div className="flex size-10 items-center justify-center rounded-full bg-operator-surface text-primary-container">
-              <Icon size={20} strokeWidth={1.75} aria-hidden />
+              <Icon size={17} strokeWidth={1.75} aria-hidden />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-caption text-on-surface-variant">{label}</p>

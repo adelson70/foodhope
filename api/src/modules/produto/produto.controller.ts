@@ -90,9 +90,12 @@ export class ProdutoController {
   @ApiOperation({ summary: 'Edição de Produto (JSON)' })
   async editar(@Param('id') id: string, @Body() dto: EditarProdutoDto) {
     if (
-      !dto.nome &&
-      !dto.descricao &&
+      dto.nome === undefined &&
+      dto.descricao === undefined &&
       dto.preco === undefined &&
+      dto.ativo === undefined &&
+      dto.ordem === undefined &&
+      dto.categoriaId === undefined &&
       (!dto.adicionais || dto.adicionais.length === 0) &&
       dto.adicionalGlobalIds === undefined
     ) {

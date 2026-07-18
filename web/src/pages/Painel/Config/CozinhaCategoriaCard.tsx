@@ -36,26 +36,30 @@ export function CozinhaCategoriaCard({
           </p>
         </div>
         <div className="flex shrink-0 gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            className="size-10 px-0"
-            disabled={busy || isFirst}
-            aria-label={`Subir ${categoria.nome}`}
-            onClick={() => onMoveUp(categoria)}
-          >
-            <ArrowUp size={18} strokeWidth={1.75} />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            className="size-10 px-0"
-            disabled={busy || isLast}
-            aria-label={`Descer ${categoria.nome}`}
-            onClick={() => onMoveDown(categoria)}
-          >
-            <ArrowDown size={18} strokeWidth={1.75} />
-          </Button>
+          {!isFirst ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="size-10 px-0"
+              disabled={busy}
+              aria-label={`Subir ${categoria.nome}`}
+              onClick={() => onMoveUp(categoria)}
+            >
+              <ArrowUp size={15} strokeWidth={1.75} />
+            </Button>
+          ) : null}
+          {!isLast ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="size-10 px-0"
+              disabled={busy}
+              aria-label={`Descer ${categoria.nome}`}
+              onClick={() => onMoveDown(categoria)}
+            >
+              <ArrowDown size={15} strokeWidth={1.75} />
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -67,7 +71,7 @@ export function CozinhaCategoriaCard({
           disabled={busy}
           onClick={() => onEdit(categoria)}
         >
-          <Pencil size={15} strokeWidth={1.75} />
+          <Pencil size={13} strokeWidth={1.75} />
           Editar
         </Button>
         <Button
@@ -77,7 +81,7 @@ export function CozinhaCategoriaCard({
           disabled={busy}
           onClick={() => onDelete(categoria)}
         >
-          <Trash2 size={15} strokeWidth={1.75} />
+          <Trash2 size={13} strokeWidth={1.75} />
           Excluir
         </Button>
       </div>

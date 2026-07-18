@@ -140,7 +140,7 @@ export function ConfigImpressoraDrawer({
                 'Testando…'
               ) : testadoOk ? (
                 <>
-                  <Check size={18} strokeWidth={2.25} />
+                  <Check size={15} strokeWidth={2.25} />
                   Conexão OK
                 </>
               ) : (
@@ -185,7 +185,7 @@ export function ConfigImpressoraDrawer({
               autoComplete="off"
               placeholder="192.168.1.50:9100"
               error={Boolean(errors.ip)}
-              leftIcon={<Printer size={20} strokeWidth={1.75} />}
+              leftIcon={<Printer size={17} strokeWidth={1.75} />}
               disabled={isSubmitting || testando}
               {...register('ip')}
             />

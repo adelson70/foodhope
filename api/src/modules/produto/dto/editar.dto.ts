@@ -2,9 +2,11 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
   IsBoolean,
+  IsInt,
   IsNumber,
   IsOptional,
   IsUUID,
+  Min,
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
@@ -36,6 +38,16 @@ export class EditarProdutoDto {
   @IsOptional()
   @IsBoolean()
   ativo?: boolean;
+
+  @ApiPropertyOptional({
+    example: 0,
+    description: 'Ordem dentro da categoria (0 = primeiro do grupo)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'A ordem deve ser um número inteiro' })
+  @Min(0, { message: 'A ordem não pode ser negativa' })
+  ordem?: number;
 
   @ApiProperty({
     description:

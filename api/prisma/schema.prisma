@@ -86,6 +86,7 @@ model Produto {
   preco     Decimal @db.Decimal(10, 2)
   imagemUrl String? @map("imagem_url")
   ativo     Boolean @default(true)
+  ordem     Int     @default(0)
 
   categoria_id String?    @map("categoria_id")
   categoria    Categoria? @relation(fields: [categoria_id], references: [id], onDelete: SetNull)
@@ -98,6 +99,7 @@ model Produto {
   updatedAt DateTime @updatedAt
 
   @@index([categoria_id])
+  @@index([ordem])
   @@map("produto")
 }
 

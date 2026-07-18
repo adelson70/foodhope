@@ -38,6 +38,7 @@ export function HomeCategoriaPills({
             type="button"
             role="tab"
             aria-selected={ativo}
+            data-home-pill={pill.id}
             onClick={() => onSelect(pill.id)}
             className={cn(
               'h-9 shrink-0 rounded-full px-4 text-caption font-medium whitespace-nowrap transition-colors',

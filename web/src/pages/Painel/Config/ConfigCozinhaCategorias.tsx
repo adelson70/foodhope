@@ -124,7 +124,7 @@ export function ConfigCozinhaCategorias() {
           className="h-10 shrink-0 px-3"
           onClick={abrirCriar}
         >
-          <Plus size={16} strokeWidth={1.75} />
+          <Plus size={14} strokeWidth={1.75} />
           Nova
         </Button>
       </div>

@@ -13,7 +13,7 @@ export function PedidosSearch({ value, onChange }: PedidosSearchProps) {
       value={value}
       onChange={(event) => onChange(event.target.value)}
       placeholder="Buscar por nome, número ou produto"
-      leftIcon={<Search size={20} strokeWidth={1.75} />}
+      leftIcon={<Search size={17} strokeWidth={1.75} />}
       aria-label="Buscar pedidos"
     />
   );

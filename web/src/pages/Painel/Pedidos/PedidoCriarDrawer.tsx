@@ -381,7 +381,7 @@ export function PedidoCriarDrawer({
                     aria-label="Diminuir quantidade"
                     onClick={() => setItemQtd((q) => Math.max(1, q - 1))}
                   >
-                    <Minus size={18} strokeWidth={1.75} />
+                    <Minus size={15} strokeWidth={1.75} />
                   </Button>
                   <span className="min-w-8 text-center text-body-md text-on-surface">
                     {itemQtd}
@@ -393,7 +393,7 @@ export function PedidoCriarDrawer({
                     aria-label="Aumentar quantidade"
                     onClick={() => setItemQtd((q) => q + 1)}
                   >
-                    <Plus size={18} strokeWidth={1.75} />
+                    <Plus size={15} strokeWidth={1.75} />
                   </Button>
                 </div>
               </div>
@@ -442,7 +442,7 @@ export function PedidoCriarDrawer({
                                   )
                                 }
                               >
-                                <Minus size={16} strokeWidth={1.75} />
+                                <Minus size={14} strokeWidth={1.75} />
                               </Button>
                               <span className="text-caption text-on-surface">
                                 {selecionado.qtd}
@@ -459,7 +459,7 @@ export function PedidoCriarDrawer({
                                   )
                                 }
                               >
-                                <Plus size={16} strokeWidth={1.75} />
+                                <Plus size={14} strokeWidth={1.75} />
                               </Button>
                             </div>
                           ) : null}
@@ -557,7 +557,7 @@ export function PedidoCriarDrawer({
                         aria-label="Remover item"
                         onClick={() => remove(index)}
                       >
-                        <Trash2 size={18} strokeWidth={1.75} />
+                        <Trash2 size={15} strokeWidth={1.75} />
                       </Button>
                     </div>
                   </li>

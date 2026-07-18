@@ -28,6 +28,7 @@ export function Cardapio() {
   const [produtoEditar, setProdutoEditar] = useState<Produto | null>(null);
   const [produtoExcluir, setProdutoExcluir] = useState<Produto | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const showSkeleton = useDeferredLoading(loading && produtos.length === 0);
   const showMoreSkeleton = useDeferredLoading(loadingMore);
   const buscaRef = useRef(busca);
@@ -123,32 +124,9 @@ export function Cardapio() {
     setProdutoEditar(null);
   }
 
-  function handleSaved(produto: Produto) {
-    const atualizado: Produto = {
-      ...produto,
-      updatedAt: produto.updatedAt ?? new Date().toISOString(),
-    };
-
-    if (produtoEditar) {
-      setProdutos((atual) =>
-        atual.map((item) => (item.id === atualizado.id ? atualizado : item)),
-      );
-      return;
-    }
-
-    if (buscaRef.current) {
-      void carregar(buscaRef.current);
-      return;
-    }
-
-    setProdutos((atual) => {
-      if (atual.some((item) => item.id === atualizado.id)) {
-        return atual.map((item) =>
-          item.id === atualizado.id ? atualizado : item,
-        );
-      }
-      return [atualizado, ...atual];
-    });
+  function handleSaved(_produto: Produto) {
+    handleCloseDrawer();
+    void carregar(buscaRef.current);
   }
 
   async function handleConfirmDelete() {
@@ -167,6 +145,25 @@ export function Cardapio() {
     }
   }
 
+  async function mover(produto: Produto, direcao: -1 | 1) {
+    const ordemAtual = produto.ordem ?? 0;
+    const novaOrdem = ordemAtual + direcao;
+    if (novaOrdem < 0) return;
+
+    setBusyId(produto.id);
+    try {
+      const response = await produtoService.editar(produto.id, {
+        ordem: novaOrdem,
+      });
+      if (!response.sucesso) return;
+      await carregar(buscaRef.current);
+    } catch {
+      return;
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <CardapioHeader onNovo={handleNovo} />
@@ -179,7 +176,10 @@ export function Cardapio() {
         hasNextPage={hasNextPage && !busca}
         erro={erro}
         buscaAtiva={Boolean(busca)}
+        busyId={busyId}
         sentinelRef={sentinelRef}
+        onMoveUp={(item) => void mover(item, -1)}
+        onMoveDown={(item) => void mover(item, 1)}
         onEdit={handleEdit}
         onDelete={setProdutoExcluir}
       />

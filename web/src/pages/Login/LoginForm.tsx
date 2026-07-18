@@ -46,7 +46,7 @@ export function LoginForm() {
           autoComplete="username"
           placeholder="Seu usuário"
           error={Boolean(errors.nome)}
-          leftIcon={<User size={20} strokeWidth={1.75} />}
+          leftIcon={<User size={17} strokeWidth={1.75} />}
           {...register('nome')}
         />
         {errors.nome ? (
@@ -62,7 +62,7 @@ export function LoginForm() {
           autoComplete="current-password"
           placeholder="••••••••"
           error={Boolean(errors.senha)}
-          leftIcon={<Lock size={20} strokeWidth={1.75} />}
+          leftIcon={<Lock size={17} strokeWidth={1.75} />}
           rightIcon={
             <button
               type="button"
@@ -72,9 +72,9 @@ export function LoginForm() {
               onClick={() => setShowPassword((prev) => !prev)}
             >
               {showPassword ? (
-                <EyeOff size={20} strokeWidth={1.75} />
+                <EyeOff size={17} strokeWidth={1.75} />
               ) : (
-                <Eye size={20} strokeWidth={1.75} />
+                <Eye size={17} strokeWidth={1.75} />
               )}
             </button>
           }
@@ -93,7 +93,7 @@ export function LoginForm() {
         className="mt-2"
       >
         {isSubmitting ? 'Entrando…' : 'Entrar'}
-        {!isSubmitting ? <ArrowRight size={18} strokeWidth={1.75} /> : null}
+        {!isSubmitting ? <ArrowRight size={15} strokeWidth={1.75} /> : null}
       </Button>
     </form>
   );

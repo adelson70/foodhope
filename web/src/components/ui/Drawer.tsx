@@ -77,7 +77,7 @@ export function Drawer({ open, title, onClose, children, footer }: DrawerProps) 
             className="flex size-10 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-on-surface/5 hover:text-on-surface disabled:opacity-50"
             onClick={onClose}
           >
-            <X size={22} strokeWidth={1.75} />
+            <X size={19} strokeWidth={1.75} />
           </button>
         </header>
         <div

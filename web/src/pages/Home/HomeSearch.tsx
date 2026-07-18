@@ -9,7 +9,7 @@ export function HomeSearch({ value, onChange }: HomeSearchProps) {
   return (
     <div className="relative">
       <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-on-surface-variant">
-        <Search size={20} strokeWidth={1.75} aria-hidden />
+        <Search size={17} strokeWidth={1.75} aria-hidden />
       </span>
       <input
         value={value}

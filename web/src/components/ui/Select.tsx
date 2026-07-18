@@ -76,10 +76,8 @@ export function Select({
         viewportOffsetTop + viewportHeight - rect.bottom - gap - 16;
       const spaceAbove = rect.top - viewportOffsetTop - gap - 16;
       const openUp = spaceBelow < 180 && spaceAbove > spaceBelow;
-      const maxHeight = Math.min(
-        preferredMax,
-        Math.max(140, openUp ? spaceAbove : spaceBelow),
-      );
+      const available = openUp ? spaceAbove : spaceBelow;
+      const maxHeight = Math.min(preferredMax, Math.max(0, available));
 
       setPosition({
         top: openUp ? rect.top - gap - maxHeight : rect.bottom + gap,
@@ -108,7 +106,12 @@ export function Select({
 
     setQuery('');
     setHighlight(0);
-    const timer = window.setTimeout(() => searchRef.current?.focus(), 0);
+    const canHover = window.matchMedia(
+      '(hover: hover) and (pointer: fine)',
+    ).matches;
+    const timer = canHover
+      ? window.setTimeout(() => searchRef.current?.focus(), 0)
+      : undefined;
 
     function onPointerDown(event: MouseEvent) {
       const target = event.target as Node;
@@ -119,7 +122,7 @@ export function Select({
 
     document.addEventListener('mousedown', onPointerDown);
     return () => {
-      window.clearTimeout(timer);
+      if (timer !== undefined) window.clearTimeout(timer);
       document.removeEventListener('mousedown', onPointerDown);
     };
   }, [open]);
@@ -224,7 +227,7 @@ export function Select({
           )}
         </span>
         <ChevronDown
-          size={18}
+          size={15}
           strokeWidth={1.75}
           className={cn(
             'shrink-0 text-on-surface-variant transition-transform duration-200',
@@ -255,7 +258,7 @@ export function Select({
               <div className="border-b border-operator-border p-2">
                 <div className="flex items-center gap-2 rounded-xl border border-operator-border bg-operator-bg px-3 py-2">
                   <Search
-                    size={16}
+                    size={14}
                     strokeWidth={1.75}
                     className="shrink-0 text-on-surface-variant"
                   />
@@ -304,7 +307,7 @@ export function Select({
                           </span>
                           {isSelected ? (
                             <Check
-                              size={16}
+                              size={14}
                               strokeWidth={2}
                               className="shrink-0 text-primary-container"
                             />

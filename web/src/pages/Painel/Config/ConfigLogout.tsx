@@ -29,7 +29,7 @@ export function ConfigLogout() {
       onClick={handleLogout}
     >
       {loading ? 'Saindo…' : 'Sair'}
-      {!loading ? <LogOut size={18} strokeWidth={1.75} /> : null}
+      {!loading ? <LogOut size={15} strokeWidth={1.75} /> : null}
     </Button>
   );
 }

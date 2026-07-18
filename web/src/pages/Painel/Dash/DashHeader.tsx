@@ -25,7 +25,7 @@ export function DashHeader({ gerando, onGerarRelatorio }: DashHeaderProps) {
         disabled={gerando}
         onClick={onGerarRelatorio}
       >
-        <Printer size={16} strokeWidth={1.75} aria-hidden />
+        <Printer size={14} strokeWidth={1.75} aria-hidden />
         {gerando ? 'Gerando…' : 'Gerar relatório'}
       </Button>
     </div>

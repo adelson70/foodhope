@@ -70,6 +70,7 @@ export function HomeLista({
             {mostrarDivisor ? (
               <div
                 id={homeCategoriaAnchorId(chave)}
+                data-home-categoria={chave}
                 className={
                   index === 0
                     ? 'scroll-mt-36 pt-1'

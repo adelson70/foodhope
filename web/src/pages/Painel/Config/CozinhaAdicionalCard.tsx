@@ -65,7 +65,7 @@ export function CozinhaAdicionalCard({
           disabled={busy}
           onClick={() => onEdit(adicional)}
         >
-          <Pencil size={15} strokeWidth={1.75} />
+          <Pencil size={13} strokeWidth={1.75} />
           Editar
         </Button>
         <Button
@@ -75,7 +75,7 @@ export function CozinhaAdicionalCard({
           disabled={busy}
           onClick={() => onDelete(adicional)}
         >
-          <Trash2 size={15} strokeWidth={1.75} />
+          <Trash2 size={13} strokeWidth={1.75} />
           Excluir
         </Button>
       </div>

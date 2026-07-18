@@ -204,7 +204,7 @@ export function ProdutoImagemCameraDialog({
             disabled={!pronto || capturando}
             onClick={handleCapture}
           >
-            <Camera size={18} strokeWidth={1.75} />
+            <Camera size={15} strokeWidth={1.75} />
             {capturando ? 'Capturando...' : 'Capturar'}
           </Button>
         </div>

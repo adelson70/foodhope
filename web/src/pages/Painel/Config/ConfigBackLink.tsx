@@ -13,7 +13,7 @@ export function ConfigBackLink({
       to={to}
       className="inline-flex items-center gap-1 self-start text-body-md text-on-surface transition-colors hover:text-primary"
     >
-      <ChevronLeft size={20} strokeWidth={1.75} aria-hidden />
+      <ChevronLeft size={17} strokeWidth={1.75} aria-hidden />
       Voltar
     </Link>
   );

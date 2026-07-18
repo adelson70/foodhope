@@ -4,6 +4,8 @@ import type { Produto } from '../../../services/types';
 import { ProdutoCard } from './ProdutoCard';
 import { ProdutoCardSkeleton } from './ProdutoCardSkeleton';
 
+export const CARDAPIO_CATEGORIA_OUTROS = '__outros__';
+
 type CardapioListaProps = {
   produtos: Produto[];
   loading: boolean;
@@ -12,13 +14,24 @@ type CardapioListaProps = {
   hasNextPage: boolean;
   erro: string | null;
   buscaAtiva: boolean;
+  busyId?: string | null;
   sentinelRef: RefObject<HTMLDivElement | null>;
+  onMoveUp?: (produto: Produto) => void;
+  onMoveDown?: (produto: Produto) => void;
   onEdit: (produto: Produto) => void;
   onDelete: (produto: Produto) => void;
 };
 
 const SKELETON_COUNT = 4;
 const LOAD_MORE_SKELETON_COUNT = 2;
+
+function chaveGrupo(produto: Produto) {
+  return produto.categoria?.id ?? CARDAPIO_CATEGORIA_OUTROS;
+}
+
+function tituloGrupo(produto: Produto) {
+  return produto.categoria?.nome ?? 'Outros';
+}
 
 export function CardapioLista({
   produtos,
@@ -28,7 +41,10 @@ export function CardapioLista({
   hasNextPage,
   erro,
   buscaAtiva,
+  busyId,
   sentinelRef,
+  onMoveUp,
+  onMoveDown,
   onEdit,
   onDelete,
 }: CardapioListaProps) {
@@ -76,15 +92,47 @@ export function CardapioLista({
 
   return (
     <ul className="flex flex-col gap-3">
-      {produtos.map((produto) => (
-        <li key={produto.id}>
-          <ProdutoCard
-            produto={produto}
-            onEdit={onEdit}
-            onDelete={onDelete}
-          />
-        </li>
-      ))}
+      {produtos.map((produto, index) => {
+        const grupo = chaveGrupo(produto);
+        const anterior = index > 0 ? produtos[index - 1] : null;
+        const proximo = index < produtos.length - 1 ? produtos[index + 1] : null;
+        const mostrarDivisor =
+          !buscaAtiva && (!anterior || chaveGrupo(anterior) !== grupo);
+        const canMoveUp = Boolean(
+          !buscaAtiva && anterior && chaveGrupo(anterior) === grupo,
+        );
+        const canMoveDown = Boolean(
+          !buscaAtiva && proximo && chaveGrupo(proximo) === grupo,
+        );
+
+        return (
+          <li key={produto.id} className="flex flex-col gap-3">
+            {mostrarDivisor ? (
+              <div
+                className={
+                  index === 0
+                    ? 'pt-1'
+                    : 'mt-2 border-t border-outline-variant/60 pt-4'
+                }
+              >
+                <h2 className="text-subtitle-md font-semibold uppercase tracking-wide text-on-surface-variant">
+                  {tituloGrupo(produto)}
+                </h2>
+              </div>
+            ) : null}
+            <ProdutoCard
+              produto={produto}
+              busy={busyId === produto.id}
+              canMoveUp={canMoveUp}
+              canMoveDown={canMoveDown}
+              onMoveUp={buscaAtiva ? undefined : onMoveUp}
+              onMoveDown={buscaAtiva ? undefined : onMoveDown}
+              onEdit={onEdit}
+              onDelete={onDelete}
+            />
+          </li>
+        );
+      })}
       {loadingMore
         ? Array.from({ length: LOAD_MORE_SKELETON_COUNT }, (_, index) => (
             <li key={`more-${index}`}>

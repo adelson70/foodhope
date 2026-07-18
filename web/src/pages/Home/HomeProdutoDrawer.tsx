@@ -180,7 +180,7 @@ export function HomeProdutoDrawer({
                   aria-label="Diminuir quantidade"
                   onClick={() => setQtd((atual) => Math.max(1, atual - 1))}
                 >
-                  <Minus size={18} />
+                  <Minus size={15} />
                 </Button>
                 <span className="min-w-8 text-center text-body-md text-on-surface">
                   {qtd}
@@ -192,7 +192,7 @@ export function HomeProdutoDrawer({
                   aria-label="Aumentar quantidade"
                   onClick={() => setQtd((atual) => atual + 1)}
                 >
-                  <Plus size={18} />
+                  <Plus size={15} />
                 </Button>
               </div>
             </div>

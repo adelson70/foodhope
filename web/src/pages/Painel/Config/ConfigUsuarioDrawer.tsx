@@ -150,7 +150,7 @@ export function ConfigUsuarioDrawer({ open, onClose }: ConfigUsuarioDrawerProps)
               autoComplete="username"
               placeholder="Seu usuário"
               error={Boolean(errors.nome)}
-              leftIcon={<User size={20} strokeWidth={1.75} />}
+              leftIcon={<User size={17} strokeWidth={1.75} />}
               disabled={isSubmitting}
               {...register('nome')}
             />
@@ -169,7 +169,7 @@ export function ConfigUsuarioDrawer({ open, onClose }: ConfigUsuarioDrawerProps)
               autoComplete="new-password"
               placeholder="Deixe em branco para não alterar"
               error={Boolean(errors.senha)}
-              leftIcon={<Lock size={20} strokeWidth={1.75} />}
+              leftIcon={<Lock size={17} strokeWidth={1.75} />}
               disabled={isSubmitting}
               rightIcon={
                 <button
@@ -182,9 +182,9 @@ export function ConfigUsuarioDrawer({ open, onClose }: ConfigUsuarioDrawerProps)
                   onClick={() => setShowPassword((prev) => !prev)}
                 >
                   {showPassword ? (
-                    <EyeOff size={20} strokeWidth={1.75} />
+                    <EyeOff size={17} strokeWidth={1.75} />
                   ) : (
-                    <Eye size={20} strokeWidth={1.75} />
+                    <Eye size={17} strokeWidth={1.75} />
                   )}
                 </button>
               }

@@ -77,7 +77,7 @@ export function HomeProdutoAdicionais({
                       aria-label={`Diminuir ${adicional.nome}`}
                       onClick={() => onChangeQtd(adicional.id, draft.qtd - 1)}
                     >
-                      <Minus size={16} strokeWidth={2.5} />
+                      <Minus size={14} strokeWidth={2.5} />
                     </button>
                     <span className="min-w-5 text-center text-subtitle-md text-on-surface">
                       {draft.qtd}
@@ -88,7 +88,7 @@ export function HomeProdutoAdicionais({
                       aria-label={`Aumentar ${adicional.nome}`}
                       onClick={() => onChangeQtd(adicional.id, draft.qtd + 1)}
                     >
-                      <Plus size={16} strokeWidth={2.5} />
+                      <Plus size={14} strokeWidth={2.5} />
                     </button>
                   </div>
                 ) : (
@@ -98,7 +98,7 @@ export function HomeProdutoAdicionais({
                     aria-label={`Adicionar ${adicional.nome}`}
                     onClick={() => onAdd(adicional)}
                   >
-                    <Plus size={18} strokeWidth={2.5} />
+                    <Plus size={15} strokeWidth={2.5} />
                   </button>
                 )}
               </div>

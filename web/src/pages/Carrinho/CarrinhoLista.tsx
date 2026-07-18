@@ -69,7 +69,7 @@ export function CarrinhoLista({ itens }: CarrinhoListaProps) {
               }
               onClick={() => setQtd(item.id, item.qtd - 1)}
             >
-              <Minus size={18} />
+              <Minus size={15} />
             </Button>
             <span className="min-w-8 text-center text-body-md text-on-surface">
               {item.qtd}
@@ -81,7 +81,7 @@ export function CarrinhoLista({ itens }: CarrinhoListaProps) {
               aria-label={`Aumentar ${item.nome}`}
               onClick={() => setQtd(item.id, item.qtd + 1)}
             >
-              <Plus size={18} />
+              <Plus size={15} />
             </Button>
           </div>
         </li>

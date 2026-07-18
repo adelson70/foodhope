@@ -21,7 +21,7 @@ export function CardapioHeader({ onNovo }: CardapioHeaderProps) {
         aria-label="Novo produto"
         onClick={onNovo}
       >
-        <Plus size={22} strokeWidth={1.75} />
+        <Plus size={19} strokeWidth={1.75} />
       </Button>
     </div>
   );
