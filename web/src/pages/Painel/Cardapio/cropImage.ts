@@ -19,6 +19,57 @@ function carregarImagem(src: string): Promise<HTMLImageElement> {
   });
 }
 
+function canvasParaJpeg(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const falhou = () =>
+      reject(new Error('Não foi possível gerar a imagem cortada.'));
+
+    const viaDataUrl = () => {
+      try {
+        const dataUrl = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
+        if (!dataUrl.startsWith('data:image/jpeg')) {
+          falhou();
+          return;
+        }
+        const [, base64] = dataUrl.split(',');
+        if (!base64) {
+          falhou();
+          return;
+        }
+        const binario = atob(base64);
+        const bytes = new Uint8Array(binario.length);
+        for (let i = 0; i < binario.length; i += 1) {
+          bytes[i] = binario.charCodeAt(i);
+        }
+        resolve(new Blob([bytes], { type: 'image/jpeg' }));
+      } catch {
+        falhou();
+      }
+    };
+
+    try {
+      if (typeof canvas.toBlob === 'function') {
+        canvas.toBlob(
+          (resultado) => {
+            if (resultado && resultado.size > 0) {
+              resolve(resultado);
+              return;
+            }
+            viaDataUrl();
+          },
+          'image/jpeg',
+          JPEG_QUALITY,
+        );
+        return;
+      }
+    } catch {
+      // Safari: cai no data URL
+    }
+
+    viaDataUrl();
+  });
+}
+
 export async function getCroppedImg(
   imageSrc: string,
   pixelCrop: CropArea,
@@ -48,19 +99,6 @@ export async function getCroppedImg(
 
   ctx.drawImage(image, srcX, srcY, side, side, 0, 0, size, size);
 
-  const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (resultado) => {
-        if (!resultado) {
-          reject(new Error('Não foi possível gerar a imagem cortada.'));
-          return;
-        }
-        resolve(resultado);
-      },
-      'image/jpeg',
-      JPEG_QUALITY,
-    );
-  });
-
+  const blob = await canvasParaJpeg(canvas);
   return new File([blob], fileName, { type: 'image/jpeg' });
 }

@@ -4,15 +4,12 @@ import { Camera, ImagePlus, Trash2 } from 'lucide-react';
 import { Button } from '../../../components/ui';
 import { notifyError } from '../../../services';
 import { urlImagemProduto } from './produtoFormat';
+import {
+  arquivoImagemAceito,
+  prepararImagemParaCrop,
+} from './prepararImagemUpload';
 import { ProdutoImagemCameraDialog } from './ProdutoImagemCameraDialog';
 import { ProdutoImagemCropDialog } from './ProdutoImagemCropDialog';
-
-const MIME_PERMITIDOS = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-]);
 
 const MAX_BYTES = 50 * 1024 * 1024;
 
@@ -41,6 +38,7 @@ export function ProdutoImagemField({
   const [cropOpen, setCropOpen] = useState(false);
   const [cropSession, setCropSession] = useState(0);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [preparando, setPreparando] = useState(false);
 
   useEffect(() => {
     if (!file) {
@@ -56,6 +54,7 @@ export function ProdutoImagemField({
   const previewSrc =
     objectUrl ?? urlImagemProduto(imagemUrlAtual, imagemCacheKey);
   const podeRemover = Boolean(file || imagemUrlAtual);
+  const ocupado = disabled || preparando;
 
   const fecharCrop = useCallback(() => {
     setCropOpen(false);
@@ -75,10 +74,10 @@ export function ProdutoImagemField({
     setCropOpen(true);
   }
 
-  function validarESelecionar(arquivo: File | undefined) {
-    if (!arquivo) return;
+  async function validarESelecionar(arquivo: File | undefined) {
+    if (!arquivo || preparando) return;
 
-    if (!MIME_PERMITIDOS.has(arquivo.type)) {
+    if (!arquivoImagemAceito(arquivo)) {
       notifyError(
         null,
         'Formato de imagem inválido. Use JPEG, PNG, WebP ou GIF.',
@@ -91,13 +90,24 @@ export function ProdutoImagemField({
       return;
     }
 
-    abrirCrop(arquivo);
+    setPreparando(true);
+    try {
+      const preparado = await prepararImagemParaCrop(arquivo);
+      abrirCrop(preparado);
+    } catch {
+      notifyError(
+        null,
+        'Não foi possível ler esta foto. No iPhone, use a Galeria (Fotos) ou envie em JPEG/PNG.',
+      );
+    } finally {
+      setPreparando(false);
+    }
   }
 
   function onInputChange(event: ChangeEvent<HTMLInputElement>) {
     const arquivo = event.target.files?.[0];
     event.target.value = '';
-    validarESelecionar(arquivo);
+    void validarESelecionar(arquivo);
   }
 
   function handleRemover() {
@@ -135,17 +145,17 @@ export function ProdutoImagemField({
         <Button
           type="button"
           variant="secondary"
-          disabled={disabled}
+          disabled={ocupado}
           className="flex-1"
           onClick={() => galeriaRef.current?.click()}
         >
           <ImagePlus size={15} strokeWidth={1.75} />
-          Galeria
+          {preparando ? 'Preparando...' : 'Galeria'}
         </Button>
         <Button
           type="button"
           variant="secondary"
-          disabled={disabled}
+          disabled={ocupado}
           className="flex-1"
           onClick={() => setCameraOpen(true)}
         >
@@ -156,7 +166,7 @@ export function ProdutoImagemField({
           <Button
             type="button"
             variant="dangerGhost"
-            disabled={disabled}
+            disabled={ocupado}
             aria-label="Remover imagem"
             className="size-12 shrink-0 px-0 py-0 disabled:opacity-40"
             onClick={handleRemover}
@@ -171,17 +181,19 @@ export function ProdutoImagemField({
         id={galeriaId}
         ref={galeriaRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif"
+        accept="image/*,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.gif,.heic,.heif"
         className="sr-only"
         tabIndex={-1}
-        disabled={disabled}
+        disabled={ocupado}
         onChange={onInputChange}
       />
 
       <ProdutoImagemCameraDialog
         open={cameraOpen}
         onClose={() => setCameraOpen(false)}
-        onCapture={validarESelecionar}
+        onCapture={(arquivo) => {
+          void validarESelecionar(arquivo);
+        }}
       />
 
       {cropFile ? (

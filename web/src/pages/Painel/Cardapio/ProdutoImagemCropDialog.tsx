@@ -20,7 +20,7 @@ const ZOOM_SLIDER_MAX = 100;
 const CROP_ZOOM_MIN = 1;
 const CROP_ZOOM_MAX = 4;
 const CROP_ZOOM_DEFAULT = 1;
-const LAYOUT_READY_MS = 80;
+const LAYOUT_READY_MS = 100;
 
 function sliderParaZoom(slider: number): number {
   return (
@@ -56,6 +56,7 @@ export function ProdutoImagemCropDialog({
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   const saiuRef = useRef(false);
+  const imageSrcRef = useRef<string | null>(null);
 
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [layoutPronto, setLayoutPronto] = useState(false);
@@ -67,6 +68,7 @@ export function ProdutoImagemCropDialog({
 
   useEffect(() => {
     const url = URL.createObjectURL(file);
+    imageSrcRef.current = url;
     setImageSrc(url);
     setLayoutPronto(false);
     setImagemPronta(false);
@@ -76,6 +78,9 @@ export function ProdutoImagemCropDialog({
     setProcessando(false);
 
     return () => {
+      if (imageSrcRef.current === url) {
+        imageSrcRef.current = null;
+      }
       URL.revokeObjectURL(url);
     };
   }, [file]);
@@ -142,12 +147,18 @@ export function ProdutoImagemCropDialog({
     onExitAnimationEnd(event);
   }
 
+  function handleMediaError() {
+    notifyError(null, 'Não foi possível carregar a imagem.');
+    onCloseRef.current();
+  }
+
   async function handleConfirm() {
-    if (!imageSrc || !croppedAreaPixels || processando) return;
+    const src = imageSrcRef.current ?? imageSrc;
+    if (!src || !croppedAreaPixels || processando) return;
 
     setProcessando(true);
     try {
-      const cortada = await getCroppedImg(imageSrc, croppedAreaPixels);
+      const cortada = await getCroppedImg(src, croppedAreaPixels);
       onConfirm(cortada);
       onClose();
     } catch {
@@ -214,6 +225,9 @@ export function ProdutoImagemCropDialog({
               onZoomChange={setZoom}
               onCropComplete={onCropComplete}
               onMediaLoaded={() => setImagemPronta(true)}
+              mediaProps={{
+                onError: handleMediaError,
+              }}
               style={{
                 containerStyle: {
                   backgroundColor: 'var(--color-operator-bg)',
@@ -229,6 +243,7 @@ export function ProdutoImagemCropDialog({
               alt=""
               className="size-full object-cover"
               draggable={false}
+              onError={handleMediaError}
             />
           ) : (
             <div className="flex size-full items-center justify-center text-caption text-on-surface-variant">

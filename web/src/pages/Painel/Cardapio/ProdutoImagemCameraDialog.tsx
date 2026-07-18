@@ -118,23 +118,67 @@ export function ProdutoImagemCameraDialog({
 
     ctx.drawImage(video, 0, 0, width, height);
 
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) {
-          notifyError(null, 'Não foi possível capturar a foto.');
-          setCapturando(false);
-          return;
-        }
+    const finalizar = (blob: Blob | null) => {
+      if (!blob) {
+        notifyError(null, 'Não foi possível capturar a foto.');
+        setCapturando(false);
+        return;
+      }
 
-        const file = new File([blob], 'camera.jpg', { type: 'image/jpeg' });
-        streamRef.current?.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-        onCapture(file);
-        onClose();
-      },
-      'image/jpeg',
-      0.92,
-    );
+      const file = new File([blob], 'camera.jpg', { type: 'image/jpeg' });
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+      onCapture(file);
+      onClose();
+    };
+
+    if (typeof canvas.toBlob === 'function') {
+      canvas.toBlob(
+        (blob) => {
+          if (blob && blob.size > 0) {
+            finalizar(blob);
+            return;
+          }
+
+          try {
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+            const [, base64] = dataUrl.split(',');
+            if (!base64) {
+              finalizar(null);
+              return;
+            }
+            const binario = atob(base64);
+            const bytes = new Uint8Array(binario.length);
+            for (let i = 0; i < binario.length; i += 1) {
+              bytes[i] = binario.charCodeAt(i);
+            }
+            finalizar(new Blob([bytes], { type: 'image/jpeg' }));
+          } catch {
+            finalizar(null);
+          }
+        },
+        'image/jpeg',
+        0.92,
+      );
+      return;
+    }
+
+    try {
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+      const [, base64] = dataUrl.split(',');
+      if (!base64) {
+        finalizar(null);
+        return;
+      }
+      const binario = atob(base64);
+      const bytes = new Uint8Array(binario.length);
+      for (let i = 0; i < binario.length; i += 1) {
+        bytes[i] = binario.charCodeAt(i);
+      }
+      finalizar(new Blob([bytes], { type: 'image/jpeg' }));
+    } catch {
+      finalizar(null);
+    }
   }
 
   if (!mounted) return null;
