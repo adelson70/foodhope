@@ -8,7 +8,9 @@ const variants = {
   secondary:
     'bg-on-surface/5 text-on-surface border border-operator-border hover:bg-on-surface/10',
   ghost: 'bg-transparent text-primary hover:bg-primary/5',
-  danger: 'bg-danger text-customer-bg hover:bg-danger/80',
+  danger: 'bg-danger text-surface hover:bg-danger/85',
+  dangerGhost:
+    'bg-transparent text-danger hover:bg-danger/10 hover:text-danger',
   success: 'bg-success text-surface hover:bg-success/80',
   info: 'bg-tertiary-container text-tertiary-900 hover:bg-tertiary-500',
   icon: 'bg-primary-container text-on-primary hover:scale-105 size-12 p-0',
@@ -40,9 +42,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         type={type}
         disabled={disabled}
         className={cn(
-          'inline-flex items-center justify-center gap-2 rounded-full font-medium text-subtitle-md py-3 px-8 transition-all duration-200 active:scale-[0.98]',
+          'inline-flex items-center justify-center gap-2 rounded-full font-medium py-3 px-6 transition-all duration-200 active:scale-[0.98]',
           'disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100',
           variants[variant],
+          'text-subtitle-md',
           fullWidth && 'w-full',
           variant === 'icon' && 'py-0 px-0',
           className,

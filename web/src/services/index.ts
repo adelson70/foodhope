@@ -1,6 +1,7 @@
 export { api, getApiErrorMensagens, request } from './api';
 export { adicionalService } from './adicional.service';
 export { authService } from './auth.service';
+export { categoriaService } from './categoria.service';
 export { clearToken, getToken, setToken } from './cookie';
 export { dashService } from './dash.service';
 export { impressoraService } from './impressora.service';

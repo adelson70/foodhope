@@ -9,6 +9,7 @@ import {
   Drawer,
   Input,
   Label,
+  Select,
   Textarea,
 } from '../../../components/ui';
 import { cn } from '../../../lib/cn';
@@ -17,10 +18,15 @@ import {
   produtoSchema,
   type ProdutoFormValues,
 } from '../../../schemas/produto.schema';
-import { adicionalService, produtoService } from '../../../services';
+import {
+  adicionalService,
+  categoriaService,
+  produtoService,
+} from '../../../services';
 import type {
   AdicionalEditarInput,
   AdicionalGlobal,
+  Categoria,
   Produto,
 } from '../../../services/types';
 import { ProdutoImagemField } from './ProdutoImagemField';
@@ -33,6 +39,7 @@ type ProdutoFormDrawerProps = {
 };
 
 const FORM_ID = 'produto-form';
+const SEM_CATEGORIA = '';
 
 function valoresIniciais(produto: Produto | null): ProdutoFormValues {
   if (!produto) {
@@ -41,6 +48,7 @@ function valoresIniciais(produto: Produto | null): ProdutoFormValues {
       descricao: '',
       preco: 0,
       ativo: true,
+      categoriaId: null,
       adicionais: [],
       adicionalGlobalIds: [],
     };
@@ -51,6 +59,7 @@ function valoresIniciais(produto: Produto | null): ProdutoFormValues {
     descricao: produto.descricao ?? '',
     preco: Number(produto.preco),
     ativo: produto.ativo ?? true,
+    categoriaId: produto.categoria?.id ?? null,
     adicionais: (produto.adicionaisEspecificos ?? []).map((item) => ({
       id: item.id,
       nome: item.nome,
@@ -123,6 +132,7 @@ export function ProdutoFormDrawer({
     () => new Set(),
   );
   const [globais, setGlobais] = useState<AdicionalGlobal[]>([]);
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
 
   const {
     register,
@@ -161,6 +171,16 @@ export function ProdutoFormDrawer({
       })
       .catch(() => {
         if (!cancelled) setGlobais([]);
+      });
+
+    categoriaService
+      .listar()
+      .then((response) => {
+        if (cancelled || !response.sucesso || !response.dados) return;
+        setCategorias(response.dados.categorias);
+      })
+      .catch(() => {
+        if (!cancelled) setCategorias([]);
       });
 
     return () => {
@@ -222,6 +242,7 @@ export function ProdutoFormDrawer({
           descricao,
           preco: values.preco,
           ativo: values.ativo,
+          categoriaId: values.categoriaId,
           adicionais: adicionaisAtuais.map((item) => ({
             nome: item.nome.trim(),
             preco: item.preco,
@@ -250,6 +271,7 @@ export function ProdutoFormDrawer({
         descricao: descricao ?? '',
         preco: values.preco,
         ativo: values.ativo,
+        categoriaId: values.categoriaId,
         adicionais: adicionais.length > 0 ? adicionais : undefined,
         adicionalGlobalIds: values.adicionalGlobalIds,
         imagem: imagemFile ?? undefined,
@@ -361,6 +383,40 @@ export function ProdutoFormDrawer({
           ) : null}
         </div>
 
+        <div className="space-y-2">
+          <Label htmlFor="produto-categoria">Categoria</Label>
+          <Controller
+            name="categoriaId"
+            control={control}
+            render={({ field }) => (
+              <Select
+                id="produto-categoria"
+                value={field.value ?? SEM_CATEGORIA}
+                onChange={(value) =>
+                  field.onChange(value === SEM_CATEGORIA ? null : value)
+                }
+                options={[
+                  { value: SEM_CATEGORIA, label: 'Sem categoria' },
+                  ...categorias.map((item) => ({
+                    value: item.id,
+                    label: item.nome,
+                  })),
+                ]}
+                placeholder="Sem categoria"
+                searchPlaceholder="Buscar categoria…"
+                emptyMessage="Nenhuma categoria"
+                disabled={isSubmitting}
+                clearable={false}
+              />
+            )}
+          />
+          {categorias.length === 0 ? (
+            <p className="text-caption text-on-surface-variant">
+              Cadastre categorias em Configurações → Cozinha → Categorias.
+            </p>
+          ) : null}
+        </div>
+
         <div className="flex items-center justify-between gap-3 rounded-xl border border-operator-border bg-operator-card px-3 py-3">
           <div className="min-w-0">
             <Label htmlFor="produto-ativo">Disponível no cardápio</Label>
@@ -376,14 +432,14 @@ export function ProdutoFormDrawer({
             disabled={isSubmitting}
             onClick={() => setValue('ativo', !watch('ativo'), { shouldDirty: true })}
             className={cn(
-              'relative h-8 w-14 shrink-0 rounded-full transition-colors',
+              'relative h-5 w-9 shrink-0 rounded-full transition-colors',
               watch('ativo') ? 'bg-primary' : 'bg-outline-variant',
             )}
           >
             <span
               className={cn(
-                'absolute top-1 size-6 rounded-full bg-surface shadow-card transition-transform',
-                watch('ativo') ? 'left-7' : 'left-1',
+                'absolute top-0.5 left-0.5 size-4 rounded-full bg-surface shadow-card transition-transform',
+                watch('ativo') && 'translate-x-4',
               )}
             />
           </button>
@@ -393,7 +449,8 @@ export function ProdutoFormDrawer({
           <Label>Adicionais globais</Label>
           {globais.length === 0 ? (
             <p className="text-caption text-on-surface-variant">
-              Nenhum adicional global. Cadastre em Configurações → Cozinha.
+              Nenhum adicional global. Cadastre em Configurações → Cozinha →
+              Adicionais.
             </p>
           ) : (
             <ul className="flex flex-col gap-2">
@@ -440,7 +497,7 @@ export function ProdutoFormDrawer({
             <Button
               type="button"
               variant="ghost"
-              className="h-10 px-3 text-caption"
+              className="h-10 px-3"
               disabled={isSubmitting}
               onClick={handleAdicionarAdicional}
             >
@@ -497,14 +554,14 @@ export function ProdutoFormDrawer({
                             )
                           }
                           className={cn(
-                            'relative h-8 w-14 shrink-0 rounded-full transition-colors',
+                            'relative h-5 w-9 shrink-0 rounded-full transition-colors',
                             ativo ? 'bg-primary' : 'bg-outline-variant',
                           )}
                         >
                           <span
                             className={cn(
-                              'absolute top-1 size-6 rounded-full bg-surface shadow-card transition-transform',
-                              ativo ? 'left-7' : 'left-1',
+                              'absolute top-0.5 left-0.5 size-4 rounded-full bg-surface shadow-card transition-transform',
+                              ativo && 'translate-x-4',
                             )}
                           />
                         </button>
@@ -556,9 +613,9 @@ export function ProdutoFormDrawer({
                         </div>
                         <Button
                           type="button"
-                          variant="ghost"
+                          variant="dangerGhost"
                           aria-label="Remover adicional"
-                          className="size-12 shrink-0 px-0 py-0 text-danger hover:bg-danger/10"
+                          className="size-12 shrink-0 px-0 py-0"
                           disabled={isSubmitting || saindo}
                           onClick={() => handleRemoverAdicional(field.id)}
                         >

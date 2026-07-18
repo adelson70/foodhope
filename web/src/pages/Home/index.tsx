@@ -8,7 +8,13 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useDeferredLoading } from '../../hooks/useDeferredLoading';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
 import { getApiErrorMensagens, produtoService, socket } from '../../services';
-import type { Produto } from '../../services/types';
+import type { Produto, ProdutoCategoria } from '../../services/types';
+import {
+  HOME_CATEGORIA_OUTROS,
+  homeCategoriaAnchorId,
+  HomeCategoriaPills,
+  type HomeCategoriaPill,
+} from './HomeCategoriaPills';
 import { HomeLista } from './HomeLista';
 import { HomeProdutoDrawer } from './HomeProdutoDrawer';
 import { HomeSearch } from './HomeSearch';
@@ -48,9 +54,32 @@ function aplicarAdicionalAtivo(
   };
 }
 
+function montarPills(
+  categorias: ProdutoCategoria[],
+  temOutros: boolean,
+): HomeCategoriaPill[] {
+  const pills = categorias.map((item) => ({
+    id: item.id,
+    nome: item.nome,
+  }));
+  if (temOutros) {
+    pills.push({ id: HOME_CATEGORIA_OUTROS, nome: 'Outros' });
+  }
+  return pills;
+}
+
+function scrollParaSecao(categoriaId: string) {
+  const el = document.getElementById(homeCategoriaAnchorId(categoriaId));
+  if (!el) return false;
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  return true;
+}
+
 export function Home() {
   const [buscaInput, setBuscaInput] = useState('');
   const busca = useDebouncedValue(buscaInput.trim());
+  const [pills, setPills] = useState<HomeCategoriaPill[]>([]);
+  const [pillAtiva, setPillAtiva] = useState<string | null>(null);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -65,12 +94,16 @@ export function Home() {
   const buscaRef = useRef(busca);
   buscaRef.current = busca;
   const nextCursorRef = useRef<string | null>(null);
+  const pendingScrollRef = useRef<string | null>(null);
+  const hasNextPageRef = useRef(false);
+  hasNextPageRef.current = hasNextPage;
 
   const carregar = useCallback(async (termo: string) => {
     setLoading(true);
     setErro(null);
     setHasNextPage(false);
     nextCursorRef.current = null;
+    pendingScrollRef.current = null;
 
     try {
       if (termo) {
@@ -93,6 +126,14 @@ export function Home() {
       setProdutos(response.dados.data ?? []);
       setHasNextPage(response.dados.meta.hasNextPage);
       nextCursorRef.current = response.dados.meta.nextCursor;
+      if (response.dados.meta.categorias) {
+        setPills(
+          montarPills(
+            response.dados.meta.categorias,
+            Boolean(response.dados.meta.temOutros),
+          ),
+        );
+      }
     } catch (error: unknown) {
       const mensagens = getApiErrorMensagens(error);
       setErro(mensagens[0] ?? 'Não foi possível carregar o cardápio.');
@@ -164,34 +205,79 @@ export function Home() {
     };
   }, []);
 
+  useEffect(() => {
+    const alvo = pendingScrollRef.current;
+    if (!alvo || loadingMore) return;
+
+    if (scrollParaSecao(alvo)) {
+      pendingScrollRef.current = null;
+      return;
+    }
+
+    if (hasNextPageRef.current) {
+      void carregarMais();
+      return;
+    }
+
+    pendingScrollRef.current = null;
+  }, [produtos, loadingMore, carregarMais]);
+
   const sentinelRef = useInfiniteScroll({
-    enabled: hasNextPage && !loading && !loadingMore && !busca,
+    enabled:
+      hasNextPage &&
+      !loading &&
+      !loadingMore &&
+      !busca &&
+      !pendingScrollRef.current,
     onLoadMore: carregarMais,
   });
 
-  return (
-    <div className="flex flex-col gap-4 p-4">
-      <HomeSearch value={buscaInput} onChange={setBuscaInput} />
+  function handlePillSelect(categoriaId: string) {
+    setPillAtiva(categoriaId);
+    if (scrollParaSecao(categoriaId)) {
+      pendingScrollRef.current = null;
+      return;
+    }
+    pendingScrollRef.current = categoriaId;
+    if (hasNextPage && !loadingMore && !busca) {
+      void carregarMais();
+    }
+  }
 
-      {showSkeleton ? (
-        <HomeSkeleton />
-      ) : initialPending ? (
-        <div
-          className="min-h-40"
-          aria-busy="true"
-          aria-label="Carregando cardápio"
-        />
-      ) : (
-        <HomeLista
-          produtos={produtos}
-          loadingMore={showMoreSkeleton}
-          hasNextPage={hasNextPage && !busca}
-          erro={erro}
-          buscaAtiva={Boolean(busca)}
-          sentinelRef={sentinelRef}
-          onSelect={setProdutoSelecionado}
-        />
-      )}
+  return (
+    <div className="flex flex-col">
+      <div className="sticky top-0 z-10 bg-background px-4 pt-4 pb-3">
+        <div className="flex flex-col gap-3">
+          <HomeSearch value={buscaInput} onChange={setBuscaInput} />
+          <HomeCategoriaPills
+            pills={pills}
+            ativoId={pillAtiva}
+            onSelect={handlePillSelect}
+          />
+        </div>
+      </div>
+
+      <div className="px-4 pb-4">
+        {showSkeleton ? (
+          <HomeSkeleton />
+        ) : initialPending ? (
+          <div
+            className="min-h-40"
+            aria-busy="true"
+            aria-label="Carregando cardápio"
+          />
+        ) : (
+          <HomeLista
+            produtos={produtos}
+            loadingMore={showMoreSkeleton}
+            hasNextPage={hasNextPage && !busca}
+            erro={erro}
+            buscaAtiva={Boolean(busca)}
+            sentinelRef={sentinelRef}
+            onSelect={setProdutoSelecionado}
+          />
+        )}
+      </div>
 
       <HomeProdutoDrawer
         produto={produtoSelecionado}

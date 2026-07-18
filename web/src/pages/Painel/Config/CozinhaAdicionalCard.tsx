@@ -43,15 +43,15 @@ export function CozinhaAdicionalCard({
           disabled={busy}
           onClick={() => onToggleAtivo(adicional)}
           className={cn(
-            'relative h-8 w-14 shrink-0 rounded-full transition-colors',
+            'relative h-5 w-9 shrink-0 rounded-full transition-colors',
             adicional.ativo ? 'bg-primary' : 'bg-outline-variant',
             busy && 'opacity-60',
           )}
         >
           <span
             className={cn(
-              'absolute top-1 size-6 rounded-full bg-surface shadow-card transition-transform',
-              adicional.ativo ? 'left-7' : 'left-1',
+              'absolute top-0.5 left-0.5 size-4 rounded-full bg-surface shadow-card transition-transform',
+              adicional.ativo && 'translate-x-4',
             )}
           />
         </button>
@@ -61,21 +61,21 @@ export function CozinhaAdicionalCard({
         <Button
           type="button"
           variant="ghost"
-          className="h-10 flex-1 px-3 text-caption"
+          className="h-9 flex-1 px-3"
           disabled={busy}
           onClick={() => onEdit(adicional)}
         >
-          <Pencil size={16} strokeWidth={1.75} />
+          <Pencil size={15} strokeWidth={1.75} />
           Editar
         </Button>
         <Button
           type="button"
-          variant="ghost"
-          className="h-10 flex-1 px-3 text-caption text-danger hover:bg-danger/10"
+          variant="dangerGhost"
+          className="h-9 flex-1 px-3"
           disabled={busy}
           onClick={() => onDelete(adicional)}
         >
-          <Trash2 size={16} strokeWidth={1.75} />
+          <Trash2 size={15} strokeWidth={1.75} />
           Excluir
         </Button>
       </div>

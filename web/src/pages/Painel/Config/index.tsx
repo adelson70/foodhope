@@ -61,7 +61,7 @@ export function Config() {
                 Informações da cozinha
               </span>
               <span className="block text-caption text-on-surface-variant">
-                Adicionais globais e disponibilidade
+                Adicionais e categorias
               </span>
             </span>
             <ChevronRight

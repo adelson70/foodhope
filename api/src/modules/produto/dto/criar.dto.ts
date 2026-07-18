@@ -11,6 +11,7 @@ import {
   ValidateNested,
   IsArray,
   IsUUID,
+  ValidateIf,
 } from 'class-validator';
 import { IsObrigatorio } from '../../../common/decorator/is-obrigatorio.decorator.js';
 import { AdicionalDto } from './adicional.dto.js';
@@ -69,4 +70,13 @@ export class CriarDto {
   @IsArray()
   @IsUUID('4', { each: true, message: 'Cada adicional global deve ser um UUID válido' })
   adicionalGlobalIds?: string[];
+
+  @ApiPropertyOptional({
+    description: 'ID da categoria (omitir ou null = sem categoria)',
+    nullable: true,
+  })
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsUUID('4', { message: 'Categoria inválida' })
+  categoriaId?: string | null;
 }

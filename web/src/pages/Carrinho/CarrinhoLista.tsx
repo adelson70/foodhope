@@ -61,8 +61,8 @@ export function CarrinhoLista({ itens }: CarrinhoListaProps) {
             </div>
             <Button
               type="button"
-              variant="ghost"
-              className="size-10 shrink-0 px-0 py-0 text-danger"
+              variant="dangerGhost"
+              className="size-10 shrink-0 px-0 py-0"
               aria-label={`Remover ${item.nome}`}
               onClick={() => removeItem(item.id)}
             >

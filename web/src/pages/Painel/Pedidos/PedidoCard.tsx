@@ -46,9 +46,9 @@ export function PedidoCard({ pedido, onDelete }: PedidoCardProps) {
         </div>
         <Button
           type="button"
-          variant="ghost"
+          variant="dangerGhost"
           aria-label={`Excluir pedido ${pedido.numero}`}
-          className="size-10 shrink-0 px-0 py-0 text-danger hover:bg-danger/10"
+          className="size-10 shrink-0 px-0 py-0"
           onClick={() => onDelete(pedido)}
         >
           <Trash2 size={20} strokeWidth={1.75} />

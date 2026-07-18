@@ -90,10 +90,10 @@ export function LoginForm() {
         variant="primary"
         fullWidth
         disabled={isSubmitting}
-        className="mt-2 py-4"
+        className="mt-2"
       >
         {isSubmitting ? 'Entrando…' : 'Entrar'}
-        {!isSubmitting ? <ArrowRight size={20} strokeWidth={1.75} /> : null}
+        {!isSubmitting ? <ArrowRight size={18} strokeWidth={1.75} /> : null}
       </Button>
     </form>
   );

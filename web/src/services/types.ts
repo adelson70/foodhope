@@ -34,6 +34,20 @@ export type AdicionalGlobal = {
   updatedAt?: string;
 };
 
+export type Categoria = {
+  id: string;
+  nome: string;
+  ordem: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type ProdutoCategoria = {
+  id: string;
+  nome: string;
+  ordem: number;
+};
+
 export type Produto = {
   id: string;
   nome: string;
@@ -41,6 +55,7 @@ export type Produto = {
   preco: string | number;
   imagemUrl: string | null;
   ativo?: boolean;
+  categoria?: ProdutoCategoria | null;
   createdAt?: string;
   updatedAt?: string;
   adicionais?: Adicional[];
@@ -51,6 +66,8 @@ export type Produto = {
 export type CursorMeta = {
   hasNextPage: boolean;
   nextCursor: string | null;
+  categorias?: ProdutoCategoria[];
+  temOutros?: boolean;
 };
 
 export type LoginPayload = {
@@ -101,11 +118,25 @@ export type ListarAdicionaisGlobaisDados = {
   adicionais: AdicionalGlobal[];
 };
 
+export type CriarCategoriaInput = {
+  nome: string;
+};
+
+export type EditarCategoriaInput = {
+  nome?: string;
+  ordem?: number;
+};
+
+export type ListarCategoriasDados = {
+  categorias: Categoria[];
+};
+
 export type CriarProdutoInput = {
   nome: string;
   descricao?: string;
   preco: number;
   ativo?: boolean;
+  categoriaId?: string | null;
   adicionais?: AdicionalCriarInput[];
   adicionalGlobalIds?: string[];
   imagem?: File;
@@ -116,6 +147,7 @@ export type EditarProdutoInput = {
   descricao?: string;
   preco?: number;
   ativo?: boolean;
+  categoriaId?: string | null;
   adicionais?: AdicionalEditarInput[];
   adicionalGlobalIds?: string[];
   imagem?: File;

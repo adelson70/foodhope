@@ -65,6 +65,20 @@ model Pedido {
   @@map("pedido")
 }
 
+model Categoria {
+  id    String @id @default(uuid())
+  nome  String @unique
+  ordem Int
+
+  produtos Produto[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ordem])
+  @@map("categoria")
+}
+
 model Produto {
   id        String  @id @default(uuid())
   nome      String @unique
@@ -73,6 +87,9 @@ model Produto {
   imagemUrl String? @map("imagem_url")
   ativo     Boolean @default(true)
 
+  categoria_id String?    @map("categoria_id")
+  categoria    Categoria? @relation(fields: [categoria_id], references: [id], onDelete: SetNull)
+
   adicionais AdicionalProduto[]
   adicionaisGlobais ProdutoAdicionalGlobal[]
   itens PedidoItem[]
@@ -80,6 +97,7 @@ model Produto {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([categoria_id])
   @@map("produto")
 }
 

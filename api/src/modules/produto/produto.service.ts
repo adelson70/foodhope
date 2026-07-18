@@ -33,6 +33,12 @@ type AdicionalGlobalVinculoRow = {
   };
 };
 
+type CategoriaRow = {
+  id: string;
+  nome: string;
+  ordem: number;
+} | null;
+
 type ProdutoComAdicionais = {
   id: string;
   nome: string;
@@ -40,13 +46,20 @@ type ProdutoComAdicionais = {
   preco: Prisma.Decimal | number;
   imagemUrl: string | null;
   ativo: boolean;
+  categoria_id?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
+  categoria?: CategoriaRow;
   adicionais: AdicionalEspecificoRow[];
   adicionaisGlobais: AdicionalGlobalVinculoRow[];
 };
 
+const ORDEM_SENTINEL = 2_147_483_647;
+
 const produtoAdicionaisInclude = {
+  categoria: {
+    select: { id: true, nome: true, ordem: true },
+  },
   adicionais: {
     select: { id: true, nome: true, preco: true, ativo: true },
     orderBy: [{ nome: 'asc' as const }, { id: 'asc' as const }],
@@ -61,8 +74,20 @@ const produtoAdicionaisInclude = {
   },
 } satisfies Prisma.ProdutoInclude;
 
+const produtoOrderBy = [
+  { categoria: { ordem: 'asc' as const } },
+  { preco: 'asc' as const },
+  { id: 'asc' as const },
+];
+
 function normalizarNome(nome: string) {
   return nome.trim().toLowerCase();
+}
+
+function ordemDoProduto(produto: {
+  categoria?: CategoriaRow;
+}): number {
+  return produto.categoria?.ordem ?? ORDEM_SENTINEL;
 }
 
 function montarRespostaProduto(produto: ProdutoComAdicionais) {
@@ -91,10 +116,19 @@ function montarRespostaProduto(produto: ProdutoComAdicionais) {
     ativo: v.adicionalGlobal.ativo,
   }));
 
-  const { adicionais: _a, adicionaisGlobais: _g, ...rest } = produto;
+  const {
+    adicionais: _a,
+    adicionaisGlobais: _g,
+    categoria_id: _cid,
+    categoria,
+    ...rest
+  } = produto;
 
   return {
     ...rest,
+    categoria: categoria
+      ? { id: categoria.id, nome: categoria.nome, ordem: categoria.ordem }
+      : null,
     adicionais: [...especificos, ...globais],
     adicionaisEspecificos,
     adicionalGlobalIds,
@@ -168,29 +202,112 @@ export class ProdutoService {
     });
   }
 
+  private async validarCategoriaId(
+    tx: Prisma.TransactionClient,
+    categoriaId: string | null | undefined,
+  ) {
+    if (categoriaId === undefined || categoriaId === null) {
+      return categoriaId;
+    }
+
+    const categoria = await tx.categoria.findUnique({
+      where: { id: categoriaId },
+      select: { id: true },
+    });
+
+    if (!categoria) {
+      throw new BadRequestException('Categoria informada não existe.');
+    }
+
+    return categoriaId;
+  }
+
+  private montarWhereAposCursor(cursor: {
+    ordem: number;
+    preco: string;
+    id: string;
+  }): Prisma.ProdutoWhereInput {
+    const preco = new Prisma.Decimal(cursor.preco);
+
+    if (cursor.ordem >= ORDEM_SENTINEL) {
+      return {
+        AND: [
+          { categoria_id: null },
+          {
+            OR: [
+              { preco: { gt: preco } },
+              { AND: [{ preco }, { id: { gt: cursor.id } }] },
+            ],
+          },
+        ],
+      };
+    }
+
+    return {
+      OR: [
+        { categoria: { ordem: { gt: cursor.ordem } } },
+        {
+          AND: [
+            { categoria: { ordem: cursor.ordem } },
+            {
+              OR: [
+                { preco: { gt: preco } },
+                { AND: [{ preco }, { id: { gt: cursor.id } }] },
+              ],
+            },
+          ],
+        },
+        { categoria_id: null },
+      ],
+    };
+  }
+
   async listarProduto(dto: ListarDto) {
     try {
       const limit = dto.limit || 10;
       const cursorStr = dto.cursor;
 
-      let decodedCursor: { id: string; createdAt: string | Date } | null = null;
+      let decodedCursor: { id: string; ordem: number; preco: string } | null =
+        null;
 
       if (cursorStr) {
         try {
           const jsonString = Buffer.from(cursorStr, 'base64').toString('utf-8');
           decodedCursor = JSON.parse(jsonString);
+          if (
+            !decodedCursor?.id ||
+            typeof decodedCursor.ordem !== 'number' ||
+            decodedCursor.preco === undefined
+          ) {
+            throw new Error('cursor incompleto');
+          }
         } catch {
           throw new BadRequestException('O cursor fornecido é inválido.');
         }
       }
 
-      const produtos = await this.prismaRead.produto.findMany({
-        take: limit + 1,
-        cursor: decodedCursor ? { id: decodedCursor.id } : undefined,
-        skip: decodedCursor ? 1 : 0,
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        include: produtoAdicionaisInclude,
-      });
+      const [produtos, categorias, semCategoria] = await Promise.all([
+        this.prismaRead.produto.findMany({
+          take: limit + 1,
+          where: decodedCursor
+            ? this.montarWhereAposCursor(decodedCursor)
+            : undefined,
+          orderBy: produtoOrderBy,
+          include: produtoAdicionaisInclude,
+        }),
+        decodedCursor
+          ? Promise.resolve(null)
+          : this.prismaRead.categoria.findMany({
+              orderBy: [{ ordem: 'asc' }, { id: 'asc' }],
+              select: { id: true, nome: true, ordem: true },
+            }),
+        decodedCursor
+          ? Promise.resolve(null)
+          : this.prismaRead.produto.findFirst({
+              where: { categoria_id: null },
+              select: { id: true },
+            }),
+      ]);
 
       let nextCursor: string | null = null;
       const hasNextPage = produtos.length > limit;
@@ -200,16 +317,25 @@ export class ProdutoService {
         const lastItem = produtos[produtos.length - 1];
         const cursorPayload = JSON.stringify({
           id: lastItem.id,
-          createdAt: lastItem.createdAt,
+          ordem: ordemDoProduto(lastItem),
+          preco: String(lastItem.preco),
         });
         nextCursor = Buffer.from(cursorPayload).toString('base64');
       }
 
       return {
-        data: produtos.map((p) => montarRespostaProduto(p as ProdutoComAdicionais)),
+        data: produtos.map((p) =>
+          montarRespostaProduto(p as ProdutoComAdicionais),
+        ),
         meta: {
           hasNextPage,
           nextCursor,
+          ...(categorias
+            ? {
+                categorias,
+                temOutros: Boolean(semCategoria),
+              }
+            : {}),
         },
       };
     } catch (erro) {
@@ -248,6 +374,7 @@ export class ProdutoService {
             },
           ],
         },
+        orderBy: produtoOrderBy,
         include: produtoAdicionaisInclude,
       });
 
@@ -288,12 +415,17 @@ export class ProdutoService {
           nomesEspecificos,
         );
 
+        const categoriaId = await this.validarCategoriaId(tx, dto.categoriaId);
+
         const novoProduto = await tx.produto.create({
           data: {
             nome: dto.nome,
             descricao: dto.descricao,
             preco: dto.preco,
             ativo: dto.ativo ?? true,
+            ...(categoriaId
+              ? { categoria: { connect: { id: categoriaId } } }
+              : {}),
           },
         });
 
@@ -364,6 +496,14 @@ export class ProdutoService {
         }
         if (dto.preco !== undefined) dadosUpdate.preco = dto.preco;
         if (dto.ativo !== undefined) dadosUpdate.ativo = dto.ativo;
+
+        if (dto.categoriaId !== undefined) {
+          const categoriaId = await this.validarCategoriaId(tx, dto.categoriaId);
+          dadosUpdate.categoria =
+            categoriaId === null
+              ? { disconnect: true }
+              : { connect: { id: categoriaId } };
+        }
 
         if (dto.adicionais && dto.adicionais.length > 0) {
           const deletados = dto.adicionais.filter((a) => a.foiDeletado && a.id);

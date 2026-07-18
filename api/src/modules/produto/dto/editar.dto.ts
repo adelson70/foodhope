@@ -5,6 +5,7 @@ import {
   IsNumber,
   IsOptional,
   IsUUID,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -56,4 +57,13 @@ export class EditarProdutoDto {
   @IsArray()
   @IsUUID('4', { each: true, message: 'Cada adicional global deve ser um UUID válido' })
   adicionalGlobalIds?: string[];
+
+  @ApiPropertyOptional({
+    description: 'ID da categoria (null remove a categoria)',
+    nullable: true,
+  })
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsUUID('4', { message: 'Categoria inválida' })
+  categoriaId?: string | null;
 }

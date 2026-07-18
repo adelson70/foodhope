@@ -39,9 +39,9 @@ export function ProdutoCard({ produto, onEdit, onDelete }: ProdutoCardProps) {
           </Button>
           <Button
             type="button"
-            variant="ghost"
+            variant="dangerGhost"
             aria-label={`Excluir ${produto.nome}`}
-            className="size-10 px-0 py-0 text-danger hover:bg-danger/10"
+            className="size-10 px-0 py-0"
             onClick={() => onDelete(produto)}
           >
             <Trash2 size={20} strokeWidth={1.75} />

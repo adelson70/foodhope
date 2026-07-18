@@ -38,7 +38,7 @@ export function PedidoConfirmado() {
 
       <div className="flex w-full flex-col gap-3">
         <Link to="/" className="w-full">
-          <Button type="button" fullWidth className="py-4">
+          <Button type="button" fullWidth>
             Voltar ao cardápio
           </Button>
         </Link>

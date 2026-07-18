@@ -9,7 +9,10 @@ import { FoodHopeLogo } from '../brand/FoodHopeLogo';
 import { PainelBottomNav } from './PainelBottomNav';
 
 function isConfigSubtela(pathname: string) {
-  return pathname === '/painel/configuracoes/cozinha';
+  return (
+    pathname === '/painel/configuracoes/cozinha' ||
+    pathname.startsWith('/painel/configuracoes/cozinha/')
+  );
 }
 
 const MAIN_PB_NAV =

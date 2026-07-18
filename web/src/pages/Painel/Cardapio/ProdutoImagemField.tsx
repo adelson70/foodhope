@@ -154,10 +154,10 @@ export function ProdutoImagemField({
         {podeRemover ? (
           <Button
             type="button"
-            variant="ghost"
+            variant="dangerGhost"
             disabled={disabled}
             aria-label="Remover imagem"
-            className="size-12 shrink-0 px-0 py-0 text-danger hover:bg-danger/10 disabled:opacity-40"
+            className="size-12 shrink-0 px-0 py-0 disabled:opacity-40"
             onClick={handleRemover}
             title="Remover imagem"
           >

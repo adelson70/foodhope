@@ -21,7 +21,7 @@ export function DashHeader({ gerando, onGerarRelatorio }: DashHeaderProps) {
       <Button
         type="button"
         variant="secondary"
-        className="shrink-0 px-4 py-2 text-caption"
+        className="shrink-0 px-4 py-2"
         disabled={gerando}
         onClick={onGerarRelatorio}
       >

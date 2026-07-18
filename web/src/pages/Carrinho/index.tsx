@@ -240,12 +240,7 @@ export function Carrinho() {
               .
             </p>
 
-            <Button
-              type="submit"
-              fullWidth
-              disabled={isSubmitting}
-              className="py-4"
-            >
+            <Button type="submit" fullWidth disabled={isSubmitting}>
               {isSubmitting ? 'Enviando…' : 'Fazer pedido'}
             </Button>
           </form>

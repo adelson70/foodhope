@@ -8,6 +8,8 @@ import { Cardapio } from '../pages/Painel/Cardapio';
 import { Pedidos } from '../pages/Painel/Pedidos';
 import { Config } from '../pages/Painel/Config';
 import { ConfigCozinha } from '../pages/Painel/Config/ConfigCozinha';
+import { ConfigCozinhaAdicionais } from '../pages/Painel/Config/ConfigCozinhaAdicionais';
+import { ConfigCozinhaCategorias } from '../pages/Painel/Config/ConfigCozinhaCategorias';
 import { Carrinho } from '../pages/Carrinho';
 import { PedidoConfirmado } from '../pages/PedidoConfirmado';
 import { PedidosCliente } from '../pages/PedidosCliente';
@@ -46,6 +48,14 @@ export const router = createBrowserRouter([
           { path: 'pedido', element: <Pedidos /> },
           { path: 'configuracoes', element: <Config /> },
           { path: 'configuracoes/cozinha', element: <ConfigCozinha /> },
+          {
+            path: 'configuracoes/cozinha/adicionais',
+            element: <ConfigCozinhaAdicionais />,
+          },
+          {
+            path: 'configuracoes/cozinha/categorias',
+            element: <ConfigCozinhaCategorias />,
+          },
         ],
       },
     ],

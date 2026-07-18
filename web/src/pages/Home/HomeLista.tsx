@@ -1,6 +1,10 @@
 import type { RefObject } from 'react';
 
 import type { Produto } from '../../services/types';
+import {
+  HOME_CATEGORIA_OUTROS,
+  homeCategoriaAnchorId,
+} from './HomeCategoriaPills';
 import { HomeProdutoCard } from './HomeProdutoCard';
 import { HomeProdutoCardSkeleton } from './HomeProdutoSkeleton';
 
@@ -15,6 +19,14 @@ type HomeListaProps = {
 };
 
 const LOAD_MORE_SKELETON_COUNT = 2;
+
+function chaveCategoria(produto: Produto) {
+  return produto.categoria?.id ?? HOME_CATEGORIA_OUTROS;
+}
+
+function tituloCategoria(produto: Produto) {
+  return produto.categoria?.nome ?? 'Outros';
+}
 
 export function HomeLista({
   produtos,
@@ -47,11 +59,32 @@ export function HomeLista({
 
   return (
     <ul className="flex flex-col gap-3">
-      {produtos.map((produto) => (
-        <li key={produto.id}>
-          <HomeProdutoCard produto={produto} onSelect={onSelect} />
-        </li>
-      ))}
+      {produtos.map((produto, index) => {
+        const anterior = index > 0 ? produtos[index - 1] : null;
+        const chave = chaveCategoria(produto);
+        const mostrarDivisor =
+          !anterior || chaveCategoria(anterior) !== chave;
+
+        return (
+          <li key={produto.id} className="flex flex-col gap-3">
+            {mostrarDivisor ? (
+              <div
+                id={homeCategoriaAnchorId(chave)}
+                className={
+                  index === 0
+                    ? 'scroll-mt-36 pt-1'
+                    : 'mt-2 scroll-mt-36 border-t border-outline-variant/60 pt-4'
+                }
+              >
+                <h2 className="text-subtitle-md font-semibold uppercase tracking-wide text-on-surface-variant">
+                  {tituloCategoria(produto)}
+                </h2>
+              </div>
+            ) : null}
+            <HomeProdutoCard produto={produto} onSelect={onSelect} />
+          </li>
+        );
+      })}
       {loadingMore
         ? Array.from({ length: LOAD_MORE_SKELETON_COUNT }, (_, index) => (
             <li key={`more-${index}`}>

@@ -256,7 +256,6 @@ export function PedidoCriarDrawer({
             variant="primary"
             fullWidth
             disabled={isSubmitting || fields.length === 0}
-            className="py-4"
           >
             {isSubmitting ? 'Criando…' : 'Criar pedido'}
           </Button>
@@ -553,8 +552,8 @@ export function PedidoCriarDrawer({
                       </div>
                       <Button
                         type="button"
-                        variant="ghost"
-                        className="size-10 shrink-0 px-0 py-0 text-danger hover:bg-danger/10"
+                        variant="dangerGhost"
+                        className="size-10 shrink-0 px-0 py-0"
                         aria-label="Remover item"
                         onClick={() => remove(index)}
                       >

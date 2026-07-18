@@ -26,11 +26,10 @@ export function ConfigLogout() {
       variant="danger"
       fullWidth
       disabled={loading}
-      className="py-4"
       onClick={handleLogout}
     >
       {loading ? 'Saindo…' : 'Sair'}
-      {!loading ? <LogOut size={20} strokeWidth={1.75} /> : null}
+      {!loading ? <LogOut size={18} strokeWidth={1.75} /> : null}
     </Button>
   );
 }
