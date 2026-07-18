@@ -22,17 +22,40 @@ export function arquivoImagemAceito(arquivo: File): boolean {
   return EXT_PERMITIDAS.test(arquivo.name);
 }
 
-export async function prepararImagemParaCrop(arquivo: File): Promise<File> {
-  const comprimido = await imageCompression(arquivo, {
-    maxSizeMB: 1,
-    maxWidthOrHeight: 1280,
-    useWebWorker: typeof Worker !== 'undefined',
-    fileType: 'image/jpeg',
-    initialQuality: 0.85,
-  });
+async function materializarArquivo(arquivo: File): Promise<File> {
+  const buffer = await arquivo.arrayBuffer();
+  if (buffer.byteLength === 0) {
+    throw new Error('Arquivo vazio ou inacessível.');
+  }
 
-  return new File([comprimido], 'produto-upload.jpg', {
-    type: 'image/jpeg',
+  const tipo = arquivo.type || 'application/octet-stream';
+  return new File([buffer], arquivo.name || 'imagem', {
+    type: tipo,
     lastModified: Date.now(),
   });
+}
+
+export async function prepararImagemParaCrop(arquivo: File): Promise<File> {
+  const original = await materializarArquivo(arquivo);
+
+  try {
+    const comprimido = await imageCompression(original, {
+      maxSizeMB: 1.5,
+      maxWidthOrHeight: 1600,
+      useWebWorker: false,
+      fileType: 'image/jpeg',
+      initialQuality: 0.85,
+    });
+
+    if (comprimido.size > 0) {
+      return new File([comprimido], 'produto-upload.jpg', {
+        type: 'image/jpeg',
+        lastModified: Date.now(),
+      });
+    }
+  } catch {
+    return original;
+  }
+
+  return original;
 }

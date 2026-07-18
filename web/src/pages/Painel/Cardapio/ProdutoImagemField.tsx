@@ -105,9 +105,11 @@ export function ProdutoImagemField({
   }
 
   function onInputChange(event: ChangeEvent<HTMLInputElement>) {
-    const arquivo = event.target.files?.[0];
-    event.target.value = '';
-    void validarESelecionar(arquivo);
+    const input = event.target;
+    const arquivo = input.files?.[0];
+    void validarESelecionar(arquivo).finally(() => {
+      input.value = '';
+    });
   }
 
   function handleRemover() {
