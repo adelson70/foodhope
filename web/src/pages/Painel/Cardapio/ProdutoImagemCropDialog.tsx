@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type AnimationEvent,
+} from 'react';
 import Cropper, { type Area } from 'react-easy-crop';
 import 'react-easy-crop/react-easy-crop.css';
 
@@ -14,6 +20,7 @@ const ZOOM_SLIDER_MAX = 100;
 const CROP_ZOOM_MIN = 0.4;
 const CROP_ZOOM_MAX = 4;
 const CROP_ZOOM_DEFAULT = 1;
+const DRAWER_ENTER_MS = 350;
 
 function sliderParaZoom(slider: number): number {
   if (slider <= 0) {
@@ -61,7 +68,13 @@ export function ProdutoImagemCropDialog({
   const onExitedRef = useRef(onExited);
   onExitedRef.current = onExited;
   const saiuRef = useRef(false);
-  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const imageSrcRef = useRef<string | null>(null);
+  if (!imageSrcRef.current) {
+    imageSrcRef.current = URL.createObjectURL(file);
+  }
+  const imageSrc = imageSrcRef.current;
+
+  const [cropperPronto, setCropperPronto] = useState(false);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(CROP_ZOOM_DEFAULT);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
@@ -69,19 +82,14 @@ export function ProdutoImagemCropDialog({
   const [imagemPronta, setImagemPronta] = useState(false);
 
   useEffect(() => {
-    const url = URL.createObjectURL(file);
-    setImageSrc(url);
-    setImagemPronta(false);
-    setCrop({ x: 0, y: 0 });
-    setZoom(CROP_ZOOM_DEFAULT);
-    setCroppedAreaPixels(null);
-    setProcessando(false);
-    saiuRef.current = false;
-
+    const url = imageSrc;
     return () => {
       URL.revokeObjectURL(url);
+      if (imageSrcRef.current === url) {
+        imageSrcRef.current = null;
+      }
     };
-  }, [file]);
+  }, [imageSrc]);
 
   useEffect(() => {
     if (open) {
@@ -105,6 +113,16 @@ export function ProdutoImagemCropDialog({
   }, [open, mounted]);
 
   useEffect(() => {
+    if (!open || exiting || cropperPronto) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setCropperPronto(true);
+    }, DRAWER_ENTER_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [open, exiting, cropperPronto]);
+
+  useEffect(() => {
     if (!mounted || exiting) return;
 
     function onKeyDown(event: KeyboardEvent) {
@@ -126,6 +144,16 @@ export function ProdutoImagemCropDialog({
     setCroppedAreaPixels(pixels);
   }, []);
 
+  function handlePanelAnimationEnd(event: AnimationEvent<HTMLElement>) {
+    if (event.target !== event.currentTarget) return;
+
+    if (!exiting) {
+      setCropperPronto(true);
+    }
+
+    onExitAnimationEnd(event);
+  }
+
   async function handleConfirm() {
     if (!imageSrc || !croppedAreaPixels || processando) return;
 
@@ -142,7 +170,7 @@ export function ProdutoImagemCropDialog({
 
   const zoomSlider = Math.round(zoomParaSlider(zoom));
 
-  if (!mounted || !imageSrc) return null;
+  if (!mounted) return null;
 
   return (
     <div className="fixed inset-0 z-[60] flex justify-center overflow-hidden">
@@ -165,7 +193,7 @@ export function ProdutoImagemCropDialog({
           'bg-operator-surface border-x border-operator-border shadow-card',
           exiting ? 'drawer-exit' : 'drawer-enter',
         )}
-        onAnimationEnd={onExitAnimationEnd}
+        onAnimationEnd={handlePanelAnimationEnd}
       >
         <header className="flex shrink-0 flex-col gap-1 border-b border-operator-border px-4 py-4 pt-[max(1rem,env(safe-area-inset-top))]">
           <h2
@@ -181,7 +209,7 @@ export function ProdutoImagemCropDialog({
         </header>
 
         <div
-          className="relative min-h-0 flex-1"
+          className="relative min-h-0 flex-1 overflow-hidden"
           style={{
             backgroundColor: 'var(--color-operator-bg)',
             backgroundImage: [
@@ -194,29 +222,39 @@ export function ProdutoImagemCropDialog({
             backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0',
           }}
         >
-          <Cropper
-            image={imageSrc}
-            crop={crop}
-            zoom={zoom}
-            minZoom={CROP_ZOOM_MIN}
-            maxZoom={CROP_ZOOM_MAX}
-            aspect={1}
-            objectFit="cover"
-            showGrid
-            zoomWithScroll={false}
-            onCropChange={setCrop}
-            onZoomChange={setZoom}
-            onCropComplete={onCropComplete}
-            onMediaLoaded={() => setImagemPronta(true)}
-            style={{
-              containerStyle: {
-                backgroundColor: 'transparent',
-              },
-              cropAreaStyle: {
-                border: '2px solid var(--color-primary)',
-              },
-            }}
-          />
+          {cropperPronto ? (
+            <Cropper
+              key={imageSrc}
+              image={imageSrc}
+              crop={crop}
+              zoom={zoom}
+              minZoom={CROP_ZOOM_MIN}
+              maxZoom={CROP_ZOOM_MAX}
+              aspect={1}
+              objectFit="cover"
+              showGrid
+              zoomWithScroll={false}
+              onCropChange={setCrop}
+              onZoomChange={setZoom}
+              onCropComplete={onCropComplete}
+              onMediaLoaded={() => setImagemPronta(true)}
+              style={{
+                containerStyle: {
+                  backgroundColor: 'transparent',
+                },
+                cropAreaStyle: {
+                  border: '2px solid var(--color-primary)',
+                },
+              }}
+            />
+          ) : (
+            <img
+              src={imageSrc}
+              alt=""
+              className="size-full object-cover"
+              draggable={false}
+            />
+          )}
         </div>
 
         <div className="flex shrink-0 flex-col gap-4 border-t border-operator-border px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">

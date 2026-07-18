@@ -35,6 +35,7 @@ export function ProdutoImagemField({
 }: ProdutoImagemFieldProps) {
   const galeriaId = useId();
   const galeriaRef = useRef<HTMLInputElement>(null);
+  const cropSessionRef = useRef(0);
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
@@ -60,14 +61,17 @@ export function ProdutoImagemField({
     setCropOpen(false);
   }, []);
 
-  const limparCrop = useCallback(() => {
+  const limparCrop = useCallback((sessionAoFechar: number) => {
+    if (cropSessionRef.current !== sessionAoFechar) return;
     setCropOpen(false);
     setCropFile(null);
   }, []);
 
   function abrirCrop(arquivo: File) {
+    const session = cropSessionRef.current + 1;
+    cropSessionRef.current = session;
+    setCropSession(session);
     setCropFile(arquivo);
-    setCropSession((atual) => atual + 1);
     setCropOpen(true);
   }
 
@@ -184,7 +188,7 @@ export function ProdutoImagemField({
           open={cropOpen}
           file={cropFile}
           onClose={fecharCrop}
-          onExited={limparCrop}
+          onExited={() => limparCrop(cropSession)}
           onConfirm={(proximo) => {
             onChange(proximo);
             fecharCrop();
