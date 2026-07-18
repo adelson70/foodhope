@@ -1,7 +1,6 @@
 import {
   useCallback,
   useEffect,
-  useRef,
   useState,
   type AnimationEvent,
 } from 'react';
@@ -20,7 +19,7 @@ const ZOOM_SLIDER_MAX = 100;
 const CROP_ZOOM_MIN = 0.4;
 const CROP_ZOOM_MAX = 4;
 const CROP_ZOOM_DEFAULT = 1;
-const DRAWER_ENTER_MS = 350;
+const LAYOUT_READY_MS = 50;
 
 function sliderParaZoom(slider: number): number {
   if (slider <= 0) {
@@ -49,6 +48,22 @@ function zoomParaSlider(zoom: number): number {
   return t * ZOOM_SLIDER_MAX;
 }
 
+function lerArquivoComoDataUrl(arquivo: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+        return;
+      }
+      reject(new Error('Não foi possível ler a imagem.'));
+    };
+    reader.onerror = () =>
+      reject(new Error('Não foi possível ler a imagem.'));
+    reader.readAsDataURL(arquivo);
+  });
+}
+
 type ProdutoImagemCropDialogProps = {
   open: boolean;
   file: File;
@@ -65,16 +80,8 @@ export function ProdutoImagemCropDialog({
   onConfirm,
 }: ProdutoImagemCropDialogProps) {
   const { mounted, exiting, onExitAnimationEnd } = useAnimatedPresence(open);
-  const onExitedRef = useRef(onExited);
-  onExitedRef.current = onExited;
-  const saiuRef = useRef(false);
-  const imageSrcRef = useRef<string | null>(null);
-  if (!imageSrcRef.current) {
-    imageSrcRef.current = URL.createObjectURL(file);
-  }
-  const imageSrc = imageSrcRef.current;
-
-  const [cropperPronto, setCropperPronto] = useState(false);
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [layoutPronto, setLayoutPronto] = useState(false);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(CROP_ZOOM_DEFAULT);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
@@ -82,45 +89,51 @@ export function ProdutoImagemCropDialog({
   const [imagemPronta, setImagemPronta] = useState(false);
 
   useEffect(() => {
-    const url = imageSrc;
+    let cancelled = false;
+
+    void lerArquivoComoDataUrl(file)
+      .then((dataUrl) => {
+        if (cancelled) return;
+        setImageSrc(dataUrl);
+        setCrop({ x: 0, y: 0 });
+        setZoom(CROP_ZOOM_DEFAULT);
+        setCroppedAreaPixels(null);
+        setProcessando(false);
+        setImagemPronta(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        notifyError(null, 'Não foi possível carregar a imagem.');
+        onClose();
+      });
+
     return () => {
-      URL.revokeObjectURL(url);
-      if (imageSrcRef.current === url) {
-        imageSrcRef.current = null;
-      }
+      cancelled = true;
     };
-  }, [imageSrc]);
+  }, [file, onClose]);
 
   useEffect(() => {
-    if (open) {
-      saiuRef.current = false;
+    if (!mounted || exiting || !imageSrc) {
+      setLayoutPronto(false);
       return;
     }
-
-    function finalizar() {
-      if (saiuRef.current) return;
-      saiuRef.current = true;
-      onExitedRef.current();
-    }
-
-    if (!mounted) {
-      finalizar();
-      return;
-    }
-
-    const timeoutId = window.setTimeout(finalizar, 400);
-    return () => window.clearTimeout(timeoutId);
-  }, [open, mounted]);
-
-  useEffect(() => {
-    if (!open || exiting || cropperPronto) return;
 
     const timeoutId = window.setTimeout(() => {
-      setCropperPronto(true);
-    }, DRAWER_ENTER_MS);
+      setLayoutPronto(true);
+    }, LAYOUT_READY_MS);
 
-    return () => window.clearTimeout(timeoutId);
-  }, [open, exiting, cropperPronto]);
+    return () => {
+      window.clearTimeout(timeoutId);
+      setLayoutPronto(false);
+    };
+  }, [mounted, exiting, imageSrc]);
+
+  useEffect(() => {
+    if (open || !mounted) {
+      if (!open && !mounted) onExited();
+      return;
+    }
+  }, [open, mounted, onExited]);
 
   useEffect(() => {
     if (!mounted || exiting) return;
@@ -146,11 +159,6 @@ export function ProdutoImagemCropDialog({
 
   function handlePanelAnimationEnd(event: AnimationEvent<HTMLElement>) {
     if (event.target !== event.currentTarget) return;
-
-    if (!exiting) {
-      setCropperPronto(true);
-    }
-
     onExitAnimationEnd(event);
   }
 
@@ -169,6 +177,7 @@ export function ProdutoImagemCropDialog({
   }
 
   const zoomSlider = Math.round(zoomParaSlider(zoom));
+  const mostrarCropper = Boolean(imageSrc && layoutPronto && !exiting);
 
   if (!mounted) return null;
 
@@ -191,7 +200,7 @@ export function ProdutoImagemCropDialog({
         className={cn(
           'relative z-10 flex h-dvh w-full max-w-md flex-col',
           'bg-operator-surface border-x border-operator-border shadow-card',
-          exiting ? 'drawer-exit' : 'drawer-enter',
+          exiting ? 'overlay-exit' : 'overlay-enter',
         )}
         onAnimationEnd={handlePanelAnimationEnd}
       >
@@ -208,21 +217,8 @@ export function ProdutoImagemCropDialog({
           </p>
         </header>
 
-        <div
-          className="relative min-h-0 flex-1 overflow-hidden"
-          style={{
-            backgroundColor: 'var(--color-operator-bg)',
-            backgroundImage: [
-              'linear-gradient(45deg, color-mix(in srgb, var(--color-on-surface) 10%, transparent) 25%, transparent 25%)',
-              'linear-gradient(-45deg, color-mix(in srgb, var(--color-on-surface) 10%, transparent) 25%, transparent 25%)',
-              'linear-gradient(45deg, transparent 75%, color-mix(in srgb, var(--color-on-surface) 10%, transparent) 75%)',
-              'linear-gradient(-45deg, transparent 75%, color-mix(in srgb, var(--color-on-surface) 10%, transparent) 75%)',
-            ].join(', '),
-            backgroundSize: '16px 16px',
-            backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0',
-          }}
-        >
-          {cropperPronto ? (
+        <div className="relative min-h-0 flex-1 overflow-hidden bg-operator-bg">
+          {mostrarCropper ? (
             <Cropper
               key={imageSrc}
               image={imageSrc}
@@ -231,7 +227,6 @@ export function ProdutoImagemCropDialog({
               minZoom={CROP_ZOOM_MIN}
               maxZoom={CROP_ZOOM_MAX}
               aspect={1}
-              objectFit="cover"
               showGrid
               zoomWithScroll={false}
               onCropChange={setCrop}
@@ -240,20 +235,24 @@ export function ProdutoImagemCropDialog({
               onMediaLoaded={() => setImagemPronta(true)}
               style={{
                 containerStyle: {
-                  backgroundColor: 'transparent',
+                  backgroundColor: 'var(--color-operator-bg)',
                 },
                 cropAreaStyle: {
                   border: '2px solid var(--color-primary)',
                 },
               }}
             />
-          ) : (
+          ) : imageSrc ? (
             <img
               src={imageSrc}
               alt=""
-              className="size-full object-cover"
+              className="size-full object-contain"
               draggable={false}
             />
+          ) : (
+            <div className="flex size-full items-center justify-center text-caption text-on-surface-variant">
+              Carregando foto...
+            </div>
           )}
         </div>
 
