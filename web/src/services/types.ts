@@ -255,6 +255,8 @@ export type DashDados = {
   topAdicionais: DashItemRank[];
 };
 
+export type TipoRelatorio = 'resumido' | 'completo';
+
 export type ConfigImpressora = {
   ip: string | null;
   dispositivo: string | null;

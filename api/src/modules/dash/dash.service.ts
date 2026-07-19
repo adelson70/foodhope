@@ -7,8 +7,12 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 
 import { PrismaReadService } from '../../infra/database/prisma-read.service.js';
-import { formatarRelatorioDia } from '../impressora/impressao-texto.js';
+import {
+  formatarRelatorioCompleto,
+  formatarRelatorioDia,
+} from '../impressora/impressao-texto.js';
 import { ImpressoraService } from '../impressora/impressora.service.js';
+import type { TipoRelatorioDto } from './dto/relatorio.dto.js';
 
 type ResumoRow = {
   comprasHoje: number | bigint | string;
@@ -26,6 +30,18 @@ type AdicionalRow = {
   adicionalId: string;
   nome: string;
   quantidade: number | bigint | string;
+};
+
+type ProdutoValorRow = {
+  produtoId: string;
+  nome: string;
+  valor: number | string;
+};
+
+type AdicionalValorRow = {
+  adicionalId: string;
+  nome: string;
+  valor: number | string;
 };
 
 function toNumber(value: number | bigint | string | null | undefined): number {
@@ -155,7 +171,70 @@ export class DashService {
     }
   }
 
-  async gerarRelatorio() {
+  async obterDetalhado() {
+    try {
+      const [resumoResult, produtosRows, adicionaisRows] = await Promise.all([
+        this.obterResumo(),
+        this.prismaRead.$queryRaw<ProdutoValorRow[]>`
+          SELECT
+            pr.id AS "produtoId",
+            pr.nome AS nome,
+            COALESCE(SUM(pi.quantidade * pi.preco_produto), 0) AS valor
+          FROM pedido_item pi
+          INNER JOIN pedido p ON p.id = pi.pedido_id
+          INNER JOIN produto pr ON pr.id = pi.produto_id
+          WHERE (p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
+            = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+          GROUP BY pr.id, pr.nome
+          ORDER BY valor DESC
+        `,
+        this.prismaRead.$queryRaw<AdicionalValorRow[]>`
+          SELECT
+            elem->>'id' AS "adicionalId",
+            elem->>'nome' AS nome,
+            COALESCE(
+              SUM((elem->>'qtd')::numeric * (elem->>'preco')::numeric),
+              0
+            ) AS valor
+          FROM pedido_item pi
+          INNER JOIN pedido p ON p.id = pi.pedido_id
+          CROSS JOIN LATERAL jsonb_array_elements(
+            CASE
+              WHEN pi.adicional_venda IS NULL THEN '[]'::jsonb
+              WHEN jsonb_typeof(pi.adicional_venda::jsonb) = 'array'
+                THEN pi.adicional_venda::jsonb
+              ELSE '[]'::jsonb
+            END
+          ) AS elem
+          WHERE (p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
+            = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+            AND COALESCE(elem->>'id', '') <> ''
+          GROUP BY elem->>'id', elem->>'nome'
+          ORDER BY valor DESC
+        `,
+      ]);
+
+      return {
+        faturamentoHoje: resumoResult.dados.faturamentoHoje,
+        comprasHoje: resumoResult.dados.comprasHoje,
+        produtos: produtosRows.map((row) => ({
+          nome: row.nome,
+          valor: toNumber(row.valor),
+        })),
+        adicionais: adicionaisRows.map((row) => ({
+          nome: row.nome,
+          valor: toNumber(row.valor),
+        })),
+      };
+    } catch (erro) {
+      if (erro instanceof InternalServerErrorException) throw erro;
+      throw new InternalServerErrorException(
+        'Não foi possível carregar o relatório completo.',
+      );
+    }
+  }
+
+  async gerarRelatorio(tipo: TipoRelatorioDto = 'resumido') {
     if (!this.impressora.estaConfigurada()) {
       throw new BadRequestException(
         'Impressora não configurada. Configure o IP em Configurações > Impressora.',
@@ -163,14 +242,25 @@ export class DashService {
     }
 
     try {
-      const { dados } = await this.obterResumo();
-      const texto = formatarRelatorioDia({
-        faturamentoHoje: dados.faturamentoHoje,
-        comprasHoje: dados.comprasHoje,
-        topProdutos: dados.topProdutos,
-        topAdicionais: dados.topAdicionais,
-        geradoEm: new Date(),
-      });
+      const geradoEm = new Date();
+      let texto: string;
+
+      if (tipo === 'completo') {
+        const detalhado = await this.obterDetalhado();
+        texto = formatarRelatorioCompleto({
+          ...detalhado,
+          geradoEm,
+        });
+      } else {
+        const { dados } = await this.obterResumo();
+        texto = formatarRelatorioDia({
+          faturamentoHoje: dados.faturamentoHoje,
+          comprasHoje: dados.comprasHoje,
+          topProdutos: dados.topProdutos,
+          topAdicionais: dados.topAdicionais,
+          geradoEm,
+        });
+      }
 
       await this.filaImpressao.add('imprimir-relatorio', { texto });
 

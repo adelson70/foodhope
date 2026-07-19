@@ -1,13 +1,11 @@
+import { useNavigate } from 'react-router-dom';
 import { Printer } from 'lucide-react';
 
 import { Button } from '../../../components/ui';
 
-type DashHeaderProps = {
-  gerando: boolean;
-  onGerarRelatorio: () => void;
-};
+export function DashHeader() {
+  const navigate = useNavigate();
 
-export function DashHeader({ gerando, onGerarRelatorio }: DashHeaderProps) {
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
@@ -22,11 +20,10 @@ export function DashHeader({ gerando, onGerarRelatorio }: DashHeaderProps) {
         type="button"
         variant="secondary"
         className="shrink-0 px-4 py-2"
-        disabled={gerando}
-        onClick={onGerarRelatorio}
+        onClick={() => navigate('/painel/relatorio')}
       >
         <Printer size={14} strokeWidth={1.75} aria-hidden />
-        {gerando ? 'Gerando…' : 'Gerar relatório'}
+        Relatórios
       </Button>
     </div>
   );

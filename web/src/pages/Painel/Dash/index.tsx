@@ -13,7 +13,6 @@ export function Dash() {
   const [dados, setDados] = useState<DashDados | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
-  const [gerando, setGerando] = useState(false);
   const showSkeleton = useDeferredLoading(loading);
 
   useEffect(() => {
@@ -48,17 +47,6 @@ export function Dash() {
     };
   }, []);
 
-  async function onGerarRelatorio() {
-    setGerando(true);
-    try {
-      await dashService.gerarRelatorio();
-    } catch {
-      return;
-    } finally {
-      setGerando(false);
-    }
-  }
-
   if (showSkeleton) {
     return <DashSkeleton />;
   }
@@ -79,7 +67,7 @@ export function Dash() {
 
   return (
     <div className="flex flex-col gap-4">
-      <DashHeader gerando={gerando} onGerarRelatorio={() => void onGerarRelatorio()} />
+      <DashHeader />
 
       <DashKpis
         faturamentoHoje={dados.faturamentoHoje}

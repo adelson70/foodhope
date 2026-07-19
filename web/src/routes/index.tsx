@@ -17,6 +17,7 @@ import { Privacidade } from '../pages/Privacidade';
 import { Termos } from '../pages/Termos';
 import { Login } from '../pages/Login';
 import { Dash } from '../pages/Painel/Dash';
+import { Relatorio } from '../pages/Painel/Relatorio';
 
 export const router = createBrowserRouter([
   {
@@ -39,6 +40,10 @@ export const router = createBrowserRouter([
     path: '/painel',
     element: <ProtectedRoute />,
     children: [
+      {
+        path: 'relatorio',
+        element: <Relatorio />,
+      },
       {
         element: <PainelLayout />,
         children: [

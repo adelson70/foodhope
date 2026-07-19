@@ -98,3 +98,59 @@ export function formatarRelatorioDia(input: RelatorioDiaInput): string {
 
   return impressao;
 }
+
+type ItemValorRelatorio = {
+  nome: string;
+  valor: number;
+};
+
+type RelatorioCompletoInput = {
+  faturamentoHoje: number;
+  comprasHoje: number;
+  produtos: ItemValorRelatorio[];
+  adicionais: ItemValorRelatorio[];
+  geradoEm: Date;
+};
+
+function formatarListaValor(itens: ItemValorRelatorio[]): string {
+  if (itens.length === 0) {
+    return 'Nenhum no periodo\n';
+  }
+
+  let texto = '';
+  itens.forEach((item) => {
+    const esq = `${item.nome} `;
+    const dir = ` ${formatarMoeda(item.valor)}`;
+    texto += alinharLinha(esq, dir, '.') + '\n';
+  });
+  return texto;
+}
+
+export function formatarRelatorioCompleto(
+  input: RelatorioCompletoInput,
+): string {
+  let impressao = '';
+
+  impressao += `${linhaSeparadora('=')}\n`;
+  impressao += 'FOOD HOPE - RELATORIO COMPLETO\n';
+  impressao += `${formatarHorarioSp(input.geradoEm)}\n`;
+  impressao += `${linhaSeparadora('=')}\n`;
+  impressao += 'PRODUTOS\n';
+  impressao += formatarListaValor(input.produtos);
+  impressao += `${linhaSeparadora('-')}\n`;
+  impressao += 'ADICIONAIS\n';
+  impressao += formatarListaValor(input.adicionais);
+  impressao += `${linhaSeparadora('-')}\n`;
+  impressao +=
+    alinharLinha(
+      'TOTAL DE VENDAS ',
+      ` ${formatarMoeda(input.faturamentoHoje)}`,
+      '.',
+    ) + '\n';
+  impressao +=
+    alinharLinha('PEDIDOS HOJE ', ` ${input.comprasHoje}`, '.') + '\n';
+  impressao += `${linhaSeparadora('=')}\n`;
+  impressao += '\n\n\n';
+
+  return impressao;
+}
