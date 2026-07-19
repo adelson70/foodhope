@@ -45,7 +45,12 @@ export class PedidoService {
         }
       }
 
+      const where = dto.data
+        ? { createdAt: this.intervaloDiaSp(dto.data) }
+        : undefined;
+
       const pedidos = await this.prismaRead.pedido.findMany({
+        where,
         take: limit + 1,
         cursor: decodedCursor ? { id: decodedCursor.id } : undefined,
         skip: decodedCursor ? 1 : 0,
@@ -354,6 +359,17 @@ export class PedidoService {
         'Não foi possível processar o pedido. Tente novamente.',
       );
     }
+  }
+
+  private intervaloDiaSp(data: string): { gte: Date; lt: Date } {
+    const inicio = new Date(`${data}T00:00:00-03:00`);
+
+    if (Number.isNaN(inicio.getTime())) {
+      throw new BadRequestException('A data fornecida é inválida.');
+    }
+
+    const fim = new Date(inicio.getTime() + 24 * 60 * 60 * 1000);
+    return { gte: inicio, lt: fim };
   }
 
   private rotuloConsumo(tipo?: string) {

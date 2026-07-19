@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 
-import { useHideOnScrollDown } from '../../hooks/useHideOnScrollDown';
 import { useScrollFocusedIntoView } from '../../hooks/useScrollFocusedIntoView';
 import { cn } from '../../lib/cn';
 import { markScrollRoot } from '../../lib/scrollLock';
@@ -27,7 +26,6 @@ export function MobileAppLayout() {
   const [visitorErro, setVisitorErro] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
   const mainRef = useRef<HTMLElement>(null);
-  const navHidden = useHideOnScrollDown(mainRef);
   useScrollFocusedIntoView(mainRef);
   const semBottomNav = isLegalDoc(pathname);
 
@@ -111,9 +109,7 @@ export function MobileAppLayout() {
             <Loading label="Iniciando sessão" />
           )}
         </main>
-        {visitorReady && !semBottomNav ? (
-          <ClienteBottomNav hidden={navHidden} />
-        ) : null}
+        {visitorReady && !semBottomNav ? <ClienteBottomNav /> : null}
       </div>
     </div>
   );

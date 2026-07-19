@@ -3,21 +3,10 @@ import { Link } from 'react-router-dom';
 import { ChevronLeft, FileText, ListOrdered } from 'lucide-react';
 
 import { Input, Label } from '../../../components/ui';
+import { hojeSpIso, isoParaBr } from '../../../lib/dataSp';
 import { dashService } from '../../../services';
 import type { TipoRelatorio } from '../../../services/types';
 import { RelatorioCard } from './RelatorioCard';
-
-function hojeSpIso(): string {
-  return new Date().toLocaleDateString('en-CA', {
-    timeZone: 'America/Sao_Paulo',
-  });
-}
-
-function isoParaBr(iso: string): string {
-  const [ano, mes, dia] = iso.split('-');
-  if (!ano || !mes || !dia) return '';
-  return `${dia}/${mes}/${ano}`;
-}
 
 export function Relatorio() {
   const [data, setData] = useState(hojeSpIso);

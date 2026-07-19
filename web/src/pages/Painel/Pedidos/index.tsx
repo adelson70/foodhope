@@ -4,6 +4,7 @@ import { ConfirmDialog } from '../../../components/ui';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { useDeferredLoading } from '../../../hooks/useDeferredLoading';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
+import { hojeSpIso } from '../../../lib/dataSp';
 import {
   getApiErrorMensagens,
   pedidoService,
@@ -12,6 +13,7 @@ import {
 import type { Pedido } from '../../../services/types';
 import { PedidoCriarDrawer } from './PedidoCriarDrawer';
 import { PedidoDetalheDrawer } from './PedidoDetalheDrawer';
+import { PedidosDataFiltro } from './PedidosDataFiltro';
 import { PedidosHeader } from './PedidosHeader';
 import { PedidosLista } from './PedidosLista';
 import { PedidosSearch } from './PedidosSearch';
@@ -21,6 +23,7 @@ const LISTAR_LIMIT = 20;
 export function Pedidos() {
   const [buscaInput, setBuscaInput] = useState('');
   const busca = useDebouncedValue(buscaInput.trim());
+  const [data, setData] = useState(hojeSpIso);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -34,9 +37,11 @@ export function Pedidos() {
   const showMoreSkeleton = useDeferredLoading(loadingMore);
   const buscaRef = useRef(busca);
   buscaRef.current = busca;
+  const dataRef = useRef(data);
+  dataRef.current = data;
   const nextCursorRef = useRef<string | null>(null);
 
-  const carregar = useCallback(async (termo: string) => {
+  const carregar = useCallback(async (termo: string, dia: string) => {
     setLoading(true);
     setErro(null);
     setHasNextPage(false);
@@ -54,7 +59,10 @@ export function Pedidos() {
         return;
       }
 
-      const response = await pedidoService.listar({ limit: LISTAR_LIMIT });
+      const response = await pedidoService.listar({
+        limit: LISTAR_LIMIT,
+        data: dia || undefined,
+      });
       if (!response.sucesso || !response.dados) {
         setErro('Não foi possível carregar os pedidos.');
         setPedidos([]);
@@ -84,6 +92,7 @@ export function Pedidos() {
       const response = await pedidoService.listar({
         limit: LISTAR_LIMIT,
         cursor,
+        data: dataRef.current || undefined,
       });
       if (!response.sucesso || !response.dados) return;
 
@@ -102,12 +111,13 @@ export function Pedidos() {
   }, []);
 
   useEffect(() => {
-    void carregar(busca);
-  }, [busca, carregar]);
+    void carregar(busca, data);
+  }, [busca, data, carregar]);
 
   useEffect(() => {
     function onNovoPedido(pedido: Pedido) {
       if (buscaRef.current) return;
+      if (dataRef.current && dataRef.current !== hojeSpIso()) return;
 
       setPedidos((atual) => {
         if (atual.some((p) => p.id === pedido.id)) return atual;
@@ -128,9 +138,10 @@ export function Pedidos() {
 
   function handleCreated(pedido: Pedido) {
     if (buscaRef.current) {
-      void carregar(buscaRef.current);
+      void carregar(buscaRef.current, dataRef.current);
       return;
     }
+    if (dataRef.current && dataRef.current !== hojeSpIso()) return;
     setPedidos((atual) => {
       if (atual.some((p) => p.id === pedido.id)) return atual;
       return [pedido, ...atual];
@@ -157,6 +168,11 @@ export function Pedidos() {
     <div className="flex flex-col gap-4">
       <PedidosHeader onNovo={() => setDrawerOpen(true)} />
       <PedidosSearch value={buscaInput} onChange={setBuscaInput} />
+      <PedidosDataFiltro
+        value={data}
+        onChange={setData}
+        disabled={Boolean(buscaInput.trim())}
+      />
       <PedidosLista
         pedidos={pedidos}
         loading={showSkeleton}
@@ -165,6 +181,7 @@ export function Pedidos() {
         hasNextPage={hasNextPage && !busca}
         erro={erro}
         buscaAtiva={Boolean(busca)}
+        filtroData={Boolean(data) && !busca}
         sentinelRef={sentinelRef}
         onSelect={setPedidoDetalhe}
         onDelete={setPedidoExcluir}

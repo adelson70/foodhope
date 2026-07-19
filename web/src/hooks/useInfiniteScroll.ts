@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 type UseInfiniteScrollOptions = {
   enabled: boolean;
@@ -20,14 +20,16 @@ export function useInfiniteScroll({
   onLoadMore,
   rootMargin = '240px',
 }: UseInfiniteScrollOptions) {
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const [sentinel, setSentinel] = useState<HTMLDivElement | null>(null);
+  const sentinelRef = useCallback((node: HTMLDivElement | null) => {
+    setSentinel(node);
+  }, []);
   const onLoadMoreRef = useRef(onLoadMore);
   onLoadMoreRef.current = onLoadMore;
   const busyRef = useRef(false);
 
   useEffect(() => {
-    const node = sentinelRef.current;
-    if (!enabled || !node) return;
+    if (!enabled || !sentinel) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -39,12 +41,12 @@ export function useInfiniteScroll({
           busyRef.current = false;
         });
       },
-      { root: findScrollRoot(node), rootMargin },
+      { root: findScrollRoot(sentinel), rootMargin },
     );
 
-    observer.observe(node);
+    observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [enabled, rootMargin]);
+  }, [enabled, sentinel, rootMargin]);
 
   return sentinelRef;
 }

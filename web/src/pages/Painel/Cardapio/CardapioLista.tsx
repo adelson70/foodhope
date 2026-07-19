@@ -1,4 +1,4 @@
-import type { RefObject } from 'react';
+import type { Ref } from 'react';
 
 import type { Produto } from '../../../services/types';
 import { ProdutoCard } from './ProdutoCard';
@@ -15,7 +15,7 @@ type CardapioListaProps = {
   erro: string | null;
   buscaAtiva: boolean;
   busyId?: string | null;
-  sentinelRef: RefObject<HTMLDivElement | null>;
+  sentinelRef: Ref<HTMLDivElement>;
   onMoveUp?: (produto: Produto) => void;
   onMoveDown?: (produto: Produto) => void;
   onEdit: (produto: Produto) => void;

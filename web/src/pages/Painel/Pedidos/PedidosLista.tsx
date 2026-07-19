@@ -1,4 +1,4 @@
-import type { RefObject } from 'react';
+import type { Ref } from 'react';
 
 import type { Pedido } from '../../../services/types';
 import { PedidoCard } from './PedidoCard';
@@ -12,7 +12,8 @@ type PedidosListaProps = {
   hasNextPage: boolean;
   erro: string | null;
   buscaAtiva: boolean;
-  sentinelRef: RefObject<HTMLDivElement | null>;
+  filtroData?: boolean;
+  sentinelRef: Ref<HTMLDivElement>;
   onSelect: (pedido: Pedido) => void;
   onDelete: (pedido: Pedido) => void;
 };
@@ -28,6 +29,7 @@ export function PedidosLista({
   hasNextPage,
   erro,
   buscaAtiva,
+  filtroData,
   sentinelRef,
   onSelect,
   onDelete,
@@ -68,7 +70,9 @@ export function PedidosLista({
         <p className="text-body-md text-on-surface-variant">
           {buscaAtiva
             ? 'Nenhum pedido encontrado para essa busca.'
-            : 'Nenhum pedido ainda.'}
+            : filtroData
+              ? 'Nenhum pedido nesse dia.'
+              : 'Nenhum pedido ainda.'}
         </p>
       </div>
     );

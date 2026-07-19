@@ -14,16 +14,8 @@ const items = [
   { to: '/painel/configuracoes', label: 'Config', icon: Settings },
 ] as const;
 
-type PainelBottomNavProps = {
-  hidden?: boolean;
-};
-
-export function PainelBottomNav({ hidden }: PainelBottomNavProps) {
+export function PainelBottomNav() {
   return (
-    <FloatingBottomNav
-      aria-label="Navegação do painel"
-      hidden={hidden}
-      items={items}
-    />
+    <FloatingBottomNav aria-label="Navegação do painel" items={items} />
   );
 }

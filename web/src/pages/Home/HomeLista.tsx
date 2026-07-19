@@ -1,4 +1,4 @@
-import type { RefObject } from 'react';
+import type { Ref } from 'react';
 
 import type { Produto } from '../../services/types';
 import {
@@ -14,7 +14,7 @@ type HomeListaProps = {
   hasNextPage: boolean;
   erro: string | null;
   buscaAtiva: boolean;
-  sentinelRef: RefObject<HTMLDivElement | null>;
+  sentinelRef: Ref<HTMLDivElement>;
   onSelect: (produto: Produto) => void;
 };
 

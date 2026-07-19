@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 
-import { useHideOnScrollDown } from '../../hooks/useHideOnScrollDown';
 import { useScrollFocusedIntoView } from '../../hooks/useScrollFocusedIntoView';
 import { cn } from '../../lib/cn';
 import { markScrollRoot } from '../../lib/scrollLock';
@@ -23,7 +22,6 @@ const MAIN_PB_PLAIN =
 export function PainelLayout() {
   const { pathname } = useLocation();
   const mainRef = useRef<HTMLElement>(null);
-  const navHidden = useHideOnScrollDown(mainRef);
   useScrollFocusedIntoView(mainRef);
   const semBottomNav = isConfigSubtela(pathname);
 
@@ -49,7 +47,7 @@ export function PainelLayout() {
           <Outlet />
         </main>
 
-        {semBottomNav ? null : <PainelBottomNav hidden={navHidden} />}
+        {semBottomNav ? null : <PainelBottomNav />}
       </div>
     </div>
   );

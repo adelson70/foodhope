@@ -11,6 +11,7 @@ import type {
 export type ListarPedidosParams = {
   cursor?: string;
   limit?: number;
+  data?: string;
 };
 
 export type CriarPedidoOptions = {
