@@ -50,10 +50,17 @@ model Lead {
   @@map("lead")
 }
 
+enum TipoConsumo {
+  LEVAR
+  COMER_AQUI
+}
+
 model Pedido {
   id            String @id @default(uuid())
   numero BigInt @default(autoincrement()) @unique  
   nome_completo String
+
+  tipo_consumo TipoConsumo @default(COMER_AQUI) @map("tipo_consumo")
 
   itens PedidoItem[]
 

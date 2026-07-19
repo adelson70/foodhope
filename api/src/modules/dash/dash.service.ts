@@ -52,7 +52,7 @@ export class DashService {
             (
               SELECT COUNT(*)::int
               FROM pedido p
-              WHERE (p."createdAt" AT TIME ZONE 'America/Sao_Paulo')::date
+              WHERE (p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
                 = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
             ) AS "comprasHoje",
             (
@@ -80,7 +80,7 @@ export class DashService {
               )
               FROM pedido_item pi
               INNER JOIN pedido p ON p.id = pi.pedido_id
-              WHERE (p."createdAt" AT TIME ZONE 'America/Sao_Paulo')::date
+              WHERE (p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
                 = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
             ) AS "faturamentoHoje",
             (
@@ -95,7 +95,7 @@ export class DashService {
           FROM pedido_item pi
           INNER JOIN pedido p ON p.id = pi.pedido_id
           INNER JOIN produto pr ON pr.id = pi.produto_id
-          WHERE (p."createdAt" AT TIME ZONE 'America/Sao_Paulo')::date
+          WHERE (p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
             = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
           GROUP BY pr.id, pr.nome
           ORDER BY quantidade DESC
@@ -116,7 +116,7 @@ export class DashService {
               ELSE '[]'::jsonb
             END
           ) AS elem
-          WHERE (p."createdAt" AT TIME ZONE 'America/Sao_Paulo')::date
+          WHERE (p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
             = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
             AND COALESCE(elem->>'id', '') <> ''
           GROUP BY elem->>'id', elem->>'nome'

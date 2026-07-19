@@ -188,10 +188,13 @@ export type PedidoItem = {
   produto?: Produto;
 };
 
+export type TipoConsumo = 'LEVAR' | 'COMER_AQUI';
+
 export type Pedido = {
   id: string;
   numero: string;
   nome_completo: string;
+  tipo_consumo?: TipoConsumo;
   createdAt?: string;
   updatedAt?: string;
   itens?: PedidoItem[];
@@ -219,6 +222,7 @@ export type ItemPedidoInput = {
 export type CriarPedidoInput = {
   itens: ItemPedidoInput[];
   cliente: ClientePedidoInput;
+  tipo_consumo?: TipoConsumo;
 };
 
 export type ListarPedidosDados = {

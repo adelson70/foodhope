@@ -24,8 +24,12 @@ const CONFIG_ID = 'default';
 const DISPOSITIVO_RE =
   /^(?:\/dev\/(?:usb\/)?lp\d+|\/dev\/tty(?:USB|ACM)\d+|\/dev\/serial\/by-id\/[A-Za-z0-9._+-]+|COM\d+)$/i;
 
+const LINHAS_ANTES_DO_CORTE = 15;
+
 const COMANDO_CORTE = Buffer.from([
-  0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x1b, 0x69,
+  ...Array<number>(LINHAS_ANTES_DO_CORTE).fill(0x0a),
+  0x1b,
+  0x69,
 ]);
 
 type DestinoImpressora =

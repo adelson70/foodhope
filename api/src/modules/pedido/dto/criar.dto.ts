@@ -10,7 +10,10 @@ import {
   IsNotEmpty,
   Matches,
   ValidateIf,
+  IsIn,
 } from 'class-validator';
+
+export type TipoConsumoDto = 'LEVAR' | 'COMER_AQUI';
 
 function emptyToUndefined({ value }: { value: unknown }) {
   if (typeof value !== 'string') return value;
@@ -103,4 +106,15 @@ export class CriarPedidoDto {
   @ValidateNested()
   @Type(() => ClientePedido)
   cliente: ClientePedido;
+
+  @ApiPropertyOptional({
+    enum: ['LEVAR', 'COMER_AQUI'],
+    default: 'COMER_AQUI',
+    description: 'Se o pedido é para levar ou para comer no local',
+  })
+  @IsOptional()
+  @IsIn(['LEVAR', 'COMER_AQUI'], {
+    message: 'O tipo de consumo deve ser LEVAR ou COMER_AQUI',
+  })
+  tipo_consumo?: TipoConsumoDto;
 }

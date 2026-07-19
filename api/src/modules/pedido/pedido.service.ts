@@ -292,6 +292,7 @@ export class PedidoService {
         const pedidoCriado = await tx.pedido.create({
           data: {
             nome_completo: nome_completo,
+            tipo_consumo: dto.tipo_consumo ?? 'COMER_AQUI',
             itens: {
               create: itensParaCriar,
             },
@@ -355,6 +356,10 @@ export class PedidoService {
     }
   }
 
+  private rotuloConsumo(tipo?: string) {
+    return tipo === 'LEVAR' ? 'LEVAR' : 'COMER AQUI';
+  }
+
   private formatarParaImpressora(pedido: any, cliente: ClientePedido) {
     let impressao = '';
 
@@ -364,6 +369,7 @@ export class PedidoService {
       .filter(Boolean)
       .join(' ');
     impressao += `CLIENTE: ${nomeCliente}\n`;
+    impressao += `CONSUMO: ${this.rotuloConsumo(pedido.tipo_consumo)}\n`;
     impressao += `${linhaSeparadora('=')}\n\n`;
 
     let valorTotalPedido = 0;
@@ -424,6 +430,7 @@ export class PedidoService {
       .filter(Boolean)
       .join(' ');
     impressao += `CLIENTE: ${nomeCliente}\n`;
+    impressao += `CONSUMO: ${this.rotuloConsumo(pedido.tipo_consumo)}\n`;
     impressao += `ITEM A PARTE\n`;
     impressao += `${linhaSeparadora('=')}\n\n`;
 
@@ -465,6 +472,69 @@ export class PedidoService {
     impressao += '\n\n\n';
 
     return impressao;
+  }
+
+  async reimprimirPedido(id: string) {
+    try {
+      const pedido = await this.prismaRead.pedido.findUnique({
+        where: { id },
+        include: {
+          itens: { include: { produto: true } },
+        },
+      });
+
+      if (!pedido) {
+        throw new NotFoundException('Pedido não encontrado.');
+      }
+
+      const pedidoFormatado = {
+        ...pedido,
+        numero: pedido.numero.toString(),
+      };
+
+      const cliente = {
+        primeiro_nome: pedido.nome_completo,
+      } as ClientePedido;
+
+      const itensNormais = pedidoFormatado.itens.filter(
+        (item) => !item.produto?.imprimirSeparado,
+      );
+      const itensSeparados = pedidoFormatado.itens.filter((item) =>
+        Boolean(item.produto?.imprimirSeparado),
+      );
+
+      if (itensNormais.length > 0) {
+        const textoPrincipal = this.formatarParaImpressora(
+          { ...pedidoFormatado, itens: itensNormais },
+          cliente,
+        );
+        await this.filaImpressao.add('imprimir-pedido', {
+          texto: textoPrincipal,
+        });
+      }
+
+      for (const item of itensSeparados) {
+        const textoSeparado = this.formatarItemSeparado(
+          pedidoFormatado,
+          item,
+          cliente,
+        );
+        await this.filaImpressao.add('imprimir-pedido', {
+          texto: textoSeparado,
+        });
+      }
+
+      return { mensagem: 'Pedido enviado para impressão', dados: {} };
+    } catch (erro) {
+      if (erro instanceof NotFoundException) {
+        throw erro;
+      }
+
+      console.error('Erro ao reimprimir pedido:', erro);
+      throw new InternalServerErrorException(
+        'Não foi possível reimprimir o pedido. Tente novamente.',
+      );
+    }
   }
 
   async deletarPedido(id: string) {

@@ -1,15 +1,20 @@
-import { Drawer } from '../../components/ui';
-import { formatarMoeda } from '../../lib/currency';
-import { rotuloTipoConsumo } from '../../lib/tipoConsumo';
-import type { PedidoLocal, PedidoLocalItem } from '../../lib/clienteStorage';
+import { useState } from 'react';
+import { Printer } from 'lucide-react';
 
-type PedidoLocalDetalheDrawerProps = {
-  pedido: PedidoLocal | null;
+import { Button, Drawer } from '../../../components/ui';
+import { rotuloTipoConsumo } from '../../../lib/tipoConsumo';
+import { pedidoService } from '../../../services';
+import type { Pedido } from '../../../services/types';
+import { formatarMoeda, totalItem, totalPedido } from './pedidoTotais';
+
+type PedidoDetalheDrawerProps = {
+  pedido: Pedido | null;
   open: boolean;
   onClose: () => void;
 };
 
-function formatarData(iso: string): string {
+function formatarDataCompleta(iso?: string): string {
+  if (!iso) return '—';
   return new Date(iso).toLocaleString('pt-BR', {
     day: '2-digit',
     month: '2-digit',
@@ -19,45 +24,61 @@ function formatarData(iso: string): string {
   });
 }
 
-function totalItem(item: PedidoLocalItem): number {
-  const preco = Number(item.preco) || 0;
-  const base = preco * item.qtd;
-  const extras = (item.adicionais ?? []).reduce(
-    (soma, adic) => soma + (Number(adic.preco) || 0) * adic.qtd,
-    0,
-  );
-  return base + extras;
-}
-
-function totalPedido(pedido: PedidoLocal): number {
-  return pedido.itens.reduce((soma, item) => soma + totalItem(item), 0);
-}
-
-export function PedidoLocalDetalheDrawer({
+export function PedidoDetalheDrawer({
   pedido,
   open,
   onClose,
-}: PedidoLocalDetalheDrawerProps) {
+}: PedidoDetalheDrawerProps) {
+  const [imprimindo, setImprimindo] = useState(false);
   const total = pedido ? totalPedido(pedido) : 0;
+  const itens = pedido?.itens ?? [];
+
+  async function handleReimprimir() {
+    if (!pedido) return;
+    setImprimindo(true);
+    try {
+      await pedidoService.reimprimir(pedido.id);
+    } catch {
+      return;
+    } finally {
+      setImprimindo(false);
+    }
+  }
 
   return (
     <Drawer
       open={open && Boolean(pedido)}
       title={pedido ? `Pedido #${pedido.numero}` : 'Pedido'}
       onClose={onClose}
+      footer={
+        pedido ? (
+          <Button
+            type="button"
+            variant="primary"
+            fullWidth
+            disabled={imprimindo}
+            onClick={() => {
+              void handleReimprimir();
+            }}
+          >
+            <Printer size={17} strokeWidth={1.75} />
+            {imprimindo ? 'Enviando…' : 'Imprimir novamente'}
+          </Button>
+        ) : null
+      }
     >
       {pedido ? (
         <div className="flex flex-col gap-4">
-          <div className="rounded-xl border border-operator-border bg-operator-card p-3">
+          <div className="rounded-xl border border-operator-border bg-operator-card p-4">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-caption text-on-surface-variant">
-                {formatarData(pedido.createdAt)}
-              </p>
+              <span className="text-caption text-on-surface-variant">
+                {formatarDataCompleta(pedido.createdAt)}
+              </span>
               <span className="rounded-full bg-primary-container/40 px-3 py-1 text-label-sm font-medium text-on-surface">
                 {rotuloTipoConsumo(pedido.tipo_consumo)}
               </span>
             </div>
-            <p className="mt-1 text-subtitle-md text-on-surface">
+            <p className="mt-2 text-subtitle-md font-medium text-on-surface">
               {pedido.nome_completo}
             </p>
           </div>
@@ -65,30 +86,28 @@ export function PedidoLocalDetalheDrawer({
           <div className="flex flex-col gap-2">
             <p className="text-subtitle-md text-on-surface">Itens</p>
             <ul className="flex flex-col gap-2">
-              {pedido.itens.map((item, index) => (
+              {itens.map((item) => (
                 <li
-                  key={`${pedido.id}-item-${index}`}
+                  key={item.id}
                   className="rounded-xl border border-operator-border bg-operator-card p-3"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-body-md text-on-surface">
-                      {item.qtd}× {item.nome}
+                      {item.quantidade}× {item.produto?.nome ?? 'Item'}
                     </p>
-                    {item.preco != null && Number(item.preco) > 0 ? (
-                      <p className="shrink-0 text-caption text-primary">
-                        {formatarMoeda(totalItem(item))}
-                      </p>
-                    ) : null}
+                    <p className="shrink-0 text-caption text-primary">
+                      {formatarMoeda(totalItem(item))}
+                    </p>
                   </div>
-                  {(item.adicionais ?? []).length > 0 ? (
+                  {(item.adicional_venda ?? []).length > 0 ? (
                     <ul className="mt-2 flex flex-col gap-0.5">
-                      {item.adicionais.map((adic, adicIndex) => (
+                      {(item.adicional_venda ?? []).map((adic, adicIndex) => (
                         <li
-                          key={`${pedido.id}-adic-${index}-${adicIndex}`}
+                          key={`${item.id}-adic-${adicIndex}`}
                           className="text-caption text-on-surface-variant"
                         >
                           + {adic.qtd}× {adic.nome}
-                          {adic.preco != null && Number(adic.preco) > 0
+                          {Number(adic.preco) > 0
                             ? ` (${formatarMoeda(Number(adic.preco) * adic.qtd)})`
                             : ''}
                         </li>

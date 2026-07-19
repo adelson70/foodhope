@@ -31,6 +31,7 @@ export type PedidoLocal = {
   id: string;
   numero: string;
   nome_completo: string;
+  tipo_consumo?: 'LEVAR' | 'COMER_AQUI';
   createdAt: string;
   itens: PedidoLocalItem[];
 };

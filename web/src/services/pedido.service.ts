@@ -50,6 +50,23 @@ export const pedidoService = {
     );
   },
 
+  async reimprimir(
+    id: string,
+  ): Promise<ApiResponse<Record<string, never>>> {
+    return withMutationToast(
+      () =>
+        request(
+          api.post<ApiResponse<Record<string, never>>>(
+            `/pedido/${id}/reimprimir`,
+          ),
+        ),
+      {
+        success: 'Pedido enviado para impressão',
+        error: 'Não foi possível reimprimir o pedido',
+      },
+    );
+  },
+
   async deletar(id: string): Promise<ApiResponse<Record<string, never>>> {
     return withMutationToast(
       () =>

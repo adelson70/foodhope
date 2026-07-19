@@ -44,6 +44,13 @@ export class PedidoController {
         return this.pedido.criarPedido(dto);
     }
 
+    @Post(':id/reimprimir')
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Reimpressão de Pedido' })
+    async reimprimir(@Param('id') id: string) {
+        return this.pedido.reimprimirPedido(id);
+    }
+
     @Delete(':id')
     @ApiBearerAuth()
     @ApiOperation({ summary: 'Deleção de Pedido' })

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useNavigate } from 'react-router-dom';
@@ -8,7 +8,10 @@ import {
   Input,
   Label,
   PhoneInput,
+  TipoConsumoToggle,
 } from '../../components/ui';
+import { TIPO_CONSUMO_PADRAO } from '../../lib/tipoConsumo';
+import type { TipoConsumo } from '../../services/types';
 import {
   appendPedidoLocal,
   loadClienteLocal,
@@ -33,6 +36,9 @@ export function Carrinho() {
   const itens = useCarrinhoStore((state) => state.itens);
   const clear = useCarrinhoStore((state) => state.clear);
   const total = totalCarrinho(itens);
+  const [tipoConsumo, setTipoConsumo] = useState<TipoConsumo>(
+    TIPO_CONSUMO_PADRAO,
+  );
 
   const {
     register,
@@ -83,6 +89,7 @@ export function Carrinho() {
 
     const response = await pedidoService.criar(
       {
+        tipo_consumo: tipoConsumo,
         cliente,
         itens: itens.map((item) => ({
           id: item.produtoId,
@@ -108,6 +115,7 @@ export function Carrinho() {
       id: pedido.id,
       numero: String(pedido.numero),
       nome_completo: pedido.nome_completo,
+      tipo_consumo: tipoConsumo,
       createdAt: pedido.createdAt ?? new Date().toISOString(),
       itens: itens.map((item) => ({
         nome: item.nome,
@@ -147,6 +155,14 @@ export function Carrinho() {
             <span className="text-title-md text-primary">
               {formatarMoeda(total)}
             </span>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <h3 className="text-subtitle-md text-on-surface">Consumo</h3>
+            <TipoConsumoToggle
+              value={tipoConsumo}
+              onChange={setTipoConsumo}
+            />
           </div>
 
           <form

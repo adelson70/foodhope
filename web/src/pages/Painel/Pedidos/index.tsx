@@ -11,6 +11,7 @@ import {
 } from '../../../services';
 import type { Pedido } from '../../../services/types';
 import { PedidoCriarDrawer } from './PedidoCriarDrawer';
+import { PedidoDetalheDrawer } from './PedidoDetalheDrawer';
 import { PedidosHeader } from './PedidosHeader';
 import { PedidosLista } from './PedidosLista';
 import { PedidosSearch } from './PedidosSearch';
@@ -26,6 +27,7 @@ export function Pedidos() {
   const [hasNextPage, setHasNextPage] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [pedidoDetalhe, setPedidoDetalhe] = useState<Pedido | null>(null);
   const [pedidoExcluir, setPedidoExcluir] = useState<Pedido | null>(null);
   const [deleting, setDeleting] = useState(false);
   const showSkeleton = useDeferredLoading(loading && pedidos.length === 0);
@@ -164,6 +166,7 @@ export function Pedidos() {
         erro={erro}
         buscaAtiva={Boolean(busca)}
         sentinelRef={sentinelRef}
+        onSelect={setPedidoDetalhe}
         onDelete={setPedidoExcluir}
       />
 
@@ -171,6 +174,12 @@ export function Pedidos() {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         onCreated={handleCreated}
+      />
+
+      <PedidoDetalheDrawer
+        pedido={pedidoDetalhe}
+        open={Boolean(pedidoDetalhe)}
+        onClose={() => setPedidoDetalhe(null)}
       />
 
       <ConfirmDialog

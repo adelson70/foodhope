@@ -11,7 +11,9 @@ import {
   Loading,
   PhoneInput,
   Select,
+  TipoConsumoToggle,
 } from '../../../components/ui';
+import { TIPO_CONSUMO_PADRAO } from '../../../lib/tipoConsumo';
 import {
   criarPedidoSchema,
   type CriarPedidoFormValues,
@@ -21,7 +23,7 @@ import {
   pedidoService,
   produtoService,
 } from '../../../services';
-import type { Pedido, Produto } from '../../../services/types';
+import type { Pedido, Produto, TipoConsumo } from '../../../services/types';
 import { onlyDigits } from '../../../lib/phone';
 import { formatarMoeda } from './pedidoTotais';
 
@@ -49,6 +51,9 @@ export function PedidoCriarDrawer({
   const [adicionaisDraft, setAdicionaisDraft] = useState<AdicionalDraft[]>([]);
   const [observacaoDraft, setObservacaoDraft] = useState('');
   const [itemErro, setItemErro] = useState<string | null>(null);
+  const [tipoConsumo, setTipoConsumo] = useState<TipoConsumo>(
+    TIPO_CONSUMO_PADRAO,
+  );
 
   const {
     register,
@@ -125,6 +130,7 @@ export function PedidoCriarDrawer({
       setAdicionaisDraft([]);
       setObservacaoDraft('');
       setItemErro(null);
+      setTipoConsumo(TIPO_CONSUMO_PADRAO);
     }
   }, [open, reset]);
 
@@ -210,6 +216,7 @@ export function PedidoCriarDrawer({
       const cidade = values.cliente.cidade?.trim() || undefined;
 
       const response = await pedidoService.criar({
+        tipo_consumo: tipoConsumo,
         cliente: {
           primeiro_nome: values.cliente.primeiro_nome,
           ...(sobrenome ? { sobrenome } : {}),
@@ -269,6 +276,13 @@ export function PedidoCriarDrawer({
         onSubmit={handleSubmit(onSubmit)}
         noValidate
       >
+        <section className="flex flex-col gap-3">
+          <h3 className="text-subtitle-md font-medium text-on-surface">
+            Consumo
+          </h3>
+          <TipoConsumoToggle value={tipoConsumo} onChange={setTipoConsumo} />
+        </section>
+
         <section className="flex flex-col gap-3">
           <h3 className="text-subtitle-md font-medium text-on-surface">
             Cliente

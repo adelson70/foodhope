@@ -6,6 +6,15 @@ type UseInfiniteScrollOptions = {
   rootMargin?: string;
 };
 
+function findScrollRoot(node: Element | null): Element | null {
+  let current = node?.parentElement ?? null;
+  while (current) {
+    if (current.hasAttribute('data-scroll-root')) return current;
+    current = current.parentElement;
+  }
+  return null;
+}
+
 export function useInfiniteScroll({
   enabled,
   onLoadMore,
@@ -30,7 +39,7 @@ export function useInfiniteScroll({
           busyRef.current = false;
         });
       },
-      { rootMargin },
+      { root: findScrollRoot(node), rootMargin },
     );
 
     observer.observe(node);
