@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChefHat, ChevronRight, Printer, UserRound } from 'lucide-react';
+import { ChefHat, ChevronRight, Printer, Users, UserRound } from 'lucide-react';
 
 import { ConfigImpressoraDrawer } from './ConfigImpressoraDrawer';
 import { ConfigLogout } from './ConfigLogout';
@@ -46,6 +46,31 @@ export function Config() {
               aria-hidden
             />
           </button>
+        </li>
+
+        <li>
+          <Link
+            to="/painel/configuracoes/usuarios"
+            className="flex items-center gap-3 rounded-xl border border-operator-border bg-operator-card p-4 shadow-card transition-colors hover:border-primary/40"
+          >
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-container/30 text-primary">
+              <Users size={19} strokeWidth={1.75} aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-body-md font-medium text-on-surface">
+                Usuários
+              </span>
+              <span className="block text-caption text-on-surface-variant">
+                Administradores, operadores e totens
+              </span>
+            </span>
+            <ChevronRight
+              size={17}
+              strokeWidth={1.75}
+              className="shrink-0 text-on-surface-variant"
+              aria-hidden
+            />
+          </Link>
         </li>
 
         <li>

@@ -12,9 +12,30 @@ export type ApiErrorBody = {
   statusCode: number;
 };
 
+export type RoleOperador = 'ADMIN' | 'OPERADOR' | 'TOTEM';
+
 export type Operador = {
   id: string;
   nome: string;
+  role: RoleOperador;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type CriarOperadorInput = {
+  nome: string;
+  senha: string;
+  role: RoleOperador;
+};
+
+export type EditarOperadorAdminInput = {
+  nome?: string;
+  senha?: string;
+  role?: RoleOperador;
+};
+
+export type ListarOperadoresDados = {
+  operadores: Operador[];
 };
 
 export type Adicional = {

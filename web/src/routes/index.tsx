@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { MobileAppLayout } from '../components/layout/MobileLayout';
 import { PainelLayout } from '../components/layout/PainelLayout';
 import { ProtectedRoute } from './ProtectedRoute';
+import { RequireRole } from './RequireRole';
 
 import { Home } from '../pages/Home';
 import { Cardapio } from '../pages/Painel/Cardapio';
@@ -18,6 +19,7 @@ import { Termos } from '../pages/Termos';
 import { Login } from '../pages/Login';
 import { Dash } from '../pages/Painel/Dash';
 import { Relatorio } from '../pages/Painel/Relatorio';
+import { ConfigUsuarios } from '../pages/Painel/Config/ConfigUsuarios';
 
 export const router = createBrowserRouter([
   {
@@ -38,28 +40,36 @@ export const router = createBrowserRouter([
   },
   {
     path: '/painel',
-    element: <ProtectedRoute />,
+    element: <ProtectedRoute allow={['ADMIN', 'OPERADOR']} />,
     children: [
       {
-        path: 'relatorio',
-        element: <Relatorio />,
+        element: <RequireRole allow={['ADMIN']} />,
+        children: [
+          { path: 'relatorio', element: <Relatorio /> },
+          { path: 'configuracoes/usuarios', element: <ConfigUsuarios /> },
+        ],
       },
       {
         element: <PainelLayout />,
         children: [
-          { index: true, element: <Navigate to="dash" replace /> },
-          { path: 'dash', element: <Dash /> },
+          { index: true, element: <Navigate to="cardapio" replace /> },
           { path: 'cardapio', element: <Cardapio /> },
           { path: 'pedido', element: <Pedidos /> },
-          { path: 'configuracoes', element: <Config /> },
-          { path: 'configuracoes/cozinha', element: <ConfigCozinha /> },
           {
-            path: 'configuracoes/cozinha/adicionais',
-            element: <ConfigCozinhaAdicionais />,
-          },
-          {
-            path: 'configuracoes/cozinha/categorias',
-            element: <ConfigCozinhaCategorias />,
+            element: <RequireRole allow={['ADMIN']} />,
+            children: [
+              { path: 'dash', element: <Dash /> },
+              { path: 'configuracoes', element: <Config /> },
+              { path: 'configuracoes/cozinha', element: <ConfigCozinha /> },
+              {
+                path: 'configuracoes/cozinha/adicionais',
+                element: <ConfigCozinhaAdicionais />,
+              },
+              {
+                path: 'configuracoes/cozinha/categorias',
+                element: <ConfigCozinhaCategorias />,
+              },
+            ],
           },
         ],
       },

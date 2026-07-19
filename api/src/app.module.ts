@@ -16,8 +16,10 @@ import { VisitorModule } from './modules/visitor/visitor.module.js';
 import { BullModule } from '@nestjs/bullmq';
 import { WebsocketModule } from './infra/websocket/websocket.module.js';
 import { AuthGuard } from './infra/auth/auth.guard.js';
+import { RolesGuard } from './infra/auth/roles.guard.js';
 import { RateLimitGuard } from './infra/auth/rate-limit.guard.js';
 import { InfraJwtModule } from './infra/auth/jwt.module.js';
+import { OperadorModule } from './modules/operador/operador.module.js';
 
 @Module({
   imports: [
@@ -54,6 +56,7 @@ import { InfraJwtModule } from './infra/auth/jwt.module.js';
     PedidoModule,
     DashModule,
     ImpressoraModule,
+    OperadorModule,
   ],
   controllers: [AppController],
   providers: [
@@ -61,6 +64,10 @@ import { InfraJwtModule } from './infra/auth/jwt.module.js';
     {
       provide: APP_GUARD,
       useClass: AuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
     },
     {
       provide: APP_GUARD,

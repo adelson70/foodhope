@@ -10,8 +10,9 @@ import {
   PhoneInput,
   TipoConsumoToggle,
 } from '../../components/ui';
+import { useClienteContext } from '../../components/layout/clienteContext';
 import { TIPO_CONSUMO_PADRAO } from '../../lib/tipoConsumo';
-import type { TipoConsumo } from '../../services/types';
+import type { ClientePedidoInput, TipoConsumo } from '../../services/types';
 import {
   appendPedidoLocal,
   loadClienteLocal,
@@ -21,7 +22,9 @@ import { formatarMoeda } from '../../lib/currency';
 import { onlyDigits } from '../../lib/phone';
 import {
   checkoutClienteSchema,
+  checkoutTotemSchema,
   type CheckoutClienteValues,
+  type CheckoutTotemValues,
 } from '../../schemas/checkout-cliente.schema';
 import { pedidoService } from '../../services';
 import { getVisitorId } from '../../services/visitor';
@@ -31,8 +34,18 @@ import {
 } from '../../stores/carrinho.store';
 import { CarrinhoLista } from './CarrinhoLista';
 
+function separarNome(nomeCompleto: string): {
+  primeiro_nome: string;
+  sobrenome: string;
+} {
+  const partes = nomeCompleto.trim().split(/\s+/);
+  const [primeiro, ...resto] = partes;
+  return { primeiro_nome: primeiro ?? '', sobrenome: resto.join(' ') };
+}
+
 export function Carrinho() {
   const navigate = useNavigate();
+  const { isTotem } = useClienteContext();
   const itens = useCarrinhoStore((state) => state.itens);
   const clear = useCarrinhoStore((state) => state.clear);
   const total = totalCarrinho(itens);
@@ -56,7 +69,14 @@ export function Carrinho() {
     },
   });
 
+  const totemForm = useForm<CheckoutTotemValues>({
+    resolver: zodResolver(checkoutTotemSchema),
+    defaultValues: { nome_completo: '' },
+  });
+
   useEffect(() => {
+    if (isTotem) return;
+
     let cancelled = false;
 
     void (async () => {
@@ -75,18 +95,9 @@ export function Carrinho() {
     return () => {
       cancelled = true;
     };
-  }, [reset]);
+  }, [reset, isTotem]);
 
-  async function onSubmit(values: CheckoutClienteValues) {
-    if (itens.length === 0) return;
-
-    const cliente = {
-      primeiro_nome: values.primeiro_nome,
-      sobrenome: values.sobrenome,
-      contato: onlyDigits(values.contato),
-      cidade: values.cidade,
-    };
-
+  async function finalizar(cliente: ClientePedidoInput) {
     const response = await pedidoService.criar(
       {
         tipo_consumo: tipoConsumo,
@@ -110,30 +121,58 @@ export function Carrinho() {
     if (!response.sucesso || !response.dados?.pedido) return;
 
     const pedido = response.dados.pedido;
-    await saveClienteLocal(cliente);
-    await appendPedidoLocal({
-      id: pedido.id,
-      numero: String(pedido.numero),
-      nome_completo: pedido.nome_completo,
-      tipo_consumo: tipoConsumo,
-      createdAt: pedido.createdAt ?? new Date().toISOString(),
-      itens: itens.map((item) => ({
-        nome: item.nome,
-        qtd: item.qtd,
-        preco: item.preco,
-        adicionais: item.adicionais.map((adic) => ({
-          nome: adic.nome,
-          preco: adic.preco,
-          qtd: adic.qtd,
+
+    if (!isTotem) {
+      await saveClienteLocal(cliente);
+      await appendPedidoLocal({
+        id: pedido.id,
+        numero: String(pedido.numero),
+        nome_completo: pedido.nome_completo,
+        tipo_consumo: tipoConsumo,
+        createdAt: pedido.createdAt ?? new Date().toISOString(),
+        itens: itens.map((item) => ({
+          nome: item.nome,
+          qtd: item.qtd,
+          preco: item.preco,
+          adicionais: item.adicionais.map((adic) => ({
+            nome: adic.nome,
+            preco: adic.preco,
+            qtd: adic.qtd,
+          })),
+          observacao: item.observacao,
         })),
-        observacao: item.observacao,
-      })),
-    });
+      });
+    }
 
     clear();
+    totemForm.reset({ nome_completo: '' });
     navigate('/confirmado', {
       replace: true,
       state: { numero: String(pedido.numero) },
+    });
+  }
+
+  async function onSubmit(values: CheckoutClienteValues) {
+    if (itens.length === 0) return;
+
+    await finalizar({
+      primeiro_nome: values.primeiro_nome,
+      sobrenome: values.sobrenome,
+      contato: onlyDigits(values.contato),
+      cidade: values.cidade,
+    });
+  }
+
+  async function onSubmitTotem(values: CheckoutTotemValues) {
+    if (itens.length === 0) return;
+
+    const { primeiro_nome, sobrenome } = separarNome(values.nome_completo);
+
+    await finalizar({
+      primeiro_nome,
+      sobrenome,
+      contato: '',
+      cidade: '',
     });
   }
 
@@ -165,101 +204,136 @@ export function Carrinho() {
             />
           </div>
 
-          <form
-            className="flex flex-col gap-4"
-            onSubmit={handleSubmit(onSubmit)}
-            noValidate
-          >
-            <h3 className="text-subtitle-md text-on-surface">Seus dados</h3>
-            <div className="space-y-2">
-              <Label htmlFor="carrinho-nome">Nome</Label>
-              <Input
-                id="carrinho-nome"
-                placeholder="Primeiro nome"
-                autoComplete="given-name"
-                error={Boolean(errors.primeiro_nome)}
-                {...register('primeiro_nome')}
-              />
-              {errors.primeiro_nome ? (
-                <p className="px-1 text-caption text-danger">
-                  {errors.primeiro_nome.message}
-                </p>
-              ) : null}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="carrinho-sobrenome">Sobrenome</Label>
-              <Input
-                id="carrinho-sobrenome"
-                placeholder="Sobrenome"
-                autoComplete="family-name"
-                error={Boolean(errors.sobrenome)}
-                {...register('sobrenome')}
-              />
-              {errors.sobrenome ? (
-                <p className="px-1 text-caption text-danger">
-                  {errors.sobrenome.message}
-                </p>
-              ) : null}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="carrinho-contato">Contato</Label>
-              <Controller
-                name="contato"
-                control={control}
-                render={({ field }) => (
-                  <PhoneInput
-                    id="carrinho-contato"
-                    value={field.value}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    error={Boolean(errors.contato)}
-                  />
-                )}
-              />
-              {errors.contato ? (
-                <p className="px-1 text-caption text-danger">
-                  {errors.contato.message}
-                </p>
-              ) : null}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="carrinho-cidade">Cidade</Label>
-              <Input
-                id="carrinho-cidade"
-                placeholder="Cidade"
-                autoComplete="address-level2"
-                error={Boolean(errors.cidade)}
-                {...register('cidade')}
-              />
-              {errors.cidade ? (
-                <p className="px-1 text-caption text-danger">
-                  {errors.cidade.message}
-                </p>
-              ) : null}
-            </div>
+          {isTotem ? (
+            <form
+              className="flex flex-col gap-4"
+              onSubmit={totemForm.handleSubmit(onSubmitTotem)}
+              noValidate
+            >
+              <h3 className="text-subtitle-md text-on-surface">Seus dados</h3>
+              <div className="space-y-2">
+                <Label htmlFor="totem-nome">Nome completo</Label>
+                <Input
+                  id="totem-nome"
+                  placeholder="Nome completo"
+                  autoComplete="name"
+                  error={Boolean(totemForm.formState.errors.nome_completo)}
+                  {...totemForm.register('nome_completo')}
+                />
+                {totemForm.formState.errors.nome_completo ? (
+                  <p className="px-1 text-caption text-danger">
+                    {totemForm.formState.errors.nome_completo.message}
+                  </p>
+                ) : null}
+              </div>
 
-            <p className="text-center text-caption text-on-surface-variant">
-              Ao finalizar o pedido, você concorda com os{' '}
-              <Link
-                to="/termos"
-                className="text-primary underline-offset-2 hover:underline"
+              <Button
+                type="submit"
+                fullWidth
+                disabled={totemForm.formState.isSubmitting}
               >
-                Termos de Uso
-              </Link>{' '}
-              e a{' '}
-              <Link
-                to="/privacidade"
-                className="text-primary underline-offset-2 hover:underline"
-              >
-                Política de Privacidade
-              </Link>
-              .
-            </p>
+                {totemForm.formState.isSubmitting
+                  ? 'Enviando…'
+                  : 'Fazer pedido'}
+              </Button>
+            </form>
+          ) : (
+            <form
+              className="flex flex-col gap-4"
+              onSubmit={handleSubmit(onSubmit)}
+              noValidate
+            >
+              <h3 className="text-subtitle-md text-on-surface">Seus dados</h3>
+              <div className="space-y-2">
+                <Label htmlFor="carrinho-nome">Nome</Label>
+                <Input
+                  id="carrinho-nome"
+                  placeholder="Primeiro nome"
+                  autoComplete="given-name"
+                  error={Boolean(errors.primeiro_nome)}
+                  {...register('primeiro_nome')}
+                />
+                {errors.primeiro_nome ? (
+                  <p className="px-1 text-caption text-danger">
+                    {errors.primeiro_nome.message}
+                  </p>
+                ) : null}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="carrinho-sobrenome">Sobrenome</Label>
+                <Input
+                  id="carrinho-sobrenome"
+                  placeholder="Sobrenome"
+                  autoComplete="family-name"
+                  error={Boolean(errors.sobrenome)}
+                  {...register('sobrenome')}
+                />
+                {errors.sobrenome ? (
+                  <p className="px-1 text-caption text-danger">
+                    {errors.sobrenome.message}
+                  </p>
+                ) : null}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="carrinho-contato">Contato</Label>
+                <Controller
+                  name="contato"
+                  control={control}
+                  render={({ field }) => (
+                    <PhoneInput
+                      id="carrinho-contato"
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      error={Boolean(errors.contato)}
+                    />
+                  )}
+                />
+                {errors.contato ? (
+                  <p className="px-1 text-caption text-danger">
+                    {errors.contato.message}
+                  </p>
+                ) : null}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="carrinho-cidade">Cidade</Label>
+                <Input
+                  id="carrinho-cidade"
+                  placeholder="Cidade"
+                  autoComplete="address-level2"
+                  error={Boolean(errors.cidade)}
+                  {...register('cidade')}
+                />
+                {errors.cidade ? (
+                  <p className="px-1 text-caption text-danger">
+                    {errors.cidade.message}
+                  </p>
+                ) : null}
+              </div>
 
-            <Button type="submit" fullWidth disabled={isSubmitting}>
-              {isSubmitting ? 'Enviando…' : 'Fazer pedido'}
-            </Button>
-          </form>
+              <p className="text-center text-caption text-on-surface-variant">
+                Ao finalizar o pedido, você concorda com os{' '}
+                <Link
+                  to="/termos"
+                  className="text-primary underline-offset-2 hover:underline"
+                >
+                  Termos de Uso
+                </Link>{' '}
+                e a{' '}
+                <Link
+                  to="/privacidade"
+                  className="text-primary underline-offset-2 hover:underline"
+                >
+                  Política de Privacidade
+                </Link>
+                .
+              </p>
+
+              <Button type="submit" fullWidth disabled={isSubmitting}>
+                {isSubmitting ? 'Enviando…' : 'Fazer pedido'}
+              </Button>
+            </form>
+          )}
         </>
       ) : null}
     </div>

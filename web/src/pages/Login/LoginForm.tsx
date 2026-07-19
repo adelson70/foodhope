@@ -6,6 +6,7 @@ import { ArrowRight, Eye, EyeOff, Lock, User } from 'lucide-react';
 
 import { Button, Input, Label } from '../../components/ui';
 import { authService } from '../../services';
+import { rotaInicialPorRole } from '../../lib/rotaPorRole';
 import {
   loginSchema,
   type LoginFormValues,
@@ -26,8 +27,9 @@ export function LoginForm() {
 
   async function onSubmit(values: LoginFormValues) {
     try {
-      await authService.login(values);
-      navigate('/painel', { replace: true });
+      const response = await authService.login(values);
+      const role = response.dados?.operador?.role;
+      navigate(role ? rotaInicialPorRole(role) : '/painel', { replace: true });
     } catch {
       return;
     }

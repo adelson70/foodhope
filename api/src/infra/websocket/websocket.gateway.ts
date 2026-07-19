@@ -12,9 +12,14 @@ import { Server, Socket } from 'socket.io';
 import { PrismaReadService } from '../database/prisma-read.service.js';
 import { RedisService } from '../cache/redis.service.js';
 import { validateVisitorSocketAuth } from '../auth/visitor-auth.js';
+import type { RoleOperador } from '../../../generated/prisma/enums.js';
 
 export const WS_ROOM_OPERADORES = 'operadores';
 export const WS_ROOM_CLIENTES = 'clientes';
+
+export function roomDoOperador(id: string) {
+  return `operador:${id}`;
+}
 
 export type CardapioProdutoPayload = {
   id: string;
@@ -29,7 +34,7 @@ export type CardapioAdicionalPayload = {
 };
 
 type SocketUser =
-  | { tipo: 'operador'; id: string }
+  | { tipo: 'operador'; id: string; role: RoleOperador }
   | { tipo: 'visitor'; id: string };
 
 @WebSocketGateway({ cors: { origin: '*' } })
@@ -55,10 +60,10 @@ export class WebsocketGateway
           socket.handshake.headers?.authorization?.split(' ')[1];
 
         if (token) {
-          const payload = await this.jwtService.verifyAsync<{ id: string }>(
-            token,
-            { secret: process.env.JWT_SECRET },
-          );
+          const payload = await this.jwtService.verifyAsync<{
+            id: string;
+            role: RoleOperador;
+          }>(token, { secret: process.env.JWT_SECRET });
 
           if (!payload?.id) {
             return next(new Error('Acesso negado: Token inválido'));
@@ -67,6 +72,7 @@ export class WebsocketGateway
           socket.data.user = {
             tipo: 'operador',
             id: payload.id,
+            role: payload.role ?? 'OPERADOR',
           } satisfies SocketUser;
           return next();
         }
@@ -108,6 +114,7 @@ export class WebsocketGateway
 
     if (user?.tipo === 'operador') {
       void client.join(WS_ROOM_OPERADORES);
+      void client.join(roomDoOperador(user.id));
     } else if (user?.tipo === 'visitor') {
       void client.join(WS_ROOM_CLIENTES);
     }
@@ -123,6 +130,10 @@ export class WebsocketGateway
 
   emitirParaOperadores(evento: string, payload: unknown) {
     this.server.to(WS_ROOM_OPERADORES).emit(evento, payload);
+  }
+
+  forcarLogout(operadorId: string) {
+    this.server.to(roomDoOperador(operadorId)).emit('sessao:logout');
   }
 
   emitirCardapio(evento: string, payload: unknown) {

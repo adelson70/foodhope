@@ -13,12 +13,19 @@ datasource db {
   provider = "postgresql"
 }
 
+enum RoleOperador {
+  ADMIN
+  OPERADOR
+  TOTEM
+}
+
 model Operador {
-  id        String   @id @default(uuid())
+  id        String       @id @default(uuid())
   nome      String
   senha     String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  role      RoleOperador @default(OPERADOR)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
   @@map("operador")
 }

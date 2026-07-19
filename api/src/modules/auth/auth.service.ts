@@ -25,7 +25,10 @@ export class AuthService {
   async login(dto: LoginDto) {
     const operador = await this.prisma.operador.findFirst({
       where: {
-        nome: dto.nome,
+        nome: {
+          equals: dto.nome.trim(),
+          mode: 'insensitive',
+        },
       },
     });
 
@@ -41,6 +44,7 @@ export class AuthService {
 
     const token = this.jwt.generate({
       id: operador.id,
+      role: operador.role,
     });
 
     return {
@@ -49,6 +53,7 @@ export class AuthService {
       operador: {
         id: operador.id,
         nome: operador.nome,
+        role: operador.role,
       },
     };
   }
@@ -62,6 +67,7 @@ export class AuthService {
       select: {
         id: true,
         nome: true,
+        role: true,
       },
     });
   }

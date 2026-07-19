@@ -5,6 +5,7 @@ import { Toaster } from './components/ui/Toaster';
 import { useCardapioCarrinhoRealtime } from './hooks/useCardapioCarrinhoRealtime';
 import { router } from './routes';
 import { persistOptions, queryClient } from './services/queryClient';
+import { clearToken } from './services/cookie';
 import { connectSocket, disconnectSocket, socket } from './services/socket';
 
 function AppRealtime() {
@@ -24,9 +25,17 @@ function App() {
       console.error('Erro no socket:', error.message);
     });
 
+    function onLogoutForcado() {
+      clearToken();
+      window.location.assign('/login');
+    }
+
+    socket.on('sessao:logout', onLogoutForcado);
+
     return () => {
       socket.off('connect');
       socket.off('connect_error');
+      socket.off('sessao:logout', onLogoutForcado);
       disconnectSocket();
     };
   }, []);

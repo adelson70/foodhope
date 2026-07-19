@@ -6,6 +6,7 @@ import { cn } from '../../lib/cn';
 import { markScrollRoot } from '../../lib/scrollLock';
 import { useCarrinhoStore } from '../../stores/carrinho.store';
 import { ensureVisitor } from '../../services/visitor';
+import { authService, getToken } from '../../services';
 import { Button, Loading } from '../ui';
 import { FoodHopeLogo } from '../brand/FoodHopeLogo';
 import { ClienteBottomNav } from './ClienteBottomNav';
@@ -25,6 +26,7 @@ export function MobileAppLayout() {
   const [visitorReady, setVisitorReady] = useState(false);
   const [visitorErro, setVisitorErro] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
+  const [isTotem, setIsTotem] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
   useScrollFocusedIntoView(mainRef);
   const semBottomNav = isLegalDoc(pathname);
@@ -42,6 +44,26 @@ export function MobileAppLayout() {
 
     setVisitorReady(false);
     setVisitorErro(null);
+
+    if (getToken()) {
+      authService
+        .me()
+        .then((response) => {
+          if (cancelled) return;
+          setIsTotem(response.dados?.role === 'TOTEM');
+        })
+        .catch(() => {
+          if (!cancelled) setIsTotem(false);
+        })
+        .finally(async () => {
+          await hydrate();
+          if (!cancelled) setVisitorReady(true);
+        });
+
+      return () => {
+        cancelled = true;
+      };
+    }
 
     if (!baseUrl) {
       setVisitorErro('API não configurada.');
@@ -78,7 +100,7 @@ export function MobileAppLayout() {
   return (
     <div className="flex min-h-dvh justify-center bg-background text-on-background">
       <div className="relative flex h-dvh w-full max-w-md flex-col overflow-hidden bg-background shadow-card pt-[env(safe-area-inset-top)]">
-        <header className="sticky top-0 z-20 shrink-0 border-b border-outline-variant/50 bg-surface/90 px-4 py-3 backdrop-blur-sm">
+        <header className="sticky top-0 z-20 flex shrink-0 items-center justify-between gap-3 border-b border-outline-variant/50 bg-surface/90 px-4 py-3 backdrop-blur-sm">
           <FoodHopeLogo
             markClassName="size-8"
             wordmarkClassName="text-title-md tracking-[0.2em]"
@@ -104,12 +126,14 @@ export function MobileAppLayout() {
               </Button>
             </div>
           ) : visitorReady ? (
-            <Outlet />
+            <Outlet context={{ isTotem }} />
           ) : (
             <Loading label="Iniciando sessão" />
           )}
         </main>
-        {visitorReady && !semBottomNav ? <ClienteBottomNav /> : null}
+        {visitorReady && !semBottomNav ? (
+          <ClienteBottomNav isTotem={isTotem} />
+        ) : null}
       </div>
     </div>
   );

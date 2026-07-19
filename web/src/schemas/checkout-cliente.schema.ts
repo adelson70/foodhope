@@ -14,3 +14,9 @@ export const checkoutClienteSchema = z.object({
 });
 
 export type CheckoutClienteValues = z.infer<typeof checkoutClienteSchema>;
+
+export const checkoutTotemSchema = z.object({
+  nome_completo: z.string().trim().min(1, 'Informe o nome completo'),
+});
+
+export type CheckoutTotemValues = z.infer<typeof checkoutTotemSchema>;

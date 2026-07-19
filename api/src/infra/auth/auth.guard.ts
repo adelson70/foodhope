@@ -17,9 +17,10 @@ import { PrismaReadService } from '../database/prisma-read.service.js';
 import { RedisService } from '../cache/redis.service.js';
 import { sha256Hex } from './visitor-crypto.js';
 import { validateVisitorCredentials } from './visitor-auth.js';
+import type { RoleOperador } from '../../../generated/prisma/enums.js';
 
 export type AuthUser =
-  | { tipo: 'operador'; id: string }
+  | { tipo: 'operador'; id: string; role: RoleOperador }
   | { tipo: 'visitor'; id: string };
 
 type RequestWithAuth = Request & {
@@ -57,7 +58,10 @@ export class AuthGuard implements CanActivate {
 
     if (bearer) {
       try {
-        const payload = await this.jwt.verifyAsync<{ id: string }>(bearer, {
+        const payload = await this.jwt.verifyAsync<{
+          id: string;
+          role: RoleOperador;
+        }>(bearer, {
           secret: process.env.JWT_SECRET,
         });
 
@@ -65,7 +69,11 @@ export class AuthGuard implements CanActivate {
           throw new UnauthorizedException('Operação não autorizada');
         }
 
-        req.user = { tipo: 'operador', id: payload.id };
+        req.user = {
+          tipo: 'operador',
+          id: payload.id,
+          role: payload.role ?? 'OPERADOR',
+        };
         return true;
       } catch {
         if (mode === 'jwt') {

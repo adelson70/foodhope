@@ -3,8 +3,11 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { RelatorioDto } from './dto/relatorio.dto.js';
 import { DashService } from './dash.service.js';
+import { Roles } from '../../common/decorator/roles.decorator.js';
 
 @ApiTags('Dash')
+@ApiBearerAuth()
+@Roles('ADMIN')
 @Controller('dash')
 export class DashController {
   constructor(private readonly dash: DashService) {}

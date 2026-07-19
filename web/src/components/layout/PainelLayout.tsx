@@ -4,6 +4,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { useScrollFocusedIntoView } from '../../hooks/useScrollFocusedIntoView';
 import { cn } from '../../lib/cn';
 import { markScrollRoot } from '../../lib/scrollLock';
+import { useSessao } from '../../routes/sessao';
 import { FoodHopeLogo } from '../brand/FoodHopeLogo';
 import { PainelBottomNav } from './PainelBottomNav';
 
@@ -21,6 +22,7 @@ const MAIN_PB_PLAIN =
 
 export function PainelLayout() {
   const { pathname } = useLocation();
+  const sessao = useSessao();
   const mainRef = useRef<HTMLElement>(null);
   useScrollFocusedIntoView(mainRef);
   const semBottomNav = isConfigSubtela(pathname);
@@ -44,10 +46,10 @@ export function PainelLayout() {
             semBottomNav ? MAIN_PB_PLAIN : MAIN_PB_NAV,
           )}
         >
-          <Outlet />
+          <Outlet context={sessao} />
         </main>
 
-        {semBottomNav ? null : <PainelBottomNav />}
+        {semBottomNav ? null : <PainelBottomNav role={sessao.role} />}
       </div>
     </div>
   );

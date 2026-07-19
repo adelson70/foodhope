@@ -22,6 +22,7 @@ import {
 
 import { ProdutoService } from './produto.service.js';
 import { Auth } from '../../common/decorator/auth-mode.decorator.js';
+import { Roles } from '../../common/decorator/roles.decorator.js';
 import { CriarDto } from './dto/criar.dto.js';
 import { EditarProdutoDto } from './dto/editar.dto.js';
 import { ListarDto } from './dto/listar.dto.js';
@@ -48,6 +49,7 @@ export class ProdutoController {
 
   @Post()
   @ApiBearerAuth()
+  @Roles('ADMIN', 'OPERADOR')
   @ApiOperation({ summary: 'Criação de Produto (JSON)' })
   async criar(@Body() dto: CriarDto) {
     return this.produto.criarProduto(dto);
@@ -55,6 +57,7 @@ export class ProdutoController {
 
   @Put(':id/imagem')
   @ApiBearerAuth()
+  @Roles('ADMIN', 'OPERADOR')
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -79,6 +82,7 @@ export class ProdutoController {
 
   @Delete(':id/imagem')
   @ApiBearerAuth()
+  @Roles('ADMIN', 'OPERADOR')
   @ApiOperation({ summary: 'Remoção da imagem do produto' })
   async removerImagem(@Param('id') id: string) {
     return this.produto.removerImagemProduto(id);
@@ -86,6 +90,7 @@ export class ProdutoController {
 
   @Put(':id')
   @ApiBearerAuth()
+  @Roles('ADMIN', 'OPERADOR')
   @ApiBody({ type: EditarProdutoDto })
   @ApiOperation({ summary: 'Edição de Produto (JSON)' })
   async editar(@Param('id') id: string, @Body() dto: EditarProdutoDto) {
@@ -107,6 +112,7 @@ export class ProdutoController {
 
   @Delete(':id')
   @ApiBearerAuth()
+  @Roles('ADMIN', 'OPERADOR')
   @ApiOperation({ summary: 'Deleção de Produto' })
   async deletar(@Param('id') id: string) {
     return this.produto.deletarProduto(id);

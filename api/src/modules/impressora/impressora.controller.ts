@@ -8,9 +8,11 @@ import {
 
 import { ConfigurarImpressoraDto } from './dto/configurar.dto.js';
 import { ImpressoraService } from './impressora.service.js';
+import { Roles } from '../../common/decorator/roles.decorator.js';
 
 @ApiTags('Impressora')
 @ApiBearerAuth()
+@Roles('ADMIN')
 @Controller('impressora')
 export class ImpressoraController {
   constructor(private readonly impressora: ImpressoraService) {}

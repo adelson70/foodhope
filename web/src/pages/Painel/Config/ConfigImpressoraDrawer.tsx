@@ -208,11 +208,11 @@ export function ConfigImpressoraDrawer({
               placeholder="192.168.1.50:9100"
               error={Boolean(errors.ip)}
               leftIcon={<Printer size={17} strokeWidth={1.75} />}
-              disabled={isSubmitting || testando || Boolean(dispositivoAtual)}
+              disabled={isSubmitting || testando}
               {...ipField}
               onChange={(event: ChangeEvent<HTMLInputElement>) => {
                 void ipField.onChange(event);
-                if (getValues('dispositivo')) {
+                if (event.target.value.trim() && getValues('dispositivo')) {
                   setValue('dispositivo', null, { shouldValidate: true });
                 }
               }}

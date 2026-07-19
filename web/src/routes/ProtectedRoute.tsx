@@ -2,14 +2,22 @@ import { useEffect, useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 
 import { Loading } from '../components/ui';
+import { rotaInicialPorRole } from '../lib/rotaPorRole';
 import { authService, getToken } from '../services';
+import type { Operador, RoleOperador } from '../services/types';
+import type { SessaoContext } from './sessao';
 
 type GuardStatus = 'checking' | 'ok' | 'denied';
 
-export function ProtectedRoute() {
+type ProtectedRouteProps = {
+  allow?: RoleOperador[];
+};
+
+export function ProtectedRoute({ allow }: ProtectedRouteProps) {
   const [status, setStatus] = useState<GuardStatus>(() =>
     getToken() ? 'checking' : 'denied',
   );
+  const [operador, setOperador] = useState<Operador | null>(null);
 
   useEffect(() => {
     if (!getToken()) {
@@ -25,7 +33,12 @@ export function ProtectedRoute() {
       .me()
       .then((response) => {
         if (cancelled) return;
-        setStatus(response.sucesso && response.dados ? 'ok' : 'denied');
+        if (response.sucesso && response.dados) {
+          setOperador(response.dados);
+          setStatus('ok');
+        } else {
+          setStatus('denied');
+        }
       })
       .catch(() => {
         if (cancelled) return;
@@ -41,11 +54,17 @@ export function ProtectedRoute() {
     return <Navigate to="/login" replace />;
   }
 
-  if (status === 'checking') {
+  if (status === 'checking' || !operador) {
     return (
       <Loading fullScreen className="bg-operator-bg" label="Validando sessão" />
     );
   }
 
-  return <Outlet />;
+  if (allow && !allow.includes(operador.role)) {
+    return <Navigate to={rotaInicialPorRole(operador.role)} replace />;
+  }
+
+  const context: SessaoContext = { operador, role: operador.role };
+
+  return <Outlet context={context} />;
 }

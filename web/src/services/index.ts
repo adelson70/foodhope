@@ -7,6 +7,7 @@ export { dashService } from './dash.service';
 export { impressoraService } from './impressora.service';
 export { withMutationToast } from './mutation-toast';
 export { notifyError, notifySuccess } from './notify';
+export { operadorService } from './operador.service';
 export { pedidoService } from './pedido.service';
 export { produtoService } from './produto.service';
 export { persistOptions, queryClient } from './queryClient';
