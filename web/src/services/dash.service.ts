@@ -9,12 +9,14 @@ export const dashService = {
 
   async gerarRelatorio(
     tipo: TipoRelatorio = 'resumido',
+    data?: string,
   ): Promise<ApiResponse<Record<string, never>>> {
     return withMutationToast(
       () =>
         request(
           api.post<ApiResponse<Record<string, never>>>('/dash/relatorio', {
             tipo,
+            ...(data ? { data } : {}),
           }),
         ),
       {

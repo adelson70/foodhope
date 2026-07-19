@@ -22,6 +22,6 @@ export class DashController {
     summary: 'Gera e imprime o relatório do dia na impressora térmica',
   })
   async gerarRelatorio(@Body() dto: RelatorioDto) {
-    return this.dash.gerarRelatorio(dto.tipo ?? 'resumido');
+    return this.dash.gerarRelatorio(dto.tipo ?? 'resumido', dto.data);
   }
 }

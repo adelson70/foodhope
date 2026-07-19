@@ -32,16 +32,14 @@ type AdicionalRow = {
   quantidade: number | bigint | string;
 };
 
-type ProdutoValorRow = {
-  produtoId: string;
+type PedidoValorRow = {
   nome: string;
   valor: number | string;
 };
 
-type AdicionalValorRow = {
-  adicionalId: string;
-  nome: string;
-  valor: number | string;
+type DiaResumoRow = {
+  pedidos: number | bigint | string;
+  faturamento: number | string;
 };
 
 function toNumber(value: number | bigint | string | null | undefined): number {
@@ -50,6 +48,29 @@ function toNumber(value: number | bigint | string | null | undefined): number {
   if (typeof value === 'number') return value;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function dataHojeSp(): string {
+  return new Date().toLocaleDateString('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+  });
+}
+
+function resolverDataRelatorio(data?: string): string {
+  const escolhida = data?.trim() || dataHojeSp();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(escolhida)) {
+    throw new BadRequestException('A data deve estar no formato YYYY-MM-DD');
+  }
+  const [ano, mes, dia] = escolhida.split('-').map(Number);
+  const utc = new Date(Date.UTC(ano, mes - 1, dia));
+  if (
+    utc.getUTCFullYear() !== ano ||
+    utc.getUTCMonth() !== mes - 1 ||
+    utc.getUTCDate() !== dia
+  ) {
+    throw new BadRequestException('Data inválida');
+  }
+  return escolhida;
 }
 
 @Injectable()
@@ -171,70 +192,147 @@ export class DashService {
     }
   }
 
-  async obterDetalhado() {
-    try {
-      const [resumoResult, produtosRows, adicionaisRows] = await Promise.all([
-        this.obterResumo(),
-        this.prismaRead.$queryRaw<ProdutoValorRow[]>`
-          SELECT
-            pr.id AS "produtoId",
-            pr.nome AS nome,
-            COALESCE(SUM(pi.quantidade * pi.preco_produto), 0) AS valor
-          FROM pedido_item pi
-          INNER JOIN pedido p ON p.id = pi.pedido_id
-          INNER JOIN produto pr ON pr.id = pi.produto_id
-          WHERE (p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
-            = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
-          GROUP BY pr.id, pr.nome
-          ORDER BY valor DESC
-        `,
-        this.prismaRead.$queryRaw<AdicionalValorRow[]>`
-          SELECT
-            elem->>'id' AS "adicionalId",
-            elem->>'nome' AS nome,
-            COALESCE(
-              SUM((elem->>'qtd')::numeric * (elem->>'preco')::numeric),
+  private async obterResumidoPorData(data: string) {
+    const [resumoRows, topProdutosRows, topAdicionaisRows] = await Promise.all([
+      this.prismaRead.$queryRaw<DiaResumoRow[]>`
+        SELECT
+          (
+            SELECT COUNT(*)::int
+            FROM pedido p
+            WHERE (p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
+              = CAST(${data} AS DATE)
+          ) AS pedidos,
+          (
+            SELECT COALESCE(
+              SUM(
+                pi.quantidade * pi.preco_produto
+                + COALESCE(
+                  (
+                    SELECT SUM(
+                      (elem->>'qtd')::numeric * (elem->>'preco')::numeric
+                    )
+                    FROM jsonb_array_elements(
+                      CASE
+                        WHEN pi.adicional_venda IS NULL THEN '[]'::jsonb
+                        WHEN jsonb_typeof(pi.adicional_venda::jsonb) = 'array'
+                          THEN pi.adicional_venda::jsonb
+                        ELSE '[]'::jsonb
+                      END
+                    ) AS elem
+                  ),
+                  0
+                )
+              ),
               0
-            ) AS valor
-          FROM pedido_item pi
-          INNER JOIN pedido p ON p.id = pi.pedido_id
-          CROSS JOIN LATERAL jsonb_array_elements(
-            CASE
-              WHEN pi.adicional_venda IS NULL THEN '[]'::jsonb
-              WHEN jsonb_typeof(pi.adicional_venda::jsonb) = 'array'
-                THEN pi.adicional_venda::jsonb
-              ELSE '[]'::jsonb
-            END
-          ) AS elem
-          WHERE (p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
-            = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
-            AND COALESCE(elem->>'id', '') <> ''
-          GROUP BY elem->>'id', elem->>'nome'
-          ORDER BY valor DESC
-        `,
-      ]);
+            )
+            FROM pedido_item pi
+            INNER JOIN pedido p ON p.id = pi.pedido_id
+            WHERE (p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
+              = CAST(${data} AS DATE)
+          ) AS faturamento
+      `,
+      this.prismaRead.$queryRaw<ProdutoRow[]>`
+        SELECT
+          pr.id AS "produtoId",
+          pr.nome AS nome,
+          SUM(pi.quantidade)::int AS quantidade
+        FROM pedido_item pi
+        INNER JOIN pedido p ON p.id = pi.pedido_id
+        INNER JOIN produto pr ON pr.id = pi.produto_id
+        WHERE (p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
+          = CAST(${data} AS DATE)
+        GROUP BY pr.id, pr.nome
+        ORDER BY quantidade DESC
+        LIMIT 5
+      `,
+      this.prismaRead.$queryRaw<AdicionalRow[]>`
+        SELECT
+          elem->>'id' AS "adicionalId",
+          elem->>'nome' AS nome,
+          SUM((elem->>'qtd')::int)::int AS quantidade
+        FROM pedido_item pi
+        INNER JOIN pedido p ON p.id = pi.pedido_id
+        CROSS JOIN LATERAL jsonb_array_elements(
+          CASE
+            WHEN pi.adicional_venda IS NULL THEN '[]'::jsonb
+            WHEN jsonb_typeof(pi.adicional_venda::jsonb) = 'array'
+              THEN pi.adicional_venda::jsonb
+            ELSE '[]'::jsonb
+          END
+        ) AS elem
+        WHERE (p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
+          = CAST(${data} AS DATE)
+          AND COALESCE(elem->>'id', '') <> ''
+        GROUP BY elem->>'id', elem->>'nome'
+        ORDER BY quantidade DESC
+        LIMIT 5
+      `,
+    ]);
 
-      return {
-        faturamentoHoje: resumoResult.dados.faturamentoHoje,
-        comprasHoje: resumoResult.dados.comprasHoje,
-        produtos: produtosRows.map((row) => ({
-          nome: row.nome,
-          valor: toNumber(row.valor),
-        })),
-        adicionais: adicionaisRows.map((row) => ({
-          nome: row.nome,
-          valor: toNumber(row.valor),
-        })),
-      };
-    } catch (erro) {
-      if (erro instanceof InternalServerErrorException) throw erro;
-      throw new InternalServerErrorException(
-        'Não foi possível carregar o relatório completo.',
-      );
-    }
+    const resumo = resumoRows[0];
+
+    return {
+      faturamento: toNumber(resumo?.faturamento),
+      pedidos: toNumber(resumo?.pedidos),
+      topProdutos: topProdutosRows.map((row) => ({
+        nome: row.nome,
+        quantidade: toNumber(row.quantidade),
+      })),
+      topAdicionais: topAdicionaisRows.map((row) => ({
+        nome: row.nome,
+        quantidade: toNumber(row.quantidade),
+      })),
+    };
   }
 
-  async gerarRelatorio(tipo: TipoRelatorioDto = 'resumido') {
+  private async obterCompletoPorData(data: string) {
+    const pedidosRows = await this.prismaRead.$queryRaw<PedidoValorRow[]>`
+      SELECT
+        p.nome_completo AS nome,
+        COALESCE(
+          SUM(
+            pi.quantidade * pi.preco_produto
+            + COALESCE(
+              (
+                SELECT SUM(
+                  (elem->>'qtd')::numeric * (elem->>'preco')::numeric
+                )
+                FROM jsonb_array_elements(
+                  CASE
+                    WHEN pi.adicional_venda IS NULL THEN '[]'::jsonb
+                    WHEN jsonb_typeof(pi.adicional_venda::jsonb) = 'array'
+                      THEN pi.adicional_venda::jsonb
+                    ELSE '[]'::jsonb
+                  END
+                ) AS elem
+              ),
+              0
+            )
+          ),
+          0
+        ) AS valor
+      FROM pedido p
+      LEFT JOIN pedido_item pi ON pi.pedido_id = p.id
+      WHERE (p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
+        = CAST(${data} AS DATE)
+      GROUP BY p.id, p.nome_completo, p."createdAt"
+      ORDER BY lower(p.nome_completo) ASC, p."createdAt" ASC
+    `;
+
+    const pedidos = pedidosRows.map((row) => ({
+      nome: row.nome,
+      valor: toNumber(row.valor),
+    }));
+
+    const faturamento = pedidos.reduce((acc, item) => acc + item.valor, 0);
+
+    return { pedidos, faturamento };
+  }
+
+  async gerarRelatorio(
+    tipo: TipoRelatorioDto = 'resumido',
+    data?: string,
+  ) {
     if (!this.impressora.estaConfigurada()) {
       throw new BadRequestException(
         'Impressora não configurada. Configure o IP em Configurações > Impressora.',
@@ -242,22 +340,26 @@ export class DashService {
     }
 
     try {
+      const dataRelatorio = resolverDataRelatorio(data);
       const geradoEm = new Date();
       let texto: string;
 
       if (tipo === 'completo') {
-        const detalhado = await this.obterDetalhado();
+        const detalhado = await this.obterCompletoPorData(dataRelatorio);
         texto = formatarRelatorioCompleto({
-          ...detalhado,
+          data: dataRelatorio,
+          faturamento: detalhado.faturamento,
+          pedidos: detalhado.pedidos,
           geradoEm,
         });
       } else {
-        const { dados } = await this.obterResumo();
+        const resumido = await this.obterResumidoPorData(dataRelatorio);
         texto = formatarRelatorioDia({
-          faturamentoHoje: dados.faturamentoHoje,
-          comprasHoje: dados.comprasHoje,
-          topProdutos: dados.topProdutos,
-          topAdicionais: dados.topAdicionais,
+          data: dataRelatorio,
+          faturamento: resumido.faturamento,
+          pedidos: resumido.pedidos,
+          topProdutos: resumido.topProdutos,
+          topAdicionais: resumido.topAdicionais,
           geradoEm,
         });
       }

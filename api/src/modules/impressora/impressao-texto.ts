@@ -39,8 +39,9 @@ type ItemRankRelatorio = {
 };
 
 type RelatorioDiaInput = {
-  faturamentoHoje: number;
-  comprasHoje: number;
+  data: string;
+  faturamento: number;
+  pedidos: number;
   topProdutos: ItemRankRelatorio[];
   topAdicionais: ItemRankRelatorio[];
   geradoEm: Date;
@@ -55,6 +56,12 @@ function formatarHorarioSp(data: Date): string {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function formatarDataSp(dataIso: string): string {
+  const [ano, mes, dia] = dataIso.split('-');
+  if (!ano || !mes || !dia) return dataIso;
+  return `${dia}/${mes}/${ano}`;
 }
 
 function formatarRanking(itens: ItemRankRelatorio[]): string {
@@ -77,16 +84,17 @@ export function formatarRelatorioDia(input: RelatorioDiaInput): string {
 
   impressao += `${linhaSeparadora('=')}\n`;
   impressao += 'FOOD HOPE - RELATORIO DO DIA\n';
-  impressao += `${formatarHorarioSp(input.geradoEm)}\n`;
+  impressao += `Data: ${formatarDataSp(input.data)}\n`;
+  impressao += `Gerado: ${formatarHorarioSp(input.geradoEm)}\n`;
   impressao += `${linhaSeparadora('=')}\n`;
   impressao +=
     alinharLinha(
       'TOTAL DE VENDAS ',
-      ` ${formatarMoeda(input.faturamentoHoje)}`,
+      ` ${formatarMoeda(input.faturamento)}`,
       '.',
     ) + '\n';
   impressao +=
-    alinharLinha('PEDIDOS HOJE ', ` ${input.comprasHoje}`, '.') + '\n';
+    alinharLinha('PEDIDOS ', ` ${input.pedidos}`, '.') + '\n';
   impressao += `${linhaSeparadora('-')}\n`;
   impressao += 'TOP 5 PRODUTOS\n';
   impressao += formatarRanking(input.topProdutos);
@@ -99,22 +107,21 @@ export function formatarRelatorioDia(input: RelatorioDiaInput): string {
   return impressao;
 }
 
-type ItemValorRelatorio = {
+type PedidoRelatorio = {
   nome: string;
   valor: number;
 };
 
 type RelatorioCompletoInput = {
-  faturamentoHoje: number;
-  comprasHoje: number;
-  produtos: ItemValorRelatorio[];
-  adicionais: ItemValorRelatorio[];
+  data: string;
+  faturamento: number;
+  pedidos: PedidoRelatorio[];
   geradoEm: Date;
 };
 
-function formatarListaValor(itens: ItemValorRelatorio[]): string {
+function formatarListaPedidos(itens: PedidoRelatorio[]): string {
   if (itens.length === 0) {
-    return 'Nenhum no periodo\n';
+    return 'Nenhum pedido no periodo\n';
   }
 
   let texto = '';
@@ -133,22 +140,20 @@ export function formatarRelatorioCompleto(
 
   impressao += `${linhaSeparadora('=')}\n`;
   impressao += 'FOOD HOPE - RELATORIO COMPLETO\n';
-  impressao += `${formatarHorarioSp(input.geradoEm)}\n`;
+  impressao += `Data: ${formatarDataSp(input.data)}\n`;
+  impressao += `Gerado: ${formatarHorarioSp(input.geradoEm)}\n`;
   impressao += `${linhaSeparadora('=')}\n`;
-  impressao += 'PRODUTOS\n';
-  impressao += formatarListaValor(input.produtos);
-  impressao += `${linhaSeparadora('-')}\n`;
-  impressao += 'ADICIONAIS\n';
-  impressao += formatarListaValor(input.adicionais);
+  impressao += 'PEDIDOS\n';
+  impressao += formatarListaPedidos(input.pedidos);
   impressao += `${linhaSeparadora('-')}\n`;
   impressao +=
     alinharLinha(
-      'TOTAL DE VENDAS ',
-      ` ${formatarMoeda(input.faturamentoHoje)}`,
+      'TOTAL ',
+      ` ${formatarMoeda(input.faturamento)}`,
       '.',
     ) + '\n';
   impressao +=
-    alinharLinha('PEDIDOS HOJE ', ` ${input.comprasHoje}`, '.') + '\n';
+    alinharLinha('QTD PEDIDOS ', ` ${input.pedidos.length}`, '.') + '\n';
   impressao += `${linhaSeparadora('=')}\n`;
   impressao += '\n\n\n';
 
