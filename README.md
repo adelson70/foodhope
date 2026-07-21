@@ -15,11 +15,13 @@ Cada pedido novo cai no painel via socket em tempo real e pode ser impresso dire
 
 ## Apresentação
 
-Vídeos de demonstração da plataforma (na raiz do projeto):
+Demonstração da plataforma em uso:
 
-- [Demonstração 1](WhatsApp%20Video%202026-07-21%20at%2020.03.32.webm)
-- [Demonstração 2](WhatsApp%20Video%202026-07-21%20at%2020.03.45.webm)
-- [Demonstração 3](WhatsApp%20Video%202026-07-21%20at%2020.04.08.webm)
+![Demonstração 1](docs/demo-1.gif)
+
+![Demonstração 2](docs/demo-2.gif)
+
+![Demonstração 3](docs/demo-3.gif)
 
 ## Stack
 
