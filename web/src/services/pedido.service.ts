@@ -65,6 +65,19 @@ export const pedidoService = {
     );
   },
 
+  async marcarPago(id: string): Promise<ApiResponse<CriarPedidoDados>> {
+    return withMutationToast(
+      () =>
+        request(
+          api.post<ApiResponse<CriarPedidoDados>>(`/pedido/${id}/pago`),
+        ),
+      {
+        success: 'Pedido marcado como pago',
+        error: 'Não foi possível marcar o pedido como pago',
+      },
+    );
+  },
+
   async reimprimir(
     id: string,
   ): Promise<ApiResponse<Record<string, never>>> {

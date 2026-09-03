@@ -1,6 +1,6 @@
 import { ImpressoraModule } from './modules/impressora/impressora.module.js';
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { ConfigModule } from '@nestjs/config';
@@ -20,6 +20,8 @@ import { RolesGuard } from './infra/auth/roles.guard.js';
 import { RateLimitGuard } from './infra/auth/rate-limit.guard.js';
 import { InfraJwtModule } from './infra/auth/jwt.module.js';
 import { OperadorModule } from './modules/operador/operador.module.js';
+import { InfinitePayModule } from './modules/infinitepay/infinitepay.module.js';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor.js';
 
 @Module({
   imports: [
@@ -57,10 +59,15 @@ import { OperadorModule } from './modules/operador/operador.module.js';
     DashModule,
     ImpressoraModule,
     OperadorModule,
+    InfinitePayModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: TransformInterceptor,
+    },
     {
       provide: APP_GUARD,
       useClass: AuthGuard,

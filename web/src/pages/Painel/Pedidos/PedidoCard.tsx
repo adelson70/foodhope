@@ -13,16 +13,20 @@ import {
 type PedidoCardProps = {
   pedido: Pedido;
   prontoLoading: boolean;
+  pagoLoading: boolean;
   onSelect: (pedido: Pedido) => void;
   onPronto: (pedido: Pedido) => void;
+  onMarcarPago: (pedido: Pedido) => void;
   onDelete: (pedido: Pedido) => void;
 };
 
 export function PedidoCard({
   pedido,
   prontoLoading,
+  pagoLoading,
   onSelect,
   onPronto,
+  onMarcarPago,
   onDelete,
 }: PedidoCardProps) {
   const nomesItens = (pedido.itens ?? [])
@@ -30,6 +34,7 @@ export function PedidoCard({
     .slice(0, 3);
   const restantes = (pedido.itens?.length ?? 0) - nomesItens.length;
   const pronto = pedidoEstaPronto(pedido);
+  const pago = pedido.pago !== false;
 
   return (
     <article className="rounded-xl border border-operator-border bg-operator-card p-4">
@@ -49,6 +54,15 @@ export function PedidoCard({
             <span className="rounded-full bg-primary-container/40 px-2 py-0.5 text-label-sm font-medium text-on-surface">
               {rotuloTipoConsumo(pedido.tipo_consumo)}
             </span>
+            {pago ? (
+              <span className="rounded-full bg-success/15 px-2 py-0.5 text-label-sm font-medium text-success">
+                Pago
+              </span>
+            ) : (
+              <span className="rounded-full bg-danger/15 px-2 py-0.5 text-label-sm font-medium text-danger">
+                Não pago
+              </span>
+            )}
             {pronto ? (
               <span className="rounded-full bg-success/15 px-2 py-0.5 text-label-sm font-medium text-success">
                 Pronto
@@ -82,15 +96,28 @@ export function PedidoCard({
         <p className="text-body-md font-medium text-on-surface">
           {formatarMoeda(totalPedido(pedido))}
         </p>
-        <Button
-          type="button"
-          variant="dangerGhost"
-          aria-label={`Excluir pedido ${pedido.numero}`}
-          className="size-10 shrink-0 px-0 py-0"
-          onClick={() => onDelete(pedido)}
-        >
-          <Trash2 size={17} strokeWidth={1.75} />
-        </Button>
+        <div className="flex items-center gap-2">
+          {!pago ? (
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-10 px-3"
+              disabled={pagoLoading}
+              onClick={() => onMarcarPago(pedido)}
+            >
+              {pagoLoading ? '…' : 'Marcar pago'}
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="dangerGhost"
+            aria-label={`Excluir pedido ${pedido.numero}`}
+            className="size-10 shrink-0 px-0 py-0"
+            onClick={() => onDelete(pedido)}
+          >
+            <Trash2 size={17} strokeWidth={1.75} />
+          </Button>
+        </div>
       </div>
     </article>
   );

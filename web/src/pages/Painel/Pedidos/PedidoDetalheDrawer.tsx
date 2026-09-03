@@ -11,8 +11,10 @@ type PedidoDetalheDrawerProps = {
   pedido: Pedido | null;
   open: boolean;
   prontoLoading: boolean;
+  pagoLoading: boolean;
   onClose: () => void;
   onPronto: (pedido: Pedido) => void;
+  onMarcarPago: (pedido: Pedido) => void;
   onDelete: (pedido: Pedido) => void;
 };
 
@@ -31,14 +33,17 @@ export function PedidoDetalheDrawer({
   pedido,
   open,
   prontoLoading,
+  pagoLoading,
   onClose,
   onPronto,
+  onMarcarPago,
   onDelete,
 }: PedidoDetalheDrawerProps) {
   const [imprimindo, setImprimindo] = useState(false);
   const total = pedido ? totalPedido(pedido) : 0;
   const itens = pedido?.itens ?? [];
   const pronto = pedido ? pedidoEstaPronto(pedido) : false;
+  const pago = pedido ? pedido.pago !== false : true;
 
   async function handleReimprimir() {
     if (!pedido) return;
@@ -60,6 +65,17 @@ export function PedidoDetalheDrawer({
       footer={
         pedido ? (
           <div className="flex flex-col gap-2">
+            {!pago ? (
+              <Button
+                type="button"
+                variant="primary"
+                fullWidth
+                disabled={pagoLoading}
+                onClick={() => onMarcarPago(pedido)}
+              >
+                {pagoLoading ? 'Marcando…' : 'Marcar como pago'}
+              </Button>
+            ) : null}
             {!pronto ? (
               <Button
                 type="button"
@@ -74,7 +90,7 @@ export function PedidoDetalheDrawer({
             ) : null}
             <Button
               type="button"
-              variant="primary"
+              variant="secondary"
               fullWidth
               disabled={imprimindo}
               onClick={() => {
@@ -108,6 +124,15 @@ export function PedidoDetalheDrawer({
                 <span className="rounded-full bg-primary-container/40 px-3 py-1 text-label-sm font-medium text-on-surface">
                   {rotuloTipoConsumo(pedido.tipo_consumo)}
                 </span>
+                {pago ? (
+                  <span className="rounded-full bg-success/15 px-3 py-1 text-label-sm font-medium text-success">
+                    Pago
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-danger/15 px-3 py-1 text-label-sm font-medium text-danger">
+                    Não pago
+                  </span>
+                )}
                 {pronto ? (
                   <span className="rounded-full bg-success/15 px-3 py-1 text-label-sm font-medium text-success">
                     Pronto

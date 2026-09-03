@@ -119,6 +119,7 @@ export class DashService {
               INNER JOIN pedido p ON p.id = pi.pedido_id
               WHERE (p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
                 = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+                AND p.pago = true
             ) AS "faturamentoHoje",
             (
               SELECT COUNT(*)::int FROM lead
@@ -229,6 +230,7 @@ export class DashService {
             INNER JOIN pedido p ON p.id = pi.pedido_id
             WHERE (p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
               = CAST(${data} AS DATE)
+              AND p.pago = true
           ) AS faturamento
       `,
       this.prismaRead.$queryRaw<ProdutoRow[]>`
@@ -241,6 +243,7 @@ export class DashService {
         INNER JOIN produto pr ON pr.id = pi.produto_id
         WHERE (p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
           = CAST(${data} AS DATE)
+          AND p.pago = true
         GROUP BY pr.id, pr.nome
         ORDER BY quantidade DESC
         LIMIT 5
@@ -262,6 +265,7 @@ export class DashService {
         ) AS elem
         WHERE (p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
           = CAST(${data} AS DATE)
+          AND p.pago = true
           AND COALESCE(elem->>'id', '') <> ''
         GROUP BY elem->>'id', elem->>'nome'
         ORDER BY quantidade DESC
@@ -315,6 +319,7 @@ export class DashService {
       LEFT JOIN pedido_item pi ON pi.pedido_id = p.id
       WHERE (p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
         = CAST(${data} AS DATE)
+        AND p.pago = true
       GROUP BY p.id, p.nome_completo, p."createdAt"
       ORDER BY lower(p.nome_completo) ASC, p."createdAt" ASC
     `;

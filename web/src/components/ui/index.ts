@@ -11,4 +11,5 @@ export type { SelectOption } from './select.utils';
 export { Skeleton } from './Skeleton';
 export { Textarea } from './Textarea';
 export { TipoConsumoToggle } from './TipoConsumoToggle';
+export { PagoToggle } from './PagoToggle';
 export { Toaster } from './Toaster';

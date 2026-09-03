@@ -64,13 +64,15 @@ enum TipoConsumo {
 
 model Pedido {
   id            String @id @default(uuid())
-  numero BigInt @default(autoincrement()) @unique  
+  numero BigInt @default(autoincrement()) @unique
   nome_completo String
 
   tipo_consumo TipoConsumo @default(COMER_AQUI) @map("tipo_consumo")
   prontoAt     DateTime?   @map("pronto_at")
+  pago         Boolean     @default(true)
 
   itens PedidoItem[]
+  checkoutSessao CheckoutSessao?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -78,6 +80,7 @@ model Pedido {
   @@index([numero])
   @@index([nome_completo])
   @@index([prontoAt])
+  @@index([pago])
   @@map("pedido")
 }
 
@@ -194,4 +197,33 @@ model ConfigImpressora {
   updatedAt   DateTime @updatedAt
 
   @@map("config_impressora")
+}
+
+model ConfigInfinitePay {
+  id        String   @id @default("default")
+  handle    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("config_infinitepay")
+}
+
+model CheckoutSessao {
+  id               String    @id @default(uuid())
+  payload          Json
+  amountCentavos   Int       @map("amount_centavos")
+  checkoutUrl      String?   @map("checkout_url")
+  invoiceSlug      String?   @map("invoice_slug")
+  transactionNsu   String?   @unique @map("transaction_nsu")
+  receiptUrl       String?   @map("receipt_url")
+  captureMethod    String?   @map("capture_method")
+  installments     Int?
+  pagoAt           DateTime? @map("pago_at")
+  pedidoId         String?   @unique @map("pedido_id")
+  pedido           Pedido?   @relation(fields: [pedidoId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("checkout_sessao")
 }

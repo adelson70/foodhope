@@ -5,6 +5,7 @@ export { categoriaService } from './categoria.service';
 export { clearToken, getToken, setToken } from './cookie';
 export { dashService } from './dash.service';
 export { impressoraService } from './impressora.service';
+export { infinitepayService } from './infinitepay.service';
 export { withMutationToast } from './mutation-toast';
 export { notifyError, notifySuccess } from './notify';
 export { operadorService } from './operador.service';

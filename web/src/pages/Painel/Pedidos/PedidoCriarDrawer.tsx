@@ -9,6 +9,7 @@ import {
   Input,
   Label,
   Loading,
+  PagoToggle,
   PhoneInput,
   Select,
   TipoConsumoToggle,
@@ -54,6 +55,7 @@ export function PedidoCriarDrawer({
   const [tipoConsumo, setTipoConsumo] = useState<TipoConsumo>(
     TIPO_CONSUMO_PADRAO,
   );
+  const [pago, setPago] = useState(true);
 
   const {
     register,
@@ -131,6 +133,7 @@ export function PedidoCriarDrawer({
       setObservacaoDraft('');
       setItemErro(null);
       setTipoConsumo(TIPO_CONSUMO_PADRAO);
+      setPago(true);
     }
   }, [open, reset]);
 
@@ -217,6 +220,7 @@ export function PedidoCriarDrawer({
 
       const response = await pedidoService.criar({
         tipo_consumo: tipoConsumo,
+        pago,
         cliente: {
           primeiro_nome: values.cliente.primeiro_nome,
           ...(sobrenome ? { sobrenome } : {}),
@@ -281,6 +285,13 @@ export function PedidoCriarDrawer({
             Consumo
           </h3>
           <TipoConsumoToggle value={tipoConsumo} onChange={setTipoConsumo} />
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <h3 className="text-subtitle-md font-medium text-on-surface">
+            Pagamento
+          </h3>
+          <PagoToggle value={pago} onChange={setPago} />
         </section>
 
         <section className="flex flex-col gap-3">

@@ -15,8 +15,10 @@ type PedidosListaProps = {
   filtroData?: boolean;
   sentinelRef: Ref<HTMLDivElement>;
   prontoLoadingId: string | null;
+  pagoLoadingId: string | null;
   onSelect: (pedido: Pedido) => void;
   onPronto: (pedido: Pedido) => void;
+  onMarcarPago: (pedido: Pedido) => void;
   onDelete: (pedido: Pedido) => void;
 };
 
@@ -34,8 +36,10 @@ export function PedidosLista({
   filtroData,
   sentinelRef,
   prontoLoadingId,
+  pagoLoadingId,
   onSelect,
   onPronto,
+  onMarcarPago,
   onDelete,
 }: PedidosListaProps) {
   if (loading) {
@@ -89,8 +93,10 @@ export function PedidosLista({
           <PedidoCard
             pedido={pedido}
             prontoLoading={prontoLoadingId === pedido.id}
+            pagoLoading={pagoLoadingId === pedido.id}
             onSelect={onSelect}
             onPronto={onPronto}
+            onMarcarPago={onMarcarPago}
             onDelete={onDelete}
           />
         </li>

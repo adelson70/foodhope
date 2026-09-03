@@ -11,6 +11,7 @@ import {
   Matches,
   ValidateIf,
   IsIn,
+  IsBoolean,
 } from 'class-validator';
 
 export type TipoConsumoDto = 'LEVAR' | 'COMER_AQUI';
@@ -117,4 +118,12 @@ export class CriarPedidoDto {
     message: 'O tipo de consumo deve ser LEVAR ou COMER_AQUI',
   })
   tipo_consumo?: TipoConsumoDto;
+
+  @ApiPropertyOptional({
+    description:
+      'Se o pedido já está pago. Obrigatório para ADMIN/OPERADOR; ignorado no totem e no checkout visitor.',
+  })
+  @IsOptional()
+  @IsBoolean({ message: 'Informe se o pedido está pago ou não' })
+  pago?: boolean;
 }

@@ -77,7 +77,12 @@ export class RateLimitGuard implements CanActivate {
         RATE_LIMIT_WINDOW_SECONDS,
       );
 
-      if (method === 'POST' && path === '/pedido') {
+      if (
+        method === 'POST' &&
+        (path === '/pedido' ||
+          path === '/checkout' ||
+          path === '/checkout/confirmar')
+      ) {
         await this.rateLimit.consume(
           `rl:visitor:pedido:${req.user.id}`,
           RATE_LIMIT_VISITOR_PEDIDO_MAX,

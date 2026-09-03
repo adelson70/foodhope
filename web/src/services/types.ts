@@ -218,6 +218,7 @@ export type Pedido = {
   tipo_consumo?: TipoConsumo;
   pronto?: boolean;
   prontoAt?: string | null;
+  pago?: boolean;
   createdAt?: string;
   updatedAt?: string;
   itens?: PedidoItem[];
@@ -246,6 +247,7 @@ export type CriarPedidoInput = {
   itens: ItemPedidoInput[];
   cliente: ClientePedidoInput;
   tipo_consumo?: TipoConsumo;
+  pago?: boolean;
 };
 
 export type ListarPedidosDados = {
@@ -299,4 +301,26 @@ export type TestarImpressoraDados = {
 export type ConfigurarImpressoraInput = {
   ip?: string;
   dispositivo?: string;
+};
+
+export type ConfigInfinitePay = {
+  handle: string | null;
+  webhookUrl: string | null;
+};
+
+export type ConfigurarInfinitePayInput = {
+  handle: string;
+};
+
+export type CheckoutDados = {
+  url: string;
+  order_nsu: string;
+};
+
+export type ConfirmarCheckoutInput = {
+  order_nsu: string;
+  transaction_nsu: string;
+  slug: string;
+  receipt_url?: string;
+  capture_method?: string;
 };

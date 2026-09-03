@@ -14,7 +14,6 @@ import { useClienteContext } from '../../components/layout/clienteContext';
 import { TIPO_CONSUMO_PADRAO } from '../../lib/tipoConsumo';
 import type { ClientePedidoInput, TipoConsumo } from '../../services/types';
 import {
-  appendPedidoLocal,
   loadClienteLocal,
   saveClienteLocal,
 } from '../../lib/clienteStorage';
@@ -26,7 +25,7 @@ import {
   type CheckoutClienteValues,
   type CheckoutTotemValues,
 } from '../../schemas/checkout-cliente.schema';
-import { pedidoService } from '../../services';
+import { infinitepayService, pedidoService } from '../../services';
 import { getVisitorId } from '../../services/visitor';
 import {
   totalCarrinho,
@@ -97,23 +96,27 @@ export function Carrinho() {
     };
   }, [reset, isTotem]);
 
-  async function finalizar(cliente: ClientePedidoInput) {
+  function montarItens() {
+    return itens.map((item) => ({
+      id: item.produtoId,
+      qtd: item.qtd,
+      adicional:
+        item.adicionais.length > 0
+          ? item.adicionais.map((adic) => ({
+              id: adic.id,
+              qtd: adic.qtd,
+            }))
+          : undefined,
+      observacao: item.observacao,
+    }));
+  }
+
+  async function finalizarTotem(cliente: ClientePedidoInput) {
     const response = await pedidoService.criar(
       {
         tipo_consumo: tipoConsumo,
         cliente,
-        itens: itens.map((item) => ({
-          id: item.produtoId,
-          qtd: item.qtd,
-          adicional:
-            item.adicionais.length > 0
-              ? item.adicionais.map((adic) => ({
-                  id: adic.id,
-                  qtd: adic.qtd,
-                }))
-              : undefined,
-          observacao: item.observacao,
-        })),
+        itens: montarItens(),
       },
       { silentSuccess: true },
     );
@@ -121,29 +124,6 @@ export function Carrinho() {
     if (!response.sucesso || !response.dados?.pedido) return;
 
     const pedido = response.dados.pedido;
-
-    if (!isTotem) {
-      await saveClienteLocal(cliente);
-      await appendPedidoLocal({
-        id: pedido.id,
-        numero: String(pedido.numero),
-        nome_completo: pedido.nome_completo,
-        tipo_consumo: tipoConsumo,
-        createdAt: pedido.createdAt ?? new Date().toISOString(),
-        itens: itens.map((item) => ({
-          nome: item.nome,
-          qtd: item.qtd,
-          preco: item.preco,
-          adicionais: item.adicionais.map((adic) => ({
-            nome: adic.nome,
-            preco: adic.preco,
-            qtd: adic.qtd,
-          })),
-          observacao: item.observacao,
-        })),
-      });
-    }
-
     clear();
     totemForm.reset({ nome_completo: '' });
     navigate('/confirmado', {
@@ -152,10 +132,24 @@ export function Carrinho() {
     });
   }
 
+  async function finalizarCliente(cliente: ClientePedidoInput) {
+    await saveClienteLocal(cliente);
+
+    const response = await infinitepayService.checkout({
+      tipo_consumo: tipoConsumo,
+      cliente,
+      itens: montarItens(),
+    });
+
+    if (!response.sucesso || !response.dados?.url) return;
+
+    window.location.assign(response.dados.url);
+  }
+
   async function onSubmit(values: CheckoutClienteValues) {
     if (itens.length === 0) return;
 
-    await finalizar({
+    await finalizarCliente({
       primeiro_nome: values.primeiro_nome,
       sobrenome: values.sobrenome,
       contato: onlyDigits(values.contato),
@@ -168,7 +162,7 @@ export function Carrinho() {
 
     const { primeiro_nome, sobrenome } = separarNome(values.nome_completo);
 
-    await finalizar({
+    await finalizarTotem({
       primeiro_nome,
       sobrenome,
       contato: '',
@@ -330,7 +324,7 @@ export function Carrinho() {
               </p>
 
               <Button type="submit" fullWidth disabled={isSubmitting}>
-                {isSubmitting ? 'Enviando…' : 'Fazer pedido'}
+                {isSubmitting ? 'Redirecionando…' : 'Pagar e fazer pedido'}
               </Button>
             </form>
           )}

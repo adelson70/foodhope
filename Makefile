@@ -7,3 +7,6 @@ up:
 
 logs:
 	cd docker && $(COMPOSE) logs -f
+
+down:
+	cd docker && $(COMPOSE) down api web

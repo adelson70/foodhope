@@ -35,6 +35,7 @@ export function Pedidos() {
   const [pedidoExcluir, setPedidoExcluir] = useState<Pedido | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [prontoLoadingId, setProntoLoadingId] = useState<string | null>(null);
+  const [pagoLoadingId, setPagoLoadingId] = useState<string | null>(null);
   const showSkeleton = useDeferredLoading(loading && pedidos.length === 0);
   const showMoreSkeleton = useDeferredLoading(loadingMore);
   const buscaRef = useRef(busca);
@@ -150,6 +151,22 @@ export function Pedidos() {
   }, []);
 
   useEffect(() => {
+    function onPedidoPago(pedido: Pedido) {
+      setPedidos((atual) =>
+        atual.map((item) => (item.id === pedido.id ? pedido : item)),
+      );
+      setPedidoDetalhe((atual) =>
+        atual?.id === pedido.id ? pedido : atual,
+      );
+    }
+
+    socket.on('pedido:pago', onPedidoPago);
+    return () => {
+      socket.off('pedido:pago', onPedidoPago);
+    };
+  }, []);
+
+  useEffect(() => {
     function onPedidoDeletado(payload: { id?: string }) {
       if (!payload?.id) return;
       const id = payload.id;
@@ -201,6 +218,26 @@ export function Pedidos() {
     }
   }
 
+  async function handleMarcarPago(pedido: Pedido) {
+    if (pedido.pago !== false || pagoLoadingId) return;
+    setPagoLoadingId(pedido.id);
+    try {
+      const response = await pedidoService.marcarPago(pedido.id);
+      const atualizado = response.dados?.pedido;
+      if (!atualizado) return;
+      setPedidos((atual) =>
+        atual.map((item) => (item.id === atualizado.id ? atualizado : item)),
+      );
+      setPedidoDetalhe((atual) =>
+        atual?.id === atualizado.id ? atualizado : atual,
+      );
+    } catch {
+      return;
+    } finally {
+      setPagoLoadingId(null);
+    }
+  }
+
   async function handleConfirmDelete() {
     if (!pedidoExcluir) return;
     setDeleting(true);
@@ -240,9 +277,13 @@ export function Pedidos() {
         filtroData={Boolean(data) && !busca}
         sentinelRef={sentinelRef}
         prontoLoadingId={prontoLoadingId}
+        pagoLoadingId={pagoLoadingId}
         onSelect={setPedidoDetalhe}
         onPronto={(pedido) => {
           void handlePronto(pedido);
+        }}
+        onMarcarPago={(pedido) => {
+          void handleMarcarPago(pedido);
         }}
         onDelete={setPedidoExcluir}
       />
@@ -257,9 +298,13 @@ export function Pedidos() {
         pedido={pedidoDetalhe}
         open={Boolean(pedidoDetalhe)}
         prontoLoading={prontoLoadingId === pedidoDetalhe?.id}
+        pagoLoading={pagoLoadingId === pedidoDetalhe?.id}
         onClose={() => setPedidoDetalhe(null)}
         onPronto={(pedido) => {
           void handlePronto(pedido);
+        }}
+        onMarcarPago={(pedido) => {
+          void handleMarcarPago(pedido);
         }}
         onDelete={setPedidoExcluir}
       />

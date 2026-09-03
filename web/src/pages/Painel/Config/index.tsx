@@ -1,16 +1,26 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChefHat, ChevronRight, Printer, Users, UserRound, Monitor } from 'lucide-react';
+import {
+  ChefHat,
+  ChevronRight,
+  CreditCard,
+  Printer,
+  Users,
+  UserRound,
+  Monitor,
+} from 'lucide-react';
 
 import { abrirTelaPedidosProntos } from '../../../lib/abrirTelaPedidos';
 import { notifyError } from '../../../services';
 import { ConfigImpressoraDrawer } from './ConfigImpressoraDrawer';
+import { ConfigInfinitePayDrawer } from './ConfigInfinitePayDrawer';
 import { ConfigLogout } from './ConfigLogout';
 import { ConfigUsuarioDrawer } from './ConfigUsuarioDrawer';
 
 export function Config() {
   const [usuarioAberto, setUsuarioAberto] = useState(false);
   const [impressoraAberta, setImpressoraAberta] = useState(false);
+  const [infinitePayAberta, setInfinitePayAberta] = useState(false);
 
   return (
     <div className="flex flex-col gap-6">
@@ -24,7 +34,6 @@ export function Config() {
       </div>
 
       <ul className="flex flex-col gap-3">
-        {/* INFORMAÇÕES DO USUÁRIO */}
         <li>
           <button
             type="button"
@@ -51,7 +60,6 @@ export function Config() {
           </button>
         </li>
 
-        {/* USUÁRIOS */}
         <li>
           <Link
             to="/painel/configuracoes/usuarios"
@@ -77,7 +85,6 @@ export function Config() {
           </Link>
         </li>
 
-        {/* INFORMAÇÕES DA COZINHA */}
         <li>
           <Link
             to="/painel/configuracoes/cozinha"
@@ -103,7 +110,6 @@ export function Config() {
           </Link>
         </li>
 
-        {/* IMPRESSORA */}
         <li>
           <button
             type="button"
@@ -130,7 +136,6 @@ export function Config() {
           </button>
         </li>
 
-        {/* TELA DE PEDIDOS PRONTOS */}
         <li>
           <button
             type="button"
@@ -163,6 +168,32 @@ export function Config() {
             />
           </button>
         </li>
+
+        <li>
+          <button
+            type="button"
+            onClick={() => setInfinitePayAberta(true)}
+            className="flex w-full items-center gap-3 rounded-xl border border-operator-border bg-operator-card p-4 text-left shadow-card transition-colors hover:border-primary/40"
+          >
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-container/30 text-primary">
+              <CreditCard size={19} strokeWidth={1.75} aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-body-md font-medium text-on-surface">
+                InfinitePay
+              </span>
+              <span className="block text-caption text-on-surface-variant">
+                Checkout online e InfiniteTag
+              </span>
+            </span>
+            <ChevronRight
+              size={17}
+              strokeWidth={1.75}
+              className="shrink-0 text-on-surface-variant"
+              aria-hidden
+            />
+          </button>
+        </li>
       </ul>
 
       <div className="border-t border-operator-border pt-4">
@@ -177,6 +208,11 @@ export function Config() {
       <ConfigImpressoraDrawer
         open={impressoraAberta}
         onClose={() => setImpressoraAberta(false)}
+      />
+
+      <ConfigInfinitePayDrawer
+        open={infinitePayAberta}
+        onClose={() => setInfinitePayAberta(false)}
       />
     </div>
   );

@@ -19,6 +19,7 @@ import {
   formatarMoeda,
   linhaSeparadora,
 } from '../impressora/impressao-texto.js';
+import type { AuthUser } from '../../infra/auth/auth.guard.js';
 
 @Injectable()
 export class PedidoService {
@@ -26,8 +27,8 @@ export class PedidoService {
     private readonly prismaWrite: PrismaWriteService,
     private readonly prismaRead: PrismaReadService,
     @InjectQueue('fila-impressao') private filaImpressao: Queue,
-    private readonly websocket: WebsocketGateway
-  ) { }
+    private readonly websocket: WebsocketGateway,
+  ) {}
 
   async listarPedido(dto: ListarDto) {
     try {
@@ -159,7 +160,7 @@ export class PedidoService {
       try {
         const numeroBuscado = BigInt(params);
         orConditions.push({ numero: numeroBuscado });
-      } catch (e) { }
+      } catch (e) {}
 
       const pedidos = await this.prismaRead.pedido.findMany({
         where: {
@@ -183,11 +184,13 @@ export class PedidoService {
       );
 
       return { dados: { pedidos: pedidosFormatados } };
-
     } catch (erro) {
       console.error('Erro ao buscar pedido:', erro);
 
-      if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2025') {
+      if (
+        erro instanceof Prisma.PrismaClientKnownRequestError &&
+        erro.code === 'P2025'
+      ) {
         throw new NotFoundException('Pedido não encontrado.');
       }
 
@@ -197,7 +200,32 @@ export class PedidoService {
     }
   }
 
-  async criarPedido(dto: CriarPedidoDto) {
+  async criarPedido(dto: CriarPedidoDto, user: AuthUser) {
+    if (user.tipo === 'visitor') {
+      throw new BadRequestException(
+        'Para fazer o pedido, finalize o pagamento pelo checkout.',
+      );
+    }
+
+    let pago: boolean;
+
+    if (user.role === 'TOTEM') {
+      pago = false;
+    } else if (user.role === 'ADMIN' || user.role === 'OPERADOR') {
+      if (typeof dto.pago !== 'boolean') {
+        throw new BadRequestException(
+          'Informe se o pedido está pago ou não.',
+        );
+      }
+      pago = dto.pago;
+    } else {
+      throw new BadRequestException('Operação não autorizada');
+    }
+
+    return this.criarPedidoPago(dto, pago);
+  }
+
+  async criarPedidoPago(dto: CriarPedidoDto, pago: boolean) {
     try {
       const pedidoCompleto = await this.prismaWrite.$transaction(async (tx) => {
         const contato = dto.cliente.contato?.trim() || undefined;
@@ -249,8 +277,12 @@ export class PedidoService {
             throw new Error(`Produto com ID ${itemDto.id} indisponível.`);
           }
 
-          const adicionaisVenda: Array<{ id: string; nome: string; preco: number; qtd: number }> =
-            [];
+          const adicionaisVenda: Array<{
+            id: string;
+            nome: string;
+            preco: number;
+            qtd: number;
+          }> = [];
           if (itemDto.adicional && itemDto.adicional.length > 0) {
             for (const addDto of itemDto.adicional) {
               const adicionalEspecifico = await tx.adicionalProduto.findFirst({
@@ -309,6 +341,7 @@ export class PedidoService {
           data: {
             nome_completo: nome_completo,
             tipo_consumo: dto.tipo_consumo ?? 'COMER_AQUI',
+            pago,
             itens: {
               create: itensParaCriar,
             },
@@ -321,35 +354,7 @@ export class PedidoService {
         return this.formatarPedido(pedidoCriado);
       });
 
-      const itensNormais = pedidoCompleto.itens.filter(
-        (item: { produto?: { imprimirSeparado?: boolean } }) =>
-          !item.produto?.imprimirSeparado,
-      );
-      const itensSeparados = pedidoCompleto.itens.filter(
-        (item: { produto?: { imprimirSeparado?: boolean } }) =>
-          Boolean(item.produto?.imprimirSeparado),
-      );
-
-      if (itensNormais.length > 0) {
-        const textoPrincipal = this.formatarParaImpressora(
-          { ...pedidoCompleto, itens: itensNormais },
-          dto.cliente,
-        );
-        await this.filaImpressao.add('imprimir-pedido', {
-          texto: textoPrincipal,
-        });
-      }
-
-      for (const item of itensSeparados) {
-        const textoSeparado = this.formatarItemSeparado(
-          pedidoCompleto,
-          item,
-          dto.cliente,
-        );
-        await this.filaImpressao.add('imprimir-pedido', {
-          texto: textoSeparado,
-        });
-      }
+      await this.enfileirarImpressao(pedidoCompleto, dto.cliente);
 
       this.websocket.emitirParaOperadores('novo-pedido', pedidoCompleto);
 
@@ -364,6 +369,10 @@ export class PedidoService {
 
       if (erro instanceof Error && erro.message.includes('não encontrado')) {
         throw new NotFoundException(erro.message);
+      }
+
+      if (erro instanceof Error && erro.message.includes('indisponível')) {
+        throw new BadRequestException(erro.message);
       }
 
       throw new InternalServerErrorException(
@@ -423,14 +432,64 @@ export class PedidoService {
     }
   }
 
-  private formatarPedido<T extends { numero: bigint; prontoAt: Date | null }>(
-    pedido: T,
-  ) {
+  async marcarPedidoPago(id: string) {
+    try {
+      const pedido = await this.prismaRead.pedido.findUnique({
+        where: { id },
+        include: {
+          itens: { include: { produto: true } },
+        },
+      });
+
+      if (!pedido) {
+        throw new NotFoundException('Pedido não encontrado.');
+      }
+
+      if (pedido.pago) {
+        return {
+          mensagem: 'Pedido já estava pago',
+          dados: {
+            pedido: this.formatarPedido(pedido),
+          },
+        };
+      }
+
+      const atualizado = await this.prismaWrite.pedido.update({
+        where: { id },
+        data: { pago: true },
+        include: {
+          itens: { include: { produto: true } },
+        },
+      });
+
+      const pedidoCompleto = this.formatarPedido(atualizado);
+      this.websocket.emitirParaOperadores('pedido:pago', pedidoCompleto);
+
+      return {
+        mensagem: 'Pedido marcado como pago',
+        dados: { pedido: pedidoCompleto },
+      };
+    } catch (erro) {
+      if (erro instanceof NotFoundException) {
+        throw erro;
+      }
+
+      console.error('Erro ao marcar pedido como pago:', erro);
+      throw new InternalServerErrorException(
+        'Não foi possível marcar o pedido como pago. Tente novamente.',
+      );
+    }
+  }
+
+  private formatarPedido<
+    T extends { numero: bigint; prontoAt: Date | null; pago: boolean },
+  >(pedido: T) {
     return {
       ...pedido,
       numero: pedido.numero.toString(),
       prontoAt: pedido.prontoAt ? pedido.prontoAt.toISOString() : null,
       pronto: Boolean(pedido.prontoAt),
+      pago: Boolean(pedido.pago),
     };
   }
 
@@ -449,6 +508,42 @@ export class PedidoService {
     return tipo === 'LEVAR' ? 'LEVAR' : 'COMER AQUI';
   }
 
+  private rotuloPago(pago?: boolean) {
+    return pago === false ? 'NAO PAGO' : 'PAGO';
+  }
+
+  private async enfileirarImpressao(pedidoCompleto: any, cliente: ClientePedido) {
+    const itensNormais = pedidoCompleto.itens.filter(
+      (item: { produto?: { imprimirSeparado?: boolean } }) =>
+        !item.produto?.imprimirSeparado,
+    );
+    const itensSeparados = pedidoCompleto.itens.filter(
+      (item: { produto?: { imprimirSeparado?: boolean } }) =>
+        Boolean(item.produto?.imprimirSeparado),
+    );
+
+    if (itensNormais.length > 0) {
+      const textoPrincipal = this.formatarParaImpressora(
+        { ...pedidoCompleto, itens: itensNormais },
+        cliente,
+      );
+      await this.filaImpressao.add('imprimir-pedido', {
+        texto: textoPrincipal,
+      });
+    }
+
+    for (const item of itensSeparados) {
+      const textoSeparado = this.formatarItemSeparado(
+        pedidoCompleto,
+        item,
+        cliente,
+      );
+      await this.filaImpressao.add('imprimir-pedido', {
+        texto: textoSeparado,
+      });
+    }
+  }
+
   private formatarParaImpressora(pedido: any, cliente: ClientePedido) {
     let impressao = '';
 
@@ -459,6 +554,7 @@ export class PedidoService {
       .join(' ');
     impressao += `CLIENTE: ${nomeCliente}\n`;
     impressao += `CONSUMO: ${this.rotuloConsumo(pedido.tipo_consumo)}\n`;
+    impressao += `PAGAMENTO: ${this.rotuloPago(pedido.pago)}\n`;
     impressao += `${linhaSeparadora('=')}\n\n`;
 
     let valorTotalPedido = 0;
@@ -520,6 +616,7 @@ export class PedidoService {
       .join(' ');
     impressao += `CLIENTE: ${nomeCliente}\n`;
     impressao += `CONSUMO: ${this.rotuloConsumo(pedido.tipo_consumo)}\n`;
+    impressao += `PAGAMENTO: ${this.rotuloPago(pedido.pago)}\n`;
     impressao += `ITEM A PARTE\n`;
     impressao += `${linhaSeparadora('=')}\n\n`;
 
@@ -576,42 +673,13 @@ export class PedidoService {
         throw new NotFoundException('Pedido não encontrado.');
       }
 
-      const pedidoFormatado = {
-        ...pedido,
-        numero: pedido.numero.toString(),
-      };
+      const pedidoFormatado = this.formatarPedido(pedido);
 
       const cliente = {
         primeiro_nome: pedido.nome_completo,
       } as ClientePedido;
 
-      const itensNormais = pedidoFormatado.itens.filter(
-        (item) => !item.produto?.imprimirSeparado,
-      );
-      const itensSeparados = pedidoFormatado.itens.filter((item) =>
-        Boolean(item.produto?.imprimirSeparado),
-      );
-
-      if (itensNormais.length > 0) {
-        const textoPrincipal = this.formatarParaImpressora(
-          { ...pedidoFormatado, itens: itensNormais },
-          cliente,
-        );
-        await this.filaImpressao.add('imprimir-pedido', {
-          texto: textoPrincipal,
-        });
-      }
-
-      for (const item of itensSeparados) {
-        const textoSeparado = this.formatarItemSeparado(
-          pedidoFormatado,
-          item,
-          cliente,
-        );
-        await this.filaImpressao.add('imprimir-pedido', {
-          texto: textoSeparado,
-        });
-      }
+      await this.enfileirarImpressao(pedidoFormatado, cliente);
 
       return { mensagem: 'Pedido enviado para impressão', dados: {} };
     } catch (erro) {
@@ -631,14 +699,19 @@ export class PedidoService {
       await this.prismaWrite.pedido.delete({ where: { id } });
       this.websocket.emitirParaOperadores('pedido:deletado', { id });
       this.websocket.emitirParaMonitores('pedido:deletado', { id });
-      return { mensagem: "Pedido deletado com sucesso", dados: {} }
+      return { mensagem: 'Pedido deletado com sucesso', dados: {} };
     } catch (erro) {
-      console.log('erro', erro)
-      if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2025') {
+      console.log('erro', erro);
+      if (
+        erro instanceof Prisma.PrismaClientKnownRequestError &&
+        erro.code === 'P2025'
+      ) {
         throw new NotFoundException('Pedido não encontrado.');
       }
 
-      throw new InternalServerErrorException('Não foi possível deletar o pedido. Tente novamente.');
+      throw new InternalServerErrorException(
+        'Não foi possível deletar o pedido. Tente novamente.',
+      );
     }
   }
 }
