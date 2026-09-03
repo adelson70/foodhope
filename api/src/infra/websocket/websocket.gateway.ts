@@ -16,6 +16,8 @@ import type { RoleOperador } from '../../../generated/prisma/enums.js';
 
 export const WS_ROOM_OPERADORES = 'operadores';
 export const WS_ROOM_CLIENTES = 'clientes';
+export const WS_ROOM_MONITORES = 'monitores';
+export const TELA_PEDIDOS_PRONTOS = 'pedidos-prontos';
 
 export function roomDoOperador(id: string) {
   return `operador:${id}`;
@@ -115,6 +117,7 @@ export class WebsocketGateway
     if (user?.tipo === 'operador') {
       void client.join(WS_ROOM_OPERADORES);
       void client.join(roomDoOperador(user.id));
+      this.registrarMonitor(client);
     } else if (user?.tipo === 'visitor') {
       void client.join(WS_ROOM_CLIENTES);
     }
@@ -130,6 +133,26 @@ export class WebsocketGateway
 
   emitirParaOperadores(evento: string, payload: unknown) {
     this.server.to(WS_ROOM_OPERADORES).emit(evento, payload);
+  }
+
+  emitirParaMonitores(evento: string, payload: unknown) {
+    this.server.to(WS_ROOM_MONITORES).emit(evento, payload);
+  }
+
+  private registrarMonitor(client: Socket) {
+    const tela = client.handshake.auth?.tela;
+    if (tela !== TELA_PEDIDOS_PRONTOS) return;
+
+    const labelRaw = client.handshake.auth?.label;
+    const labelBase =
+      typeof labelRaw === 'string' && labelRaw.trim()
+        ? labelRaw.trim().slice(0, 80)
+        : 'Tela de pedidos prontos';
+
+    client.data.tela = TELA_PEDIDOS_PRONTOS;
+    client.data.label = `${labelBase} (${client.id.slice(0, 4)})`;
+    client.data.conectadoEm = new Date().toISOString();
+    void client.join(WS_ROOM_MONITORES);
   }
 
   forcarLogout(operadorId: string) {

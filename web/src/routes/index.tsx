@@ -19,6 +19,7 @@ import { Termos } from '../pages/Termos';
 import { Login } from '../pages/Login';
 import { Dash } from '../pages/Painel/Dash';
 import { Relatorio } from '../pages/Painel/Relatorio';
+import { TelaPedidos } from '../pages/Painel/TelaPedidos';
 import { ConfigUsuarios } from '../pages/Painel/Config/ConfigUsuarios';
 
 export const router = createBrowserRouter([
@@ -46,6 +47,7 @@ export const router = createBrowserRouter([
         element: <RequireRole allow={['ADMIN']} />,
         children: [
           { path: 'relatorio', element: <Relatorio /> },
+          { path: 'tela-pedidos', element: <TelaPedidos /> },
           { path: 'configuracoes/usuarios', element: <ConfigUsuarios /> },
         ],
       },

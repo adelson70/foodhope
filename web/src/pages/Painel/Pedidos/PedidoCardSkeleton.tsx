@@ -11,8 +11,11 @@ export function PedidoCardSkeleton() {
           </div>
           <Skeleton className="h-5 w-2/3" />
           <Skeleton className="h-3 w-4/5" />
-          <Skeleton className="mt-2 h-5 w-20" />
         </div>
+        <Skeleton className="size-10 shrink-0 rounded-lg" />
+      </div>
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <Skeleton className="h-5 w-20" />
         <Skeleton className="size-10 shrink-0 rounded-lg" />
       </div>
     </article>

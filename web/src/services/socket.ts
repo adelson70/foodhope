@@ -3,35 +3,49 @@ import { io, type Socket } from 'socket.io-client';
 import { getToken } from './cookie';
 import { signSocketAuth } from './visitor';
 
+export const TELA_PEDIDOS_PRONTOS = 'pedidos-prontos';
+
+export type ConnectSocketOptions = {
+  tela?: typeof TELA_PEDIDOS_PRONTOS;
+  label?: string;
+};
+
 export const socket: Socket = io(import.meta.env.VITE_API_URL, {
   autoConnect: false,
 });
 
-let connectPromise: Promise<void> | null = null;
+let connectChain: Promise<void> = Promise.resolve();
 
-export async function connectSocket(): Promise<void> {
-  if (connectPromise) {
-    return connectPromise;
-  }
+export function connectSocket(
+  options: ConnectSocketOptions = {},
+): Promise<void> {
+  connectChain = connectChain
+    .catch(() => undefined)
+    .then(async () => {
+      const token = getToken();
 
-  connectPromise = (async () => {
-    const token = getToken();
+      if (token) {
+        socket.auth = {
+          token,
+          ...(options.tela
+            ? {
+                tela: options.tela,
+                ...(options.label ? { label: options.label } : {}),
+              }
+            : {}),
+        };
+      } else {
+        socket.auth = await signSocketAuth(import.meta.env.VITE_API_URL);
+      }
 
-    if (token) {
-      socket.auth = { token };
-    } else {
-      const auth = await signSocketAuth(import.meta.env.VITE_API_URL);
-      socket.auth = auth;
-    }
+      if (socket.connected) {
+        socket.disconnect();
+      }
 
-    if (!socket.connected) {
       socket.connect();
-    }
-  })().finally(() => {
-    connectPromise = null;
-  });
+    });
 
-  return connectPromise;
+  return connectChain;
 }
 
 export const disconnectSocket = () => {

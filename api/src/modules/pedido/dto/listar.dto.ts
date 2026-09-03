@@ -1,6 +1,14 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsOptional, IsString, IsInt, Min, Max, Matches } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import {
+  IsBoolean,
+  IsOptional,
+  IsString,
+  IsInt,
+  Min,
+  Max,
+  Matches,
+} from 'class-validator';
 
 export class ListarDto {
   @ApiPropertyOptional({
@@ -20,6 +28,19 @@ export class ListarDto {
     message: 'A data deve estar no formato YYYY-MM-DD.',
   })
   data?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'true = só pedidos prontos (tela); false = só em preparo; omitido = todos',
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === true || value === 'true') return true;
+    if (value === false || value === 'false') return false;
+    return undefined;
+  })
+  @IsBoolean()
+  pronto?: boolean;
 
   @ApiPropertyOptional({ example: 10, description: 'Quantidade de itens por página' })
   @IsOptional()

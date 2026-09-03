@@ -17,6 +17,7 @@ import { PedidosDataFiltro } from './PedidosDataFiltro';
 import { PedidosHeader } from './PedidosHeader';
 import { PedidosLista } from './PedidosLista';
 import { PedidosSearch } from './PedidosSearch';
+import { pedidoEstaPronto } from './pedidoTotais';
 
 const LISTAR_LIMIT = 20;
 
@@ -33,6 +34,7 @@ export function Pedidos() {
   const [pedidoDetalhe, setPedidoDetalhe] = useState<Pedido | null>(null);
   const [pedidoExcluir, setPedidoExcluir] = useState<Pedido | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [prontoLoadingId, setProntoLoadingId] = useState<string | null>(null);
   const showSkeleton = useDeferredLoading(loading && pedidos.length === 0);
   const showMoreSkeleton = useDeferredLoading(loadingMore);
   const buscaRef = useRef(busca);
@@ -131,6 +133,37 @@ export function Pedidos() {
     };
   }, []);
 
+  useEffect(() => {
+    function onPedidoPronto(pedido: Pedido) {
+      setPedidos((atual) =>
+        atual.map((item) => (item.id === pedido.id ? pedido : item)),
+      );
+      setPedidoDetalhe((atual) =>
+        atual?.id === pedido.id ? pedido : atual,
+      );
+    }
+
+    socket.on('pedido:pronto', onPedidoPronto);
+    return () => {
+      socket.off('pedido:pronto', onPedidoPronto);
+    };
+  }, []);
+
+  useEffect(() => {
+    function onPedidoDeletado(payload: { id?: string }) {
+      if (!payload?.id) return;
+      const id = payload.id;
+      setPedidos((atual) => atual.filter((item) => item.id !== id));
+      setPedidoDetalhe((atual) => (atual?.id === id ? null : atual));
+      setPedidoExcluir((atual) => (atual?.id === id ? null : atual));
+    }
+
+    socket.on('pedido:deletado', onPedidoDeletado);
+    return () => {
+      socket.off('pedido:deletado', onPedidoDeletado);
+    };
+  }, []);
+
   const sentinelRef = useInfiniteScroll({
     enabled: hasNextPage && !loading && !loadingMore && !busca,
     onLoadMore: carregarMais,
@@ -148,6 +181,26 @@ export function Pedidos() {
     });
   }
 
+  async function handlePronto(pedido: Pedido) {
+    if (pedidoEstaPronto(pedido) || prontoLoadingId) return;
+    setProntoLoadingId(pedido.id);
+    try {
+      const response = await pedidoService.marcarPronto(pedido.id);
+      const atualizado = response.dados?.pedido;
+      if (!atualizado) return;
+      setPedidos((atual) =>
+        atual.map((item) => (item.id === atualizado.id ? atualizado : item)),
+      );
+      setPedidoDetalhe((atual) =>
+        atual?.id === atualizado.id ? atualizado : atual,
+      );
+    } catch {
+      return;
+    } finally {
+      setProntoLoadingId(null);
+    }
+  }
+
   async function handleConfirmDelete() {
     if (!pedidoExcluir) return;
     setDeleting(true);
@@ -155,6 +208,9 @@ export function Pedidos() {
       await pedidoService.deletar(pedidoExcluir.id);
       setPedidos((atual) =>
         atual.filter((p) => p.id !== pedidoExcluir.id),
+      );
+      setPedidoDetalhe((atual) =>
+        atual?.id === pedidoExcluir.id ? null : atual,
       );
       setPedidoExcluir(null);
     } catch {
@@ -183,7 +239,11 @@ export function Pedidos() {
         buscaAtiva={Boolean(busca)}
         filtroData={Boolean(data) && !busca}
         sentinelRef={sentinelRef}
+        prontoLoadingId={prontoLoadingId}
         onSelect={setPedidoDetalhe}
+        onPronto={(pedido) => {
+          void handlePronto(pedido);
+        }}
         onDelete={setPedidoExcluir}
       />
 
@@ -196,7 +256,12 @@ export function Pedidos() {
       <PedidoDetalheDrawer
         pedido={pedidoDetalhe}
         open={Boolean(pedidoDetalhe)}
+        prontoLoading={prontoLoadingId === pedidoDetalhe?.id}
         onClose={() => setPedidoDetalhe(null)}
+        onPronto={(pedido) => {
+          void handlePronto(pedido);
+        }}
+        onDelete={setPedidoExcluir}
       />
 
       <ConfirmDialog

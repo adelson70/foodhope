@@ -14,7 +14,9 @@ type PedidosListaProps = {
   buscaAtiva: boolean;
   filtroData?: boolean;
   sentinelRef: Ref<HTMLDivElement>;
+  prontoLoadingId: string | null;
   onSelect: (pedido: Pedido) => void;
+  onPronto: (pedido: Pedido) => void;
   onDelete: (pedido: Pedido) => void;
 };
 
@@ -31,7 +33,9 @@ export function PedidosLista({
   buscaAtiva,
   filtroData,
   sentinelRef,
+  prontoLoadingId,
   onSelect,
+  onPronto,
   onDelete,
 }: PedidosListaProps) {
   if (loading) {
@@ -82,7 +86,13 @@ export function PedidosLista({
     <ul className="flex flex-col gap-3">
       {pedidos.map((pedido) => (
         <li key={pedido.id}>
-          <PedidoCard pedido={pedido} onSelect={onSelect} onDelete={onDelete} />
+          <PedidoCard
+            pedido={pedido}
+            prontoLoading={prontoLoadingId === pedido.id}
+            onSelect={onSelect}
+            onPronto={onPronto}
+            onDelete={onDelete}
+          />
         </li>
       ))}
       {loadingMore

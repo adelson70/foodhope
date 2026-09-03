@@ -16,6 +16,10 @@ export function totalPedido(pedido: Pedido): number {
   return (pedido.itens ?? []).reduce((soma, item) => soma + totalItem(item), 0);
 }
 
+export function pedidoEstaPronto(pedido: Pedido): boolean {
+  return pedido.pronto === true || Boolean(pedido.prontoAt);
+}
+
 
 export function formatarDataPedido(iso?: string): string {
   if (!iso) return '—';

@@ -45,16 +45,29 @@ export class PedidoService {
         }
       }
 
-      const where = dto.data
-        ? { createdAt: this.intervaloDiaSp(dto.data) }
-        : undefined;
+      const where: Prisma.PedidoWhereInput = {};
+
+      if (dto.data) {
+        where.createdAt = this.intervaloDiaSp(dto.data);
+      }
+
+      if (dto.pronto === true) {
+        where.prontoAt = { not: null };
+      } else if (dto.pronto === false) {
+        where.prontoAt = null;
+      }
+
+      const orderBy: Prisma.PedidoOrderByWithRelationInput[] =
+        dto.pronto === true
+          ? [{ prontoAt: 'desc' }, { id: 'desc' }]
+          : [{ createdAt: 'desc' }, { id: 'desc' }];
 
       const pedidos = await this.prismaRead.pedido.findMany({
         where,
         take: limit + 1,
         cursor: decodedCursor ? { id: decodedCursor.id } : undefined,
         skip: decodedCursor ? 1 : 0,
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        orderBy,
         include: {
           itens: {
             include: {
@@ -80,10 +93,9 @@ export class PedidoService {
         nextCursor = Buffer.from(cursorPayload).toString('base64');
       }
 
-      const pedidosFormatados = pedidos.map((pedido) => ({
-        ...pedido,
-        numero: pedido.numero.toString(),
-      }));
+      const pedidosFormatados = pedidos.map((pedido) =>
+        this.formatarPedido(pedido),
+      );
 
       return {
         pedidos: pedidosFormatados,
@@ -166,10 +178,9 @@ export class PedidoService {
         return { mensagem: 'Nenhum pedido encontrado', dados: { pedidos: [] } };
       }
 
-      const pedidosFormatados = pedidos.map((pedido) => ({
-        ...pedido,
-        numero: pedido.numero.toString(),
-      }));
+      const pedidosFormatados = pedidos.map((pedido) =>
+        this.formatarPedido(pedido),
+      );
 
       return { dados: { pedidos: pedidosFormatados } };
 
@@ -307,7 +318,7 @@ export class PedidoService {
           },
         });
 
-        return { ...pedidoCriado, numero: pedidoCriado.numero.toString() };
+        return this.formatarPedido(pedidoCriado);
       });
 
       const itensNormais = pedidoCompleto.itens.filter(
@@ -340,7 +351,7 @@ export class PedidoService {
         });
       }
 
-      this.websocket.emitirParaOperadores('novo-pedido', pedidoCompleto)
+      this.websocket.emitirParaOperadores('novo-pedido', pedidoCompleto);
 
       return {
         mensagem: 'Pedido criado com sucesso',
@@ -359,6 +370,68 @@ export class PedidoService {
         'Não foi possível processar o pedido. Tente novamente.',
       );
     }
+  }
+
+  async marcarPedidoPronto(id: string) {
+    try {
+      const pedido = await this.prismaRead.pedido.findUnique({
+        where: { id },
+        include: {
+          itens: { include: { produto: true } },
+        },
+      });
+
+      if (!pedido) {
+        throw new NotFoundException('Pedido não encontrado.');
+      }
+
+      if (pedido.prontoAt) {
+        return {
+          mensagem: 'Pedido já estava pronto',
+          dados: {
+            pedido: this.formatarPedido(pedido),
+          },
+        };
+      }
+
+      const atualizado = await this.prismaWrite.pedido.update({
+        where: { id },
+        data: { prontoAt: new Date() },
+        include: {
+          itens: { include: { produto: true } },
+        },
+      });
+
+      const pedidoCompleto = this.formatarPedido(atualizado);
+
+      this.websocket.emitirParaOperadores('pedido:pronto', pedidoCompleto);
+      this.websocket.emitirParaMonitores('pedido:saiu', pedidoCompleto);
+
+      return {
+        mensagem: 'Pedido marcado como pronto',
+        dados: { pedido: pedidoCompleto },
+      };
+    } catch (erro) {
+      if (erro instanceof NotFoundException) {
+        throw erro;
+      }
+
+      console.error('Erro ao marcar pedido como pronto:', erro);
+      throw new InternalServerErrorException(
+        'Não foi possível marcar o pedido como pronto. Tente novamente.',
+      );
+    }
+  }
+
+  private formatarPedido<T extends { numero: bigint; prontoAt: Date | null }>(
+    pedido: T,
+  ) {
+    return {
+      ...pedido,
+      numero: pedido.numero.toString(),
+      prontoAt: pedido.prontoAt ? pedido.prontoAt.toISOString() : null,
+      pronto: Boolean(pedido.prontoAt),
+    };
   }
 
   private intervaloDiaSp(data: string): { gte: Date; lt: Date } {
@@ -555,7 +628,9 @@ export class PedidoService {
 
   async deletarPedido(id: string) {
     try {
-      await this.prismaWrite.pedido.delete({ where: { id } })
+      await this.prismaWrite.pedido.delete({ where: { id } });
+      this.websocket.emitirParaOperadores('pedido:deletado', { id });
+      this.websocket.emitirParaMonitores('pedido:deletado', { id });
       return { mensagem: "Pedido deletado com sucesso", dados: {} }
     } catch (erro) {
       console.log('erro', erro)

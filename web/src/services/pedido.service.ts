@@ -12,6 +12,7 @@ export type ListarPedidosParams = {
   cursor?: string;
   limit?: number;
   data?: string;
+  pronto?: boolean;
 };
 
 export type CriarPedidoOptions = {
@@ -47,6 +48,19 @@ export const pedidoService = {
           ? false
           : 'Pedido criado com sucesso',
         error: 'Não foi possível criar o pedido',
+      },
+    );
+  },
+
+  async marcarPronto(id: string): Promise<ApiResponse<CriarPedidoDados>> {
+    return withMutationToast(
+      () =>
+        request(
+          api.post<ApiResponse<CriarPedidoDados>>(`/pedido/${id}/pronto`),
+        ),
+      {
+        success: 'Pedido marcado como pronto',
+        error: 'Não foi possível marcar o pedido como pronto',
       },
     );
   },

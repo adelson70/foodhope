@@ -1,16 +1,19 @@
 import { useState } from 'react';
-import { Printer } from 'lucide-react';
+import { Check, Printer, Trash2 } from 'lucide-react';
 
 import { Button, Drawer } from '../../../components/ui';
 import { rotuloTipoConsumo } from '../../../lib/tipoConsumo';
 import { pedidoService } from '../../../services';
 import type { Pedido } from '../../../services/types';
-import { formatarMoeda, totalItem, totalPedido } from './pedidoTotais';
+import { formatarMoeda, pedidoEstaPronto, totalItem, totalPedido } from './pedidoTotais';
 
 type PedidoDetalheDrawerProps = {
   pedido: Pedido | null;
   open: boolean;
+  prontoLoading: boolean;
   onClose: () => void;
+  onPronto: (pedido: Pedido) => void;
+  onDelete: (pedido: Pedido) => void;
 };
 
 function formatarDataCompleta(iso?: string): string {
@@ -27,11 +30,15 @@ function formatarDataCompleta(iso?: string): string {
 export function PedidoDetalheDrawer({
   pedido,
   open,
+  prontoLoading,
   onClose,
+  onPronto,
+  onDelete,
 }: PedidoDetalheDrawerProps) {
   const [imprimindo, setImprimindo] = useState(false);
   const total = pedido ? totalPedido(pedido) : 0;
   const itens = pedido?.itens ?? [];
+  const pronto = pedido ? pedidoEstaPronto(pedido) : false;
 
   async function handleReimprimir() {
     if (!pedido) return;
@@ -52,18 +59,41 @@ export function PedidoDetalheDrawer({
       onClose={onClose}
       footer={
         pedido ? (
-          <Button
-            type="button"
-            variant="primary"
-            fullWidth
-            disabled={imprimindo}
-            onClick={() => {
-              void handleReimprimir();
-            }}
-          >
-            <Printer size={17} strokeWidth={1.75} />
-            {imprimindo ? 'Enviando…' : 'Imprimir novamente'}
-          </Button>
+          <div className="flex flex-col gap-2">
+            {!pronto ? (
+              <Button
+                type="button"
+                variant="success"
+                fullWidth
+                disabled={prontoLoading}
+                onClick={() => onPronto(pedido)}
+              >
+                <Check size={17} strokeWidth={1.75} aria-hidden />
+                {prontoLoading ? 'Marcando…' : 'Marcar como pronto'}
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="primary"
+              fullWidth
+              disabled={imprimindo}
+              onClick={() => {
+                void handleReimprimir();
+              }}
+            >
+              <Printer size={17} strokeWidth={1.75} />
+              {imprimindo ? 'Enviando…' : 'Imprimir novamente'}
+            </Button>
+            <Button
+              type="button"
+              variant="dangerGhost"
+              fullWidth
+              onClick={() => onDelete(pedido)}
+            >
+              <Trash2 size={17} strokeWidth={1.75} aria-hidden />
+              Excluir pedido
+            </Button>
+          </div>
         ) : null
       }
     >
@@ -74,8 +104,15 @@ export function PedidoDetalheDrawer({
               <span className="text-caption text-on-surface-variant">
                 {formatarDataCompleta(pedido.createdAt)}
               </span>
-              <span className="rounded-full bg-primary-container/40 px-3 py-1 text-label-sm font-medium text-on-surface">
-                {rotuloTipoConsumo(pedido.tipo_consumo)}
+              <span className="flex flex-wrap items-center justify-end gap-1">
+                <span className="rounded-full bg-primary-container/40 px-3 py-1 text-label-sm font-medium text-on-surface">
+                  {rotuloTipoConsumo(pedido.tipo_consumo)}
+                </span>
+                {pronto ? (
+                  <span className="rounded-full bg-success/15 px-3 py-1 text-label-sm font-medium text-success">
+                    Pronto
+                  </span>
+                ) : null}
               </span>
             </div>
             <p className="mt-2 text-subtitle-md font-medium text-on-surface">

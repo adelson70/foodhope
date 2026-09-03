@@ -1,4 +1,4 @@
-import { Trash2 } from 'lucide-react';
+import { Check, Trash2 } from 'lucide-react';
 
 import { Button } from '../../../components/ui';
 import { rotuloTipoConsumo } from '../../../lib/tipoConsumo';
@@ -6,20 +6,30 @@ import type { Pedido } from '../../../services/types';
 import {
   formatarDataPedido,
   formatarMoeda,
+  pedidoEstaPronto,
   totalPedido,
 } from './pedidoTotais';
 
 type PedidoCardProps = {
   pedido: Pedido;
+  prontoLoading: boolean;
   onSelect: (pedido: Pedido) => void;
+  onPronto: (pedido: Pedido) => void;
   onDelete: (pedido: Pedido) => void;
 };
 
-export function PedidoCard({ pedido, onSelect, onDelete }: PedidoCardProps) {
+export function PedidoCard({
+  pedido,
+  prontoLoading,
+  onSelect,
+  onPronto,
+  onDelete,
+}: PedidoCardProps) {
   const nomesItens = (pedido.itens ?? [])
     .map((item) => item.produto?.nome ?? 'Item')
     .slice(0, 3);
   const restantes = (pedido.itens?.length ?? 0) - nomesItens.length;
+  const pronto = pedidoEstaPronto(pedido);
 
   return (
     <article className="rounded-xl border border-operator-border bg-operator-card p-4">
@@ -39,6 +49,11 @@ export function PedidoCard({ pedido, onSelect, onDelete }: PedidoCardProps) {
             <span className="rounded-full bg-primary-container/40 px-2 py-0.5 text-label-sm font-medium text-on-surface">
               {rotuloTipoConsumo(pedido.tipo_consumo)}
             </span>
+            {pronto ? (
+              <span className="rounded-full bg-success/15 px-2 py-0.5 text-label-sm font-medium text-success">
+                Pronto
+              </span>
+            ) : null}
           </div>
           <h2 className="mt-1 truncate text-subtitle-md font-medium text-on-surface">
             {pedido.nome_completo}
@@ -49,10 +64,24 @@ export function PedidoCard({ pedido, onSelect, onDelete }: PedidoCardProps) {
               {restantes > 0 ? ` +${restantes}` : ''}
             </p>
           ) : null}
-          <p className="mt-2 text-body-md font-medium text-on-surface">
-            {formatarMoeda(totalPedido(pedido))}
-          </p>
         </button>
+        {!pronto ? (
+          <Button
+            type="button"
+            variant="success"
+            aria-label={`Marcar pedido ${pedido.numero} como pronto`}
+            className="size-10 shrink-0 px-0 py-0"
+            disabled={prontoLoading}
+            onClick={() => onPronto(pedido)}
+          >
+            <Check size={17} strokeWidth={1.75} />
+          </Button>
+        ) : null}
+      </div>
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <p className="text-body-md font-medium text-on-surface">
+          {formatarMoeda(totalPedido(pedido))}
+        </p>
         <Button
           type="button"
           variant="dangerGhost"

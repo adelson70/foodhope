@@ -68,6 +68,7 @@ model Pedido {
   nome_completo String
 
   tipo_consumo TipoConsumo @default(COMER_AQUI) @map("tipo_consumo")
+  prontoAt     DateTime?   @map("pronto_at")
 
   itens PedidoItem[]
 
@@ -76,6 +77,7 @@ model Pedido {
 
   @@index([numero])
   @@index([nome_completo])
+  @@index([prontoAt])
   @@map("pedido")
 }
 

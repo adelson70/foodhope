@@ -11,7 +11,7 @@ export { operadorService } from './operador.service';
 export { pedidoService } from './pedido.service';
 export { produtoService } from './produto.service';
 export { persistOptions, queryClient } from './queryClient';
-export { connectSocket, disconnectSocket, socket } from './socket';
+export { connectSocket, disconnectSocket, socket, TELA_PEDIDOS_PRONTOS } from './socket';
 export {
   clearVisitorSession,
   ensureVisitor,

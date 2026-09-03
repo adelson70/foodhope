@@ -4,6 +4,12 @@ export function hojeSpIso(): string {
   });
 }
 
+export function utcParaSpIso(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+  });
+}
+
 export function isoParaBr(iso: string): string {
   const [ano, mes, dia] = iso.split('-');
   if (!ano || !mes || !dia) return '';

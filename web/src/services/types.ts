@@ -216,6 +216,8 @@ export type Pedido = {
   numero: string;
   nome_completo: string;
   tipo_consumo?: TipoConsumo;
+  pronto?: boolean;
+  prontoAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
   itens?: PedidoItem[];

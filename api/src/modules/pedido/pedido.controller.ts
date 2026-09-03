@@ -47,6 +47,14 @@ export class PedidoController {
         return this.pedido.criarPedido(dto);
     }
 
+    @Post(':id/pronto')
+    @ApiBearerAuth()
+    @Roles('ADMIN', 'OPERADOR')
+    @ApiOperation({ summary: 'Marca pedido como pronto (tela de pedidos prontos)' })
+    async marcarPronto(@Param('id') id: string) {
+        return this.pedido.marcarPedidoPronto(id);
+    }
+
     @Post(':id/reimprimir')
     @ApiBearerAuth()
     @Roles('ADMIN', 'OPERADOR')
