@@ -33,6 +33,30 @@ function tituloGrupo(produto: Produto) {
   return produto.categoria?.nome ?? 'Outros';
 }
 
+type GrupoCardapio = {
+  chave: string;
+  titulo: string;
+  itens: Produto[];
+};
+
+function agruparProdutos(produtos: Produto[]): GrupoCardapio[] {
+  const grupos: GrupoCardapio[] = [];
+  for (const produto of produtos) {
+    const chave = chaveGrupo(produto);
+    const ultimo = grupos[grupos.length - 1];
+    if (ultimo && ultimo.chave === chave) {
+      ultimo.itens.push(produto);
+    } else {
+      grupos.push({
+        chave,
+        titulo: tituloGrupo(produto),
+        itens: [produto],
+      });
+    }
+  }
+  return grupos;
+}
+
 export function CardapioLista({
   produtos,
   loading,
@@ -51,7 +75,7 @@ export function CardapioLista({
   if (loading) {
     return (
       <ul
-        className="flex flex-col gap-3"
+        className="grid grid-cols-1 gap-3 lg:grid-cols-2"
         aria-busy="true"
         aria-label="Carregando produtos"
       >
@@ -90,61 +114,64 @@ export function CardapioLista({
     );
   }
 
-  return (
-    <ul className="flex flex-col gap-3">
-      {produtos.map((produto, index) => {
-        const grupo = chaveGrupo(produto);
-        const anterior = index > 0 ? produtos[index - 1] : null;
-        const proximo = index < produtos.length - 1 ? produtos[index + 1] : null;
-        const mostrarDivisor =
-          !buscaAtiva && (!anterior || chaveGrupo(anterior) !== grupo);
-        const canMoveUp = Boolean(
-          !buscaAtiva && anterior && chaveGrupo(anterior) === grupo,
-        );
-        const canMoveDown = Boolean(
-          !buscaAtiva && proximo && chaveGrupo(proximo) === grupo,
-        );
+  const grupos = buscaAtiva
+    ? [{ chave: 'busca', titulo: '', itens: produtos }]
+    : agruparProdutos(produtos);
 
-        return (
-          <li key={produto.id} className="flex flex-col gap-3">
-            {mostrarDivisor ? (
-              <div
-                className={
-                  index === 0
-                    ? 'pt-1'
-                    : 'mt-2 border-t border-outline-variant/60 pt-4'
-                }
-              >
-                <h2 className="text-subtitle-md font-semibold uppercase tracking-wide text-on-surface-variant">
-                  {tituloGrupo(produto)}
-                </h2>
-              </div>
-            ) : null}
-            <ProdutoCard
-              produto={produto}
-              busy={busyId === produto.id}
-              canMoveUp={canMoveUp}
-              canMoveDown={canMoveDown}
-              onMoveUp={buscaAtiva ? undefined : onMoveUp}
-              onMoveDown={buscaAtiva ? undefined : onMoveDown}
-              onEdit={onEdit}
-              onDelete={onDelete}
-            />
-          </li>
-        );
-      })}
-      {loadingMore
-        ? Array.from({ length: LOAD_MORE_SKELETON_COUNT }, (_, index) => (
+  return (
+    <div className="flex flex-col gap-3">
+      {grupos.map((grupo, grupoIndex) => (
+        <section key={grupo.chave} className="flex flex-col gap-3">
+          {grupo.titulo ? (
+            <div
+              className={
+                grupoIndex === 0
+                  ? 'pt-1'
+                  : 'mt-2 border-t border-outline-variant/60 pt-4'
+              }
+            >
+              <h2 className="text-subtitle-md font-semibold uppercase tracking-wide text-on-surface-variant">
+                {grupo.titulo}
+              </h2>
+            </div>
+          ) : null}
+          <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {grupo.itens.map((produto, index) => {
+              const canMoveUp = Boolean(!buscaAtiva && index > 0);
+              const canMoveDown = Boolean(
+                !buscaAtiva && index < grupo.itens.length - 1,
+              );
+
+              return (
+                <li key={produto.id}>
+                  <ProdutoCard
+                    produto={produto}
+                    busy={busyId === produto.id}
+                    canMoveUp={canMoveUp}
+                    canMoveDown={canMoveDown}
+                    onMoveUp={buscaAtiva ? undefined : onMoveUp}
+                    onMoveDown={buscaAtiva ? undefined : onMoveDown}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ))}
+      {loadingMore ? (
+        <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+          {Array.from({ length: LOAD_MORE_SKELETON_COUNT }, (_, index) => (
             <li key={`more-${index}`}>
               <ProdutoCardSkeleton />
             </li>
-          ))
-        : null}
-      {hasNextPage ? (
-        <li aria-hidden>
-          <div ref={sentinelRef} className="h-1" />
-        </li>
+          ))}
+        </ul>
       ) : null}
-    </ul>
+      {hasNextPage ? (
+        <div ref={sentinelRef} className="h-1" aria-hidden />
+      ) : null}
+    </div>
   );
 }

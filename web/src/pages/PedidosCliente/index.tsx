@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { loadPedidosLocais, type PedidoLocal } from '../../lib/clienteStorage';
+import {
+  loadPedidosLocais,
+  type PedidoLocal,
+} from '../../lib/clienteStorage';
 import { useDeferredLoading } from '../../hooks/useDeferredLoading';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
 import { getVisitorId } from '../../services/visitor';
@@ -22,20 +25,25 @@ export function PedidosCliente() {
   const showSkeleton = useDeferredLoading(loading && visiveis.length === 0);
   const showMoreSkeleton = useDeferredLoading(loadingMore);
 
+  const aplicarLista = useCallback((lista: PedidoLocal[]) => {
+    setTodos(lista);
+    const first = lista.slice(0, Math.max(offsetRef.current, PAGE_SIZE));
+    setVisiveis(first);
+    offsetRef.current = first.length;
+    setHasNextPage(lista.length > first.length);
+  }, []);
+
   const carregar = useCallback(async () => {
     setLoading(true);
     try {
       const visitorId = await getVisitorId();
       const lista = await loadPedidosLocais(visitorId);
-      setTodos(lista);
-      const first = lista.slice(0, PAGE_SIZE);
-      setVisiveis(first);
-      offsetRef.current = first.length;
-      setHasNextPage(lista.length > first.length);
+      offsetRef.current = PAGE_SIZE;
+      aplicarLista(lista);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [aplicarLista]);
 
   const carregarMais = useCallback(async () => {
     if (!hasNextPage) return;
@@ -54,6 +62,25 @@ export function PedidosCliente() {
   useEffect(() => {
     void carregar();
   }, [carregar]);
+
+  useEffect(() => {
+    function onProntoLocal(event: Event) {
+      const atualizado = (event as CustomEvent<PedidoLocal>).detail;
+      if (!atualizado?.id) return;
+
+      void loadPedidosLocais().then((lista) => {
+        aplicarLista(lista);
+      });
+      setPedidoSelecionado((atual) =>
+        atual?.id === atualizado.id ? atualizado : atual,
+      );
+    }
+
+    window.addEventListener('foodhope:pedido-pronto', onProntoLocal);
+    return () => {
+      window.removeEventListener('foodhope:pedido-pronto', onProntoLocal);
+    };
+  }, [aplicarLista]);
 
   const sentinelRef = useInfiniteScroll({
     enabled: hasNextPage && !loading && !loadingMore,

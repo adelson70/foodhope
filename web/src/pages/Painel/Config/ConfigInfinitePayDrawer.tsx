@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Copy } from 'lucide-react';
+import { Check, Copy } from 'lucide-react';
 
 import { Button, Drawer, Input, Label, Loading } from '../../../components/ui';
 import {
@@ -29,16 +29,27 @@ export function ConfigInfinitePayDrawer({
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [webhookUrl, setWebhookUrl] = useState<string | null>(null);
+  const [testadoOk, setTestadoOk] = useState(false);
+  const [testando, setTestando] = useState(false);
 
   const {
     register,
     handleSubmit,
     reset,
+    watch,
+    trigger,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<InfinitePayFormValues>({
     resolver: zodResolver(infinitepaySchema),
     defaultValues: { handle: '' },
   });
+
+  const handleAtual = watch('handle');
+
+  useEffect(() => {
+    setTestadoOk(false);
+  }, [handleAtual]);
 
   useEffect(() => {
     if (!open) return;
@@ -46,6 +57,7 @@ export function ConfigInfinitePayDrawer({
     let cancelled = false;
     setLoading(true);
     setErro(null);
+    setTestadoOk(false);
 
     infinitepayService
       .obter()
@@ -57,6 +69,7 @@ export function ConfigInfinitePayDrawer({
         }
         reset({ handle: response.dados?.handle ?? '' });
         setWebhookUrl(response.dados?.webhookUrl ?? null);
+        setTestadoOk(false);
       })
       .catch((error: unknown) => {
         if (cancelled) return;
@@ -75,7 +88,30 @@ export function ConfigInfinitePayDrawer({
     };
   }, [open, reset]);
 
+  async function onTestar() {
+    const valido = await trigger();
+    if (!valido) return;
+
+    setTestando(true);
+    setTestadoOk(false);
+
+    try {
+      const response = await infinitepayService.testar({
+        handle: getValues('handle'),
+      });
+      if (response.sucesso && response.dados?.conectada) {
+        setTestadoOk(true);
+      }
+    } catch {
+      setTestadoOk(false);
+    } finally {
+      setTestando(false);
+    }
+  }
+
   async function onSubmit(values: InfinitePayFormValues) {
+    if (!testadoOk) return;
+
     try {
       const response = await infinitepayService.salvar({
         handle: values.handle,
@@ -99,39 +135,65 @@ export function ConfigInfinitePayDrawer({
     }
   }
 
+  const formPronto = !loading && !erro;
+
   return (
     <Drawer
       open={open}
       title="InfinitePay"
       onClose={onClose}
       footer={
-        <Button
-          type="submit"
-          form={FORM_ID}
-          fullWidth
-          disabled={loading || isSubmitting}
-        >
-          {isSubmitting ? 'Salvando…' : 'Salvar'}
-        </Button>
+        formPronto ? (
+          <div className="flex w-full flex-col gap-2">
+            <Button
+              type="button"
+              fullWidth
+              variant={testadoOk ? 'success' : 'info'}
+              disabled={testando || isSubmitting}
+              onClick={() => void onTestar()}
+            >
+              {testando ? (
+                'Testando…'
+              ) : testadoOk ? (
+                <>
+                  <Check size={15} strokeWidth={2.25} />
+                  Conexão OK
+                </>
+              ) : (
+                'Testar conexão'
+              )}
+            </Button>
+            <Button
+              type="submit"
+              form={FORM_ID}
+              fullWidth
+              disabled={!testadoOk || isSubmitting || testando}
+            >
+              {isSubmitting ? 'Salvando…' : 'Salvar'}
+            </Button>
+          </div>
+        ) : null
       }
     >
       {loading ? (
         <div className="flex justify-center py-10">
           <Loading />
         </div>
-      ) : (
+      ) : null}
+
+      {!loading && erro ? (
+        <div className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-caption text-danger">
+          {erro}
+        </div>
+      ) : null}
+
+      {formPronto ? (
         <form
           id={FORM_ID}
           className="flex flex-col gap-4"
           onSubmit={handleSubmit(onSubmit)}
           noValidate
         >
-          {erro ? (
-            <div className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-caption text-danger">
-              {erro}
-            </div>
-          ) : null}
-
           <p className="text-caption text-on-surface-variant">
             Use a InfiniteTag do app InfinitePay, sem o símbolo $. Ative o
             Checkout Integrado em Vendas → Checkout → Configurações.
@@ -181,7 +243,7 @@ export function ConfigInfinitePayDrawer({
             </div>
           ) : null}
         </form>
-      )}
+      ) : null}
     </Drawer>
   );
 }

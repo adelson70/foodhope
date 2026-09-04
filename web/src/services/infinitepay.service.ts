@@ -8,11 +8,30 @@ import type {
   ConfirmarCheckoutInput,
   CriarPedidoDados,
   CriarPedidoInput,
+  TestarInfinitePayDados,
 } from './types';
 
 export const infinitepayService = {
   async obter(): Promise<ApiResponse<ConfigInfinitePay>> {
     return request(api.get<ApiResponse<ConfigInfinitePay>>('/infinitepay'));
+  },
+
+  async testar(
+    input: ConfigurarInfinitePayInput,
+  ): Promise<ApiResponse<TestarInfinitePayDados>> {
+    return withMutationToast(
+      () =>
+        request(
+          api.post<ApiResponse<TestarInfinitePayDados>>(
+            '/infinitepay/testar',
+            input,
+          ),
+        ),
+      {
+        success: 'Conexão com a InfinitePay OK',
+        error: 'Não foi possível conectar à InfinitePay',
+      },
+    );
   },
 
   async salvar(

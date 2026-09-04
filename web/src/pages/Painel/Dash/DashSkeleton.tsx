@@ -54,7 +54,7 @@ export function DashSkeleton() {
         </p>
       </div>
 
-      <section className="grid grid-cols-1 gap-3">
+      <section className="grid grid-cols-1 gap-3 lg:grid-cols-3">
         <KpiSkeleton />
         <KpiSkeleton />
         <KpiSkeleton />
@@ -65,7 +65,7 @@ export function DashSkeleton() {
         <DestaqueSkeleton />
       </section>
 
-      <section className="grid grid-cols-1 gap-3">
+      <section className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <ChartSkeleton />
         <ChartSkeleton />
       </section>

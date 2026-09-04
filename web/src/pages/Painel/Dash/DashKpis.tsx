@@ -40,7 +40,7 @@ export function DashKpis({
   ];
 
   return (
-    <section className="grid grid-cols-1 gap-3">
+    <section className="grid grid-cols-1 gap-3 lg:grid-cols-3">
       {cards.map(({ label, value, icon: Icon, accent }) => (
         <article
           key={label}

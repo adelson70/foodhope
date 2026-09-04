@@ -97,8 +97,7 @@ export function ConfigUsuarios() {
   }
 
   return (
-    <div className="flex min-h-dvh justify-center bg-background text-on-background">
-      <div className="flex w-full max-w-md flex-col gap-6 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+    <div className="flex flex-col gap-6">
       <ConfigBackLink to="/painel/configuracoes" />
 
       <div className="flex items-start justify-between gap-3">
@@ -123,7 +122,7 @@ export function ConfigUsuarios() {
 
       {showSkeleton ? (
         <ul
-          className="flex flex-col gap-3"
+          className="grid grid-cols-1 gap-3 lg:grid-cols-2"
           aria-busy="true"
           aria-label="Carregando"
         >
@@ -148,7 +147,7 @@ export function ConfigUsuarios() {
       ) : null}
 
       {!showSkeleton && !erro && usuarios.length > 0 ? (
-        <ul className="flex flex-col gap-3">
+        <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {usuarios.map((usuario) => {
             const isSelf = usuario.id === atual.id;
             return (
@@ -238,7 +237,6 @@ export function ConfigUsuarios() {
         onConfirm={() => void confirmarExclusao()}
         onCancel={() => setExcluindo(null)}
       />
-      </div>
     </div>
   );
 }

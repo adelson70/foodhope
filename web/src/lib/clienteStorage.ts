@@ -72,6 +72,26 @@ export async function appendPedidoLocal(
   await idbPut(STORE_PEDIDOS, LOCAL_DATA_KEY, next);
 }
 
+export async function marcarPedidoLocalPronto(
+  pedidoId: string,
+  prontoAt?: string | null,
+): Promise<PedidoLocal | null> {
+  const atual = await loadPedidosLocais();
+  let atualizado: PedidoLocal | null = null;
+  const next = atual.map((pedido) => {
+    if (pedido.id !== pedidoId) return pedido;
+    atualizado = {
+      ...pedido,
+      pronto: true,
+      prontoAt: prontoAt ?? new Date().toISOString(),
+    };
+    return atualizado;
+  });
+  if (!atualizado) return null;
+  await idbPut(STORE_PEDIDOS, LOCAL_DATA_KEY, next);
+  return atualizado;
+}
+
 export async function loadClienteLocal(
   legacyVisitorId?: string | null,
 ): Promise<ClienteLocal | null> {

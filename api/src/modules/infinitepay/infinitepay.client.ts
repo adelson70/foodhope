@@ -17,9 +17,9 @@ export type InfinitePayItem = {
 export type CreateLinkInput = {
   handle: string;
   items: InfinitePayItem[];
-  order_nsu: string;
-  redirect_url: string;
-  webhook_url: string;
+  order_nsu?: string;
+  redirect_url?: string;
+  webhook_url?: string;
   customer?: {
     name: string;
     phone_number?: string;
@@ -55,9 +55,9 @@ export class InfinitePayClient {
     const body = await this.postJson('/links', {
       handle: input.handle,
       items: input.items,
-      order_nsu: input.order_nsu,
-      redirect_url: input.redirect_url,
-      webhook_url: input.webhook_url,
+      ...(input.order_nsu ? { order_nsu: input.order_nsu } : {}),
+      ...(input.redirect_url ? { redirect_url: input.redirect_url } : {}),
+      ...(input.webhook_url ? { webhook_url: input.webhook_url } : {}),
       ...(input.customer ? { customer: input.customer } : {}),
     });
 
@@ -77,6 +77,20 @@ export class InfinitePayClient {
       url,
       slug: this.asNonEmptyString(body.slug),
     };
+  }
+
+  async testarHandle(handle: string): Promise<CreateLinkResult> {
+    return this.criarLink({
+      handle,
+      items: [
+        {
+          quantity: 1,
+          price: 100,
+          description: 'Teste Food Hope',
+        },
+      ],
+      order_nsu: `teste-${Date.now()}`,
+    });
   }
 
   async verificarPagamento(

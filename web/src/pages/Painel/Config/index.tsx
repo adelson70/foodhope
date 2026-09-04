@@ -33,7 +33,7 @@ export function Config() {
         </p>
       </div>
 
-      <ul className="flex flex-col gap-3">
+      <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <li>
           <button
             type="button"

@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { Toaster } from './components/ui/Toaster';
 import { useCardapioCarrinhoRealtime } from './hooks/useCardapioCarrinhoRealtime';
+import { usePedidoProntoRealtime } from './hooks/usePedidoProntoRealtime';
 import { router } from './routes';
 import { persistOptions, queryClient } from './services/queryClient';
 import { clearToken } from './services/cookie';
@@ -10,6 +11,7 @@ import { connectSocket, disconnectSocket, socket } from './services/socket';
 
 function AppRealtime() {
   useCardapioCarrinhoRealtime();
+  usePedidoProntoRealtime();
   return null;
 }
 

@@ -414,6 +414,12 @@ export class PedidoService {
       const pedidoCompleto = this.formatarPedido(atualizado);
 
       this.websocket.emitirParaOperadores('pedido:pronto', pedidoCompleto);
+      this.websocket.emitirParaClientes('pedido:pronto', {
+        id: pedidoCompleto.id,
+        numero: pedidoCompleto.numero,
+        pronto: true,
+        prontoAt: pedidoCompleto.prontoAt,
+      });
       this.websocket.emitirParaMonitores('pedido:saiu', pedidoCompleto);
 
       return {

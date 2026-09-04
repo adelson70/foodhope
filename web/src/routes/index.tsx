@@ -45,11 +45,7 @@ export const router = createBrowserRouter([
     children: [
       {
         element: <RequireRole allow={['ADMIN']} />,
-        children: [
-          { path: 'relatorio', element: <Relatorio /> },
-          { path: 'tela-pedidos', element: <TelaPedidos /> },
-          { path: 'configuracoes/usuarios', element: <ConfigUsuarios /> },
-        ],
+        children: [{ path: 'tela-pedidos', element: <TelaPedidos /> }],
       },
       {
         element: <PainelLayout />,
@@ -61,7 +57,9 @@ export const router = createBrowserRouter([
             element: <RequireRole allow={['ADMIN']} />,
             children: [
               { path: 'dash', element: <Dash /> },
+              { path: 'relatorio', element: <Relatorio /> },
               { path: 'configuracoes', element: <Config /> },
+              { path: 'configuracoes/usuarios', element: <ConfigUsuarios /> },
               { path: 'configuracoes/cozinha', element: <ConfigCozinha /> },
               {
                 path: 'configuracoes/cozinha/adicionais',

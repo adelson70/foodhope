@@ -40,7 +40,7 @@ export function Drawer({ open, title, onClose, children, footer }: DrawerProps) 
   if (!mounted) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-center overflow-hidden">
+    <div className="fixed inset-0 z-50 flex justify-center overflow-hidden lg:justify-end">
       <button
         type="button"
         aria-label="Fechar drawer"

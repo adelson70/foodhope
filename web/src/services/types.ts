@@ -312,6 +312,11 @@ export type ConfigurarInfinitePayInput = {
   handle: string;
 };
 
+export type TestarInfinitePayDados = {
+  conectada: boolean;
+  handle: string;
+};
+
 export type CheckoutDados = {
   url: string;
   order_nsu: string;

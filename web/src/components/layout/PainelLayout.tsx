@@ -7,9 +7,12 @@ import { markScrollRoot } from '../../lib/scrollLock';
 import { useSessao } from '../../routes/sessao';
 import { FoodHopeLogo } from '../brand/FoodHopeLogo';
 import { PainelBottomNav } from './PainelBottomNav';
+import { PainelSidebar } from './PainelSidebar';
 
-function isConfigSubtela(pathname: string) {
+function isSubtelaSemBottomNav(pathname: string) {
   return (
+    pathname === '/painel/relatorio' ||
+    pathname === '/painel/configuracoes/usuarios' ||
     pathname === '/painel/configuracoes/cozinha' ||
     pathname.startsWith('/painel/configuracoes/cozinha/')
   );
@@ -25,16 +28,23 @@ export function PainelLayout() {
   const sessao = useSessao();
   const mainRef = useRef<HTMLElement>(null);
   useScrollFocusedIntoView(mainRef);
-  const semBottomNav = isConfigSubtela(pathname);
+  const semBottomNav = isSubtelaSemBottomNav(pathname);
 
   useEffect(() => {
     markScrollRoot(mainRef.current);
   }, []);
 
   return (
-    <div className="flex min-h-dvh justify-center bg-background text-on-background">
-      <div className="relative flex h-dvh w-full max-w-md flex-col overflow-hidden bg-background shadow-card pt-[env(safe-area-inset-top)]">
-        <header className="shrink-0 border-b border-outline-variant/50 bg-surface/90 px-4 py-3">
+    <div className="flex min-h-dvh bg-background text-on-background lg:h-dvh lg:overflow-hidden">
+      <PainelSidebar role={sessao.role} />
+
+      <div
+        className={cn(
+          'relative mx-auto flex h-dvh w-full max-w-md flex-col overflow-hidden bg-background shadow-card pt-[env(safe-area-inset-top)]',
+          'lg:mx-0 lg:max-w-none lg:flex-1 lg:shadow-none lg:pt-0',
+        )}
+      >
+        <header className="shrink-0 border-b border-outline-variant/50 bg-surface/90 px-4 py-3 lg:hidden">
           <FoodHopeLogo markClassName="size-7" />
         </header>
 
@@ -43,10 +53,14 @@ export function PainelLayout() {
           data-scroll-root=""
           className={cn(
             'min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-4',
+            'lg:px-8 lg:py-6 lg:pb-6',
             semBottomNav ? MAIN_PB_PLAIN : MAIN_PB_NAV,
+            'lg:pb-6',
           )}
         >
-          <Outlet context={sessao} />
+          <div className="lg:mx-auto lg:max-w-6xl">
+            <Outlet context={sessao} />
+          </div>
         </main>
 
         {semBottomNav ? null : <PainelBottomNav role={sessao.role} />}

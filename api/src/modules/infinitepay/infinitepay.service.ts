@@ -75,6 +75,8 @@ export class InfinitePayService {
         throw new BadRequestException('Informe a InfiniteTag (handle)');
       }
 
+      await this.client.testarHandle(handle);
+
       const config = await this.prismaWrite.configInfinitePay.upsert({
         where: { id: CONFIG_ID },
         create: { id: CONFIG_ID, handle },
@@ -91,9 +93,36 @@ export class InfinitePayService {
       };
     } catch (erro) {
       if (erro instanceof BadRequestException) throw erro;
+      if (erro instanceof InternalServerErrorException) throw erro;
       this.logger.error('Erro ao salvar config InfinitePay', erro);
       throw new InternalServerErrorException(
         'Não foi possível salvar a configuração da InfinitePay.',
+      );
+    }
+  }
+
+  async testar(dto: ConfigurarInfinitePayDto) {
+    try {
+      const handle = dto.handle.trim().replace(/^\$+/, '');
+      if (!handle) {
+        throw new BadRequestException('Informe a InfiniteTag (handle)');
+      }
+
+      await this.client.testarHandle(handle);
+
+      return {
+        mensagem: 'Conexão com a InfinitePay OK',
+        dados: {
+          conectada: true,
+          handle,
+        },
+      };
+    } catch (erro) {
+      if (erro instanceof BadRequestException) throw erro;
+      if (erro instanceof InternalServerErrorException) throw erro;
+      this.logger.error('Erro ao testar InfinitePay', erro);
+      throw new InternalServerErrorException(
+        'Não foi possível conectar à InfinitePay.',
       );
     }
   }

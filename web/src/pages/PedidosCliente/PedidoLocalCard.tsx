@@ -47,6 +47,11 @@ export function PedidoLocalCard({ pedido, onSelect }: PedidoLocalCardProps) {
         <span className="text-caption text-on-surface-variant">
           {formatarData(pedido.createdAt)}
         </span>
+        {pedido.pronto ? (
+          <span className="rounded-full bg-success/15 px-2 py-0.5 text-label-sm font-medium text-success">
+            Pronto
+          </span>
+        ) : null}
       </div>
       <p className="mt-1 truncate text-subtitle-md text-on-surface">
         {titulo || 'Pedido'}

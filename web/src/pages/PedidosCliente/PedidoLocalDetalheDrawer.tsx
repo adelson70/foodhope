@@ -53,8 +53,15 @@ export function PedidoLocalDetalheDrawer({
               <p className="text-caption text-on-surface-variant">
                 {formatarData(pedido.createdAt)}
               </p>
-              <span className="rounded-full bg-primary-container/40 px-3 py-1 text-label-sm font-medium text-on-surface">
-                {rotuloTipoConsumo(pedido.tipo_consumo)}
+              <span className="flex flex-wrap items-center justify-end gap-1">
+                <span className="rounded-full bg-primary-container/40 px-3 py-1 text-label-sm font-medium text-on-surface">
+                  {rotuloTipoConsumo(pedido.tipo_consumo)}
+                </span>
+                {pedido.pronto ? (
+                  <span className="rounded-full bg-success/15 px-3 py-1 text-label-sm font-medium text-success">
+                    Pronto
+                  </span>
+                ) : null}
               </span>
             </div>
             <p className="mt-1 text-subtitle-md text-on-surface">

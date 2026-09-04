@@ -194,6 +194,8 @@ async function persistirPedidoLocal(
       numero: String(pedido.numero),
       nome_completo: pedido.nome_completo,
       tipo_consumo: tipoConsumo,
+      pronto: Boolean(pedido.pronto),
+      prontoAt: pedido.prontoAt ?? null,
       createdAt: pedido.createdAt ?? new Date().toISOString(),
       itens: itensCarrinho.map((item) => ({
         nome: item.nome,
@@ -215,6 +217,8 @@ async function persistirPedidoLocal(
     numero: String(pedido.numero),
     nome_completo: pedido.nome_completo,
     tipo_consumo: tipoConsumo,
+    pronto: Boolean(pedido.pronto),
+    prontoAt: pedido.prontoAt ?? null,
     createdAt: pedido.createdAt ?? new Date().toISOString(),
     itens: (pedido.itens ?? []).map((item) => ({
       nome: item.produto?.nome ?? 'Item',

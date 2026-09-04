@@ -135,6 +135,10 @@ export class WebsocketGateway
     this.server.to(WS_ROOM_OPERADORES).emit(evento, payload);
   }
 
+  emitirParaClientes(evento: string, payload: unknown) {
+    this.server.to(WS_ROOM_CLIENTES).emit(evento, payload);
+  }
+
   emitirParaMonitores(evento: string, payload: unknown) {
     this.server.to(WS_ROOM_MONITORES).emit(evento, payload);
   }

@@ -50,6 +50,17 @@ export class InfinitePayController {
     return this.infinitepay.salvar(dto);
   }
 
+  @Post('infinitepay/testar')
+  @ApiBearerAuth()
+  @Roles('ADMIN')
+  @ApiOperation({
+    summary: 'Testa a InfiniteTag gerando um link de checkout de R$ 1,00',
+  })
+  @ApiBody({ type: ConfigurarInfinitePayDto })
+  async testar(@Body() dto: ConfigurarInfinitePayDto) {
+    return this.infinitepay.testar(dto);
+  }
+
   @Post('checkout')
   @Auth('jwt-or-visitor')
   @ApiOperation({

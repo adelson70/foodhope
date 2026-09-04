@@ -32,6 +32,8 @@ export type PedidoLocal = {
   numero: string;
   nome_completo: string;
   tipo_consumo?: 'LEVAR' | 'COMER_AQUI';
+  pronto?: boolean;
+  prontoAt?: string | null;
   createdAt: string;
   itens: PedidoLocalItem[];
 };

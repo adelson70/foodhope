@@ -45,7 +45,7 @@ export function PedidosLista({
   if (loading) {
     return (
       <ul
-        className="flex flex-col gap-3"
+        className="grid grid-cols-1 gap-3 lg:grid-cols-2"
         aria-busy="true"
         aria-label="Carregando pedidos"
       >
@@ -87,7 +87,7 @@ export function PedidosLista({
   }
 
   return (
-    <ul className="flex flex-col gap-3">
+    <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
       {pedidos.map((pedido) => (
         <li key={pedido.id}>
           <PedidoCard
@@ -109,7 +109,7 @@ export function PedidosLista({
           ))
         : null}
       {hasNextPage ? (
-        <li aria-hidden>
+        <li aria-hidden className="lg:col-span-2">
           <div ref={sentinelRef} className="h-1" />
         </li>
       ) : null}
