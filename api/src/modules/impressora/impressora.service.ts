@@ -18,8 +18,116 @@ import {
 import { PrismaReadService } from '../../infra/database/prisma-read.service.js';
 import { PrismaWriteService } from '../../infra/database/prisma-write.service.js';
 import { ConfigurarImpressoraDto } from './dto/configurar.dto.js';
+import {
+  MARCA_BANNER_ABRE,
+  MARCA_BANNER_FECHA,
+  MARCA_BIG_ABRE,
+  MARCA_BIG_FECHA,
+  MARCA_CENTER_ABRE,
+  MARCA_CENTER_FECHA,
+  MARCA_ITEM_ABRE,
+  MARCA_ITEM_FECHA,
+  MARCA_META_ABRE,
+  MARCA_META_FECHA,
+  MARCA_OBS_ABRE,
+  MARCA_OBS_FECHA,
+  MARCA_TOTAL_ABRE,
+  MARCA_TOTAL_FECHA,
+} from './impressao-texto.js';
 
 const CONFIG_ID = 'default';
+
+function escapeRegExp(valor: string) {
+  return valor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function marcaLinha(abre: string, fecha: string) {
+  return new RegExp(
+    `^${escapeRegExp(abre)}(.*)${escapeRegExp(fecha)}$`,
+  );
+}
+
+const MARCAS_LINHA = [
+  {
+    re: marcaLinha(MARCA_BIG_ABRE, MARCA_BIG_FECHA),
+    aplicar: (impressora: ThermalPrinter, texto: string) => {
+      impressora.alignCenter();
+      impressora.bold(true);
+      impressora.setTextSize(1, 1);
+      impressora.print(texto);
+      impressora.setTextNormal();
+      impressora.bold(false);
+      impressora.alignCenter();
+      impressora.newLine();
+    },
+  },
+  {
+    re: marcaLinha(MARCA_BANNER_ABRE, MARCA_BANNER_FECHA),
+    aplicar: (impressora: ThermalPrinter, texto: string) => {
+      impressora.alignCenter();
+      impressora.bold(true);
+      impressora.setTextDoubleHeight();
+      impressora.print(texto);
+      impressora.setTextNormal();
+      impressora.bold(false);
+      impressora.alignLeft();
+      impressora.newLine();
+    },
+  },
+  {
+    re: marcaLinha(MARCA_ITEM_ABRE, MARCA_ITEM_FECHA),
+    aplicar: (impressora: ThermalPrinter, texto: string) => {
+      impressora.alignLeft();
+      impressora.bold(true);
+      impressora.setTextDoubleHeight();
+      impressora.print(texto);
+      impressora.setTextNormal();
+      impressora.bold(false);
+      impressora.newLine();
+    },
+  },
+  {
+    re: marcaLinha(MARCA_OBS_ABRE, MARCA_OBS_FECHA),
+    aplicar: (impressora: ThermalPrinter, texto: string) => {
+      impressora.alignLeft();
+      impressora.bold(true);
+      impressora.println(texto);
+    },
+  },
+  {
+    re: marcaLinha(MARCA_CENTER_ABRE, MARCA_CENTER_FECHA),
+    aplicar: (impressora: ThermalPrinter, texto: string) => {
+      impressora.alignCenter();
+      impressora.bold(true);
+      impressora.setTextDoubleHeight();
+      impressora.print(texto);
+      impressora.setTextNormal();
+      impressora.bold(false);
+      impressora.alignCenter();
+      impressora.newLine();
+    },
+  },
+  {
+    re: marcaLinha(MARCA_META_ABRE, MARCA_META_FECHA),
+    aplicar: (impressora: ThermalPrinter, texto: string) => {
+      impressora.alignCenter();
+      impressora.bold(true);
+      impressora.println(texto);
+    },
+  },
+  {
+    re: marcaLinha(MARCA_TOTAL_ABRE, MARCA_TOTAL_FECHA),
+    aplicar: (impressora: ThermalPrinter, texto: string) => {
+      impressora.alignLeft();
+      impressora.bold(true);
+      impressora.setTextDoubleHeight();
+      impressora.print(texto);
+      impressora.setTextNormal();
+      impressora.bold(false);
+      impressora.newLine();
+    },
+  },
+] as const;
 
 const DISPOSITIVO_RE =
   /^(?:\/dev\/(?:usb\/)?lp\d+|\/dev\/tty(?:USB|ACM)\d+|\/dev\/serial\/by-id\/[A-Za-z0-9._+-]+|COM\d+)$/i;
@@ -193,7 +301,7 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
     this.logger.log('Enviando dados para a impressora...');
 
     try {
-      this.impressora.println(textoFormatado);
+      this.renderizarTexto(textoFormatado);
       this.impressora.add(COMANDO_CORTE);
       await this.impressora.execute();
       this.impressora.clear();
@@ -203,6 +311,36 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
       this.impressora.clear();
       throw error;
     }
+  }
+
+  private renderizarTexto(texto: string) {
+    const impressora = this.impressora;
+    if (!impressora) return;
+
+    for (const linha of texto.split('\n')) {
+      let renderizada = false;
+
+      for (const marca of MARCAS_LINHA) {
+        const match = linha.match(marca.re);
+        if (!match) continue;
+        marca.aplicar(impressora, match[1] ?? '');
+        this.resetarEstilo(impressora);
+        renderizada = true;
+        break;
+      }
+
+      if (!renderizada) {
+        impressora.println(linha);
+      }
+    }
+  }
+
+  private resetarEstilo(impressora: ThermalPrinter) {
+    impressora.setTextNormal();
+    impressora.bold(false);
+    impressora.invert(false);
+    impressora.alignLeft();
+    impressora.resetLineSpacing();
   }
 
   estaConfigurada(): boolean {

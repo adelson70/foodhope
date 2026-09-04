@@ -15,9 +15,17 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { WebsocketGateway } from '../../infra/websocket/websocket.gateway.js';
 import {
-  alinharLinha,
-  formatarMoeda,
+  formatarHorarioCupom,
+  linhaAdicionalCupom,
+  linhaBanner,
+  linhaCentralizada,
+  linhaItemCupom,
+  linhaMetaCupom,
+  linhaNumeroPedido,
+  linhaObsCupom,
   linhaSeparadora,
+  linhaTotalCupom,
+  paraCupom,
 } from '../impressora/impressao-texto.js';
 import type { AuthUser } from '../../infra/auth/auth.guard.js';
 
@@ -518,6 +526,10 @@ export class PedidoService {
     return pago === false ? 'NAO PAGO' : 'PAGO';
   }
 
+  private rotuloStatusCupom(pedido: any) {
+    return `${this.rotuloConsumo(pedido.tipo_consumo)} - ${this.rotuloPago(pedido.pago)}`;
+  }
+
   private async enfileirarImpressao(pedidoCompleto: any, cliente: ClientePedido) {
     const itensNormais = pedidoCompleto.itens.filter(
       (item: { produto?: { imprimirSeparado?: boolean } }) =>
@@ -550,58 +562,79 @@ export class PedidoService {
     }
   }
 
-  private formatarParaImpressora(pedido: any, cliente: ClientePedido) {
+  private cabecalhoCupom(
+    pedido: any,
+    cliente: ClientePedido,
+    opcoes?: { banner?: string },
+  ) {
+    const nomeCliente = paraCupom(
+      [cliente.primeiro_nome, cliente.sobrenome].filter(Boolean).join(' '),
+    );
+    const status = this.rotuloStatusCupom(pedido);
+    const horario = pedido.createdAt
+      ? formatarHorarioCupom(pedido.createdAt)
+      : '';
+
     let impressao = '';
-
+    if (opcoes?.banner) {
+      impressao += `${linhaBanner(opcoes.banner)}\n`;
+    }
+    impressao += `${linhaNumeroPedido(pedido.numero)}\n`;
+    impressao += `${linhaCentralizada(status)}\n`;
+    if (nomeCliente) {
+      impressao += `${linhaCentralizada(nomeCliente)}\n`;
+    }
+    if (horario) {
+      impressao += `${linhaMetaCupom(horario)}\n`;
+    }
     impressao += `${linhaSeparadora('=')}\n`;
-    impressao += `PEDIDO #${pedido.numero}\n`;
-    const nomeCliente = [cliente.primeiro_nome, cliente.sobrenome]
-      .filter(Boolean)
-      .join(' ');
-    impressao += `CLIENTE: ${nomeCliente}\n`;
-    impressao += `CONSUMO: ${this.rotuloConsumo(pedido.tipo_consumo)}\n`;
-    impressao += `PAGAMENTO: ${this.rotuloPago(pedido.pago)}\n`;
-    impressao += `${linhaSeparadora('=')}\n\n`;
+    return impressao;
+  }
 
+  private formatarBlocoItem(item: any): { texto: string; total: number } {
+    let total = 0;
+    let texto = '';
+
+    const subtotalLanche = item.quantidade * Number(item.preco_produto);
+    total += subtotalLanche;
+
+    const nomeProduto = item.produto?.nome || 'Lanche';
+    texto += `${linhaItemCupom(item.quantidade, nomeProduto, subtotalLanche)}\n`;
+
+    if (
+      item.adicional_venda &&
+      Array.isArray(item.adicional_venda) &&
+      item.adicional_venda.length > 0
+    ) {
+      item.adicional_venda.forEach((add: any) => {
+        const subtotalAdicional = add.qtd * Number(add.preco);
+        total += subtotalAdicional;
+        texto += `${linhaAdicionalCupom(add.nome, subtotalAdicional, add.qtd)}\n`;
+      });
+    }
+
+    if (item.observacao && item.observacao.trim() !== '') {
+      texto += `${linhaObsCupom(item.observacao)}\n`;
+    }
+
+    return { texto, total };
+  }
+
+  private formatarParaImpressora(pedido: any, cliente: ClientePedido) {
+    let impressao = this.cabecalhoCupom(pedido, cliente);
     let valorTotalPedido = 0;
 
-    pedido.itens.forEach((item: any) => {
-      const subtotalLanche = item.quantidade * Number(item.preco_produto);
-      valorTotalPedido += subtotalLanche;
-
-      const nomeProduto = item.produto?.nome || 'Lanche';
-
-      const textoEsqLanche = `${item.quantidade}x ${nomeProduto.toUpperCase()} `;
-      const textoDirLanche = ` ${formatarMoeda(subtotalLanche)}`;
-      impressao += alinharLinha(textoEsqLanche, textoDirLanche, '.') + '\n';
-
-      if (
-        item.adicional_venda &&
-        Array.isArray(item.adicional_venda) &&
-        item.adicional_venda.length > 0
-      ) {
-        item.adicional_venda.forEach((add: any) => {
-          const subtotalAdicional = add.qtd * Number(add.preco);
-          valorTotalPedido += subtotalAdicional;
-
-          const textoEsqAdic = `  + ${add.qtd}x Adic: ${add.nome} `;
-          const textoDirAdic = ` ${formatarMoeda(subtotalAdicional)}`;
-
-          impressao += alinharLinha(textoEsqAdic, textoDirAdic, '.') + '\n';
-        });
+    pedido.itens.forEach((item: any, index: number) => {
+      if (index > 0) {
+        impressao += '\n';
       }
-
-      if (item.observacao && item.observacao.trim() !== '') {
-        impressao += `  OBS: ${item.observacao}\n`;
-      }
-
-      impressao += '\n';
+      const bloco = this.formatarBlocoItem(item);
+      impressao += bloco.texto;
+      valorTotalPedido += bloco.total;
     });
 
     impressao += `${linhaSeparadora('-')}\n`;
-    impressao +=
-      alinharLinha('TOTAL A PAGAR:', formatarMoeda(valorTotalPedido), ' ') +
-      '\n';
+    impressao += `${linhaTotalCupom('TOTAL', valorTotalPedido)}\n`;
     impressao += `${linhaSeparadora('=')}\n`;
     impressao += '\n\n\n';
 
@@ -613,53 +646,15 @@ export class PedidoService {
     item: any,
     cliente: ClientePedido,
   ) {
-    let impressao = '';
+    let impressao = this.cabecalhoCupom(pedido, cliente, {
+      banner: 'A PARTE',
+    });
 
-    impressao += `${linhaSeparadora('=')}\n`;
-    impressao += `PEDIDO #${pedido.numero}\n`;
-    const nomeCliente = [cliente.primeiro_nome, cliente.sobrenome]
-      .filter(Boolean)
-      .join(' ');
-    impressao += `CLIENTE: ${nomeCliente}\n`;
-    impressao += `CONSUMO: ${this.rotuloConsumo(pedido.tipo_consumo)}\n`;
-    impressao += `PAGAMENTO: ${this.rotuloPago(pedido.pago)}\n`;
-    impressao += `ITEM A PARTE\n`;
-    impressao += `${linhaSeparadora('=')}\n\n`;
+    const bloco = this.formatarBlocoItem(item);
+    impressao += bloco.texto;
 
-    let valorTotal = 0;
-
-    const subtotalLanche = item.quantidade * Number(item.preco_produto);
-    valorTotal += subtotalLanche;
-
-    const nomeProduto = item.produto?.nome || 'Lanche';
-    const textoEsqLanche = `${item.quantidade}x ${nomeProduto.toUpperCase()} `;
-    const textoDirLanche = ` ${formatarMoeda(subtotalLanche)}`;
-    impressao += alinharLinha(textoEsqLanche, textoDirLanche, '.') + '\n';
-
-    if (
-      item.adicional_venda &&
-      Array.isArray(item.adicional_venda) &&
-      item.adicional_venda.length > 0
-    ) {
-      item.adicional_venda.forEach((add: any) => {
-        const subtotalAdicional = add.qtd * Number(add.preco);
-        valorTotal += subtotalAdicional;
-
-        const textoEsqAdic = `  + ${add.qtd}x Adic: ${add.nome} `;
-        const textoDirAdic = ` ${formatarMoeda(subtotalAdicional)}`;
-
-        impressao += alinharLinha(textoEsqAdic, textoDirAdic, '.') + '\n';
-      });
-    }
-
-    if (item.observacao && item.observacao.trim() !== '') {
-      impressao += `  OBS: ${item.observacao}\n`;
-    }
-
-    impressao += '\n';
     impressao += `${linhaSeparadora('-')}\n`;
-    impressao +=
-      alinharLinha('TOTAL:', formatarMoeda(valorTotal), ' ') + '\n';
+    impressao += `${linhaTotalCupom('TOTAL', bloco.total)}\n`;
     impressao += `${linhaSeparadora('=')}\n`;
     impressao += '\n\n\n';
 
