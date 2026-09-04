@@ -10,17 +10,17 @@ import {
   Monitor,
 } from 'lucide-react';
 
-import { abrirTelaPedidosProntos } from '../../../lib/abrirTelaPedidos';
-import { notifyError } from '../../../services';
 import { ConfigImpressoraDrawer } from './ConfigImpressoraDrawer';
 import { ConfigInfinitePayDrawer } from './ConfigInfinitePayDrawer';
 import { ConfigLogout } from './ConfigLogout';
+import { ConfigTelaPedidosDrawer } from './ConfigTelaPedidosDrawer';
 import { ConfigUsuarioDrawer } from './ConfigUsuarioDrawer';
 
 export function Config() {
   const [usuarioAberto, setUsuarioAberto] = useState(false);
   const [impressoraAberta, setImpressoraAberta] = useState(false);
   const [infinitePayAberta, setInfinitePayAberta] = useState(false);
+  const [telaPedidosAberta, setTelaPedidosAberta] = useState(false);
 
   return (
     <div className="flex flex-col gap-6">
@@ -139,14 +139,7 @@ export function Config() {
         <li>
           <button
             type="button"
-            onClick={() => {
-              if (!abrirTelaPedidosProntos()) {
-                notifyError(
-                  null,
-                  'O navegador bloqueou a nova aba. Permita pop-ups para o Food Hope.',
-                );
-              }
-            }}
+            onClick={() => setTelaPedidosAberta(true)}
             className="flex w-full items-center gap-3 rounded-xl border border-operator-border bg-operator-card p-4 text-left shadow-card transition-colors hover:border-primary/40"
           >
             <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-container/30 text-primary">
@@ -157,7 +150,7 @@ export function Config() {
                 Tela de pedidos prontos
               </span>
               <span className="block text-caption text-on-surface-variant">
-                Notificação dos pedidos prontos
+                Link público para TV ou kiosk
               </span>
             </span>
             <ChevronRight
@@ -208,6 +201,11 @@ export function Config() {
       <ConfigImpressoraDrawer
         open={impressoraAberta}
         onClose={() => setImpressoraAberta(false)}
+      />
+
+      <ConfigTelaPedidosDrawer
+        open={telaPedidosAberta}
+        onClose={() => setTelaPedidosAberta(false)}
       />
 
       <ConfigInfinitePayDrawer

@@ -21,6 +21,7 @@ import { RateLimitGuard } from './infra/auth/rate-limit.guard.js';
 import { InfraJwtModule } from './infra/auth/jwt.module.js';
 import { OperadorModule } from './modules/operador/operador.module.js';
 import { InfinitePayModule } from './modules/infinitepay/infinitepay.module.js';
+import { TelaPedidosModule } from './modules/tela-pedidos/tela-pedidos.module.js';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor.js';
 
 @Module({
@@ -60,6 +61,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     ImpressoraModule,
     OperadorModule,
     InfinitePayModule,
+    TelaPedidosModule,
   ],
   controllers: [AppController],
   providers: [

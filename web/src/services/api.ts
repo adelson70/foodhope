@@ -27,6 +27,11 @@ function isVisitorBootstrapUrl(url: string | undefined): boolean {
   );
 }
 
+function isPublicTelaPedidosUrl(url: string | undefined): boolean {
+  if (!url) return false;
+  return /\/tela-pedidos\/[a-fA-F0-9]{64}(\?|$|\/)/.test(url);
+}
+
 function bodyForSignature(
   data: InternalAxiosRequestConfig['data'],
 ): ArrayBuffer | string | undefined {
@@ -53,7 +58,11 @@ api.interceptors.request.use(async (config) => {
     config.headers.delete('Content-Type');
   }
 
-  if (!token && !isVisitorBootstrapUrl(config.url)) {
+  if (
+    !token &&
+    !isVisitorBootstrapUrl(config.url) &&
+    !isPublicTelaPedidosUrl(config.url)
+  ) {
     const baseURL = config.baseURL || import.meta.env.VITE_API_URL || '';
     const fullUri = axios.getUri(config);
     const pathWithQuery = pathWithQueryFromUrl(fullUri, baseURL);

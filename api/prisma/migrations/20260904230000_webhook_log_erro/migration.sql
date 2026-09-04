@@ -1,0 +1,1 @@
+ALTER TYPE "InfinitePayWebhookDirecao" ADD VALUE IF NOT EXISTS 'ERRO';

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ChevronLeft } from 'lucide-react';
+import { useParams } from 'react-router-dom';
 
 import { FoodHopeLogo } from '../../../components/brand/FoodHopeLogo';
 import { useDeferredLoading } from '../../../hooks/useDeferredLoading';
@@ -8,9 +7,9 @@ import { hojeSpIso, utcParaSpIso } from '../../../lib/dataSp';
 import {
   connectSocket,
   getApiErrorMensagens,
-  pedidoService,
   socket,
   TELA_PEDIDOS_PRONTOS,
+  telaPedidosService,
 } from '../../../services';
 import type { Pedido } from '../../../services/types';
 import { TelaPedidosLista } from './TelaPedidosLista';
@@ -18,23 +17,33 @@ import { TelaPedidosLista } from './TelaPedidosLista';
 const LISTAR_LIMIT = 24;
 
 export function TelaPedidos() {
+  const { hash } = useParams<{ hash: string }>();
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const showSkeleton = useDeferredLoading(loading && pedidos.length === 0);
 
   useEffect(() => {
+    if (!hash) return;
+
     void connectSocket({
       tela: TELA_PEDIDOS_PRONTOS,
+      monitorHash: hash,
       label: 'Tela de pedidos prontos',
     });
 
     return () => {
       void connectSocket();
     };
-  }, []);
+  }, [hash]);
 
   useEffect(() => {
+    if (!hash) {
+      setLoading(false);
+      setErro('Link da tela de pedidos inválido.');
+      return;
+    }
+
     let cancelled = false;
 
     async function carregar() {
@@ -42,11 +51,7 @@ export function TelaPedidos() {
       setErro(null);
 
       try {
-        const response = await pedidoService.listar({
-          limit: LISTAR_LIMIT,
-          data: hojeSpIso(),
-          pronto: true,
-        });
+        const response = await telaPedidosService.listarPublico(hash!);
         if (cancelled) return;
 
         if (!response.sucesso || !response.dados) {
@@ -71,7 +76,7 @@ export function TelaPedidos() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [hash]);
 
   useEffect(() => {
     function onPedidoSaiu(pedido: Pedido) {
@@ -113,13 +118,6 @@ export function TelaPedidos() {
           markClassName="size-14"
           wordmarkClassName="text-headline-lg-mobile tracking-[0.2em]"
         />
-        <Link
-          to="/painel/configuracoes"
-          className="inline-flex shrink-0 items-center gap-1 text-body-md text-on-surface transition-colors hover:text-primary"
-        >
-          <ChevronLeft size={17} strokeWidth={1.75} aria-hidden />
-          Voltar
-        </Link>
       </header>
 
       <main className="flex-1 overflow-y-auto overscroll-y-contain px-6 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">

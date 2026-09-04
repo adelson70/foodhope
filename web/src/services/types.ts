@@ -308,6 +308,15 @@ export type ConfigInfinitePay = {
   webhookUrl: string | null;
 };
 
+export type ConfigTelaPedidos = {
+  hash: string;
+  urlPath: string;
+};
+
+export type ListarTelaPedidosPublicoDados = {
+  pedidos: Pedido[];
+};
+
 export type ConfigurarInfinitePayInput = {
   handle: string;
 };

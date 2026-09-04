@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 
+import { Prisma } from '../../../generated/prisma/client.js';
 import { PrismaReadService } from '../../infra/database/prisma-read.service.js';
 import { PrismaWriteService } from '../../infra/database/prisma-write.service.js';
 import { CriarPedidoDto } from '../pedido/dto/criar.dto.js';
@@ -34,6 +35,13 @@ type WebhookBody = {
   order_nsu?: string;
   receipt_url?: string;
   items?: unknown;
+};
+
+type WebhookResultado = {
+  ok: boolean;
+  status: 200 | 400;
+  message: string | null;
+  erro?: Prisma.InputJsonValue;
 };
 
 @Injectable()
@@ -239,11 +247,65 @@ export class InfinitePayService {
     };
   }
 
-  async processarWebhook(body: WebhookBody): Promise<{
-    ok: boolean;
-    status: 200 | 400;
-    message: string | null;
-  }> {
+  async processarWebhook(body: WebhookBody): Promise<WebhookResultado> {
+    const correlacaoId = randomUUID();
+    const orderNsu = this.asNonEmptyString(body.order_nsu);
+    const transactionNsu = this.asNonEmptyString(body.transaction_nsu);
+
+    await this.inserirWebhookLog({
+      correlacaoId,
+      direcao: 'ENTRADA',
+      orderNsu,
+      transactionNsu,
+      httpStatus: null,
+      corpo: body as Prisma.InputJsonValue,
+    });
+
+    let resultado: WebhookResultado;
+    try {
+      resultado = await this.executarWebhook(body);
+    } catch (erro) {
+      this.logger.error(
+        `Falha inesperada no webhook correlacao=${correlacaoId}`,
+        erro,
+      );
+      resultado = {
+        ok: false,
+        status: 400,
+        message: 'Não foi possível processar o pagamento',
+        erro: this.serializarErroWebhook(erro),
+      };
+    }
+
+    if (!resultado.ok) {
+      await this.inserirWebhookLog({
+        correlacaoId,
+        direcao: 'ERRO',
+        orderNsu,
+        transactionNsu,
+        httpStatus: resultado.status,
+        corpo: (resultado.erro ?? {
+          message: resultado.message,
+        }) as Prisma.InputJsonValue,
+      });
+    }
+
+    await this.inserirWebhookLog({
+      correlacaoId,
+      direcao: 'SAIDA',
+      orderNsu,
+      transactionNsu,
+      httpStatus: resultado.status,
+      corpo: {
+        success: resultado.ok,
+        message: resultado.message,
+      } as Prisma.InputJsonValue,
+    });
+
+    return resultado;
+  }
+
+  private async executarWebhook(body: WebhookBody): Promise<WebhookResultado> {
     const orderNsu = this.asNonEmptyString(body.order_nsu);
     const transactionNsu = this.asNonEmptyString(body.transaction_nsu);
     const invoiceSlug = this.asNonEmptyString(body.invoice_slug);
@@ -254,6 +316,7 @@ export class InfinitePayService {
         ok: false,
         status: 400,
         message: 'Payload incompleto',
+        erro: { motivo: 'Payload incompleto' },
       };
     }
 
@@ -266,6 +329,7 @@ export class InfinitePayService {
         ok: false,
         status: 400,
         message: 'Pedido não encontrado',
+        erro: { motivo: 'Pedido não encontrado', order_nsu: orderNsu },
       };
     }
 
@@ -281,6 +345,12 @@ export class InfinitePayService {
         ok: false,
         status: 400,
         message: 'Valor do pagamento não confere',
+        erro: {
+          motivo: 'Valor do pagamento não confere',
+          order_nsu: orderNsu,
+          esperado: sessao.amountCentavos,
+          recebido: amount,
+        },
       };
     }
 
@@ -302,7 +372,46 @@ export class InfinitePayService {
         ok: false,
         status: 400,
         message: 'Não foi possível processar o pagamento',
+        erro: this.serializarErroWebhook(erro),
       };
+    }
+  }
+
+  private serializarErroWebhook(erro: unknown): Prisma.InputJsonValue {
+    if (erro instanceof Error) {
+      return {
+        nome: erro.name,
+        mensagem: erro.message,
+        ...(erro.stack ? { stack: erro.stack } : {}),
+      };
+    }
+    return { mensagem: String(erro) };
+  }
+
+  private async inserirWebhookLog(input: {
+    correlacaoId: string;
+    direcao: 'ENTRADA' | 'SAIDA' | 'ERRO';
+    orderNsu: string | null;
+    transactionNsu: string | null;
+    httpStatus: number | null;
+    corpo: Prisma.InputJsonValue;
+  }) {
+    try {
+      await this.prismaWrite.infinitePayWebhookLog.create({
+        data: {
+          correlacaoId: input.correlacaoId,
+          direcao: input.direcao,
+          orderNsu: input.orderNsu,
+          transactionNsu: input.transactionNsu,
+          httpStatus: input.httpStatus,
+          corpo: input.corpo,
+        },
+      });
+    } catch (erro) {
+      this.logger.error(
+        `Falha ao gravar lastro webhook ${input.direcao} correlacao=${input.correlacaoId}`,
+        erro,
+      );
     }
   }
 

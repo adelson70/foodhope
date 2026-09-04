@@ -12,6 +12,7 @@ import { Server, Socket } from 'socket.io';
 import { PrismaReadService } from '../database/prisma-read.service.js';
 import { RedisService } from '../cache/redis.service.js';
 import { validateVisitorSocketAuth } from '../auth/visitor-auth.js';
+import { hashesTelaPedidosIguais } from '../../modules/tela-pedidos/tela-pedidos-hash.js';
 import type { RoleOperador } from '../../../generated/prisma/enums.js';
 
 export const WS_ROOM_OPERADORES = 'operadores';
@@ -37,7 +38,8 @@ export type CardapioAdicionalPayload = {
 
 type SocketUser =
   | { tipo: 'operador'; id: string; role: RoleOperador }
-  | { tipo: 'visitor'; id: string };
+  | { tipo: 'visitor'; id: string }
+  | { tipo: 'monitor' };
 
 @WebSocketGateway({ cors: { origin: '*' } })
 export class WebsocketGateway
@@ -57,6 +59,31 @@ export class WebsocketGateway
   afterInit(server: Server) {
     server.use(async (socket, next) => {
       try {
+        const monitorHash = socket.handshake.auth?.monitorHash as
+          | string
+          | undefined;
+        const tela = socket.handshake.auth?.tela;
+
+        if (
+          typeof monitorHash === 'string' &&
+          monitorHash.trim() &&
+          tela === TELA_PEDIDOS_PRONTOS
+        ) {
+          const config = await this.prismaRead.configTelaPedidos.findUnique({
+            where: { id: 'default' },
+          });
+
+          if (
+            !config?.hash ||
+            !hashesTelaPedidosIguais(config.hash, monitorHash.trim())
+          ) {
+            return next(new Error('Acesso negado: Hash do monitor inválido'));
+          }
+
+          socket.data.user = { tipo: 'monitor' } satisfies SocketUser;
+          return next();
+        }
+
         const token =
           socket.handshake.auth?.token ||
           socket.handshake.headers?.authorization?.split(' ')[1];
@@ -120,10 +147,12 @@ export class WebsocketGateway
       this.registrarMonitor(client);
     } else if (user?.tipo === 'visitor') {
       void client.join(WS_ROOM_CLIENTES);
+    } else if (user?.tipo === 'monitor') {
+      this.registrarMonitor(client);
     }
 
     this.logger.log(
-      `[WebSocket] Cliente conectado: ${client.id} (${user?.tipo ?? 'desconhecido'}:${user?.id ?? '-'})`,
+      `[WebSocket] Cliente conectado: ${client.id} (${user?.tipo ?? 'desconhecido'}:${user && 'id' in user ? user.id : '-'})`,
     );
   }
 

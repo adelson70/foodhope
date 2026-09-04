@@ -208,6 +208,15 @@ model ConfigInfinitePay {
   @@map("config_infinitepay")
 }
 
+model ConfigTelaPedidos {
+  id        String   @id @default("default")
+  hash      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("config_tela_pedidos")
+}
+
 model CheckoutSessao {
   id               String    @id @default(uuid())
   payload          Json
@@ -226,4 +235,27 @@ model CheckoutSessao {
   updatedAt DateTime @updatedAt
 
   @@map("checkout_sessao")
+}
+
+enum InfinitePayWebhookDirecao {
+  ENTRADA
+  SAIDA
+  ERRO
+}
+
+model InfinitePayWebhookLog {
+  id             String                     @id @default(uuid())
+  correlacaoId   String                     @map("correlacao_id")
+  direcao        InfinitePayWebhookDirecao
+  orderNsu       String?                    @map("order_nsu")
+  transactionNsu String?                    @map("transaction_nsu")
+  httpStatus     Int?                       @map("http_status")
+  corpo          Json
+  createdAt      DateTime                   @default(now())
+
+  @@index([correlacaoId])
+  @@index([orderNsu])
+  @@index([transactionNsu])
+  @@index([createdAt])
+  @@map("infinitepay_webhook_log")
 }

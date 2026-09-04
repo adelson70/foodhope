@@ -21,11 +21,16 @@ import { Dash } from '../pages/Painel/Dash';
 import { Relatorio } from '../pages/Painel/Relatorio';
 import { TelaPedidos } from '../pages/Painel/TelaPedidos';
 import { ConfigUsuarios } from '../pages/Painel/Config/ConfigUsuarios';
+import { NotFound } from '../pages/NotFound';
 
 export const router = createBrowserRouter([
   {
     path: '/login',
     element: <Login />,
+  },
+  {
+    path: '/painel/tela-pedidos/:hash',
+    element: <TelaPedidos />,
   },
   {
     path: '/',
@@ -43,10 +48,6 @@ export const router = createBrowserRouter([
     path: '/painel',
     element: <ProtectedRoute allow={['ADMIN', 'OPERADOR']} />,
     children: [
-      {
-        element: <RequireRole allow={['ADMIN']} />,
-        children: [{ path: 'tela-pedidos', element: <TelaPedidos /> }],
-      },
       {
         element: <PainelLayout />,
         children: [
@@ -73,6 +74,11 @@ export const router = createBrowserRouter([
           },
         ],
       },
+      { path: '*', element: <NotFound /> },
     ],
+  },
+  {
+    path: '*',
+    element: <NotFound />,
   },
 ]);
