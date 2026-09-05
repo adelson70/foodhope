@@ -144,11 +144,11 @@ export class WebsocketGateway
     if (user?.tipo === 'operador') {
       void client.join(WS_ROOM_OPERADORES);
       void client.join(roomDoOperador(user.id));
-      this.registrarMonitor(client);
+      void this.registrarMonitor(client);
     } else if (user?.tipo === 'visitor') {
       void client.join(WS_ROOM_CLIENTES);
     } else if (user?.tipo === 'monitor') {
-      this.registrarMonitor(client);
+      void this.registrarMonitor(client);
     }
 
     this.logger.log(
@@ -172,7 +172,7 @@ export class WebsocketGateway
     this.server.to(WS_ROOM_MONITORES).emit(evento, payload);
   }
 
-  private registrarMonitor(client: Socket) {
+  private async registrarMonitor(client: Socket) {
     const tela = client.handshake.auth?.tela;
     if (tela !== TELA_PEDIDOS_PRONTOS) return;
 
@@ -185,7 +185,7 @@ export class WebsocketGateway
     client.data.tela = TELA_PEDIDOS_PRONTOS;
     client.data.label = `${labelBase} (${client.id.slice(0, 4)})`;
     client.data.conectadoEm = new Date().toISOString();
-    void client.join(WS_ROOM_MONITORES);
+    await client.join(WS_ROOM_MONITORES);
   }
 
   forcarLogout(operadorId: string) {

@@ -43,7 +43,7 @@ export function linhaItemCupom(
   nome: string,
   valor: number | string,
 ): string {
-  const esq = `${quantidade}  ${paraCupom(nome)}`;
+  const esq = `${quantidade}X ${paraCupom(nome)}`;
   const dir = ` ${formatarMoeda(valor)}`;
   return `${MARCA_ITEM_ABRE}${alinharLinha(esq, dir, ' ')}${MARCA_ITEM_FECHA}`;
 }

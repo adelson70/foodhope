@@ -76,13 +76,9 @@ export class TelaPedidosService {
     }
 
     try {
-      const data = this.hojeSpIso();
-      const intervalo = this.intervaloDiaSp(data);
-
       const pedidos = await this.prismaRead.pedido.findMany({
         where: {
           prontoAt: { not: null },
-          createdAt: intervalo,
         },
         take: LISTAR_LIMIT,
         orderBy: [{ prontoAt: 'desc' }, { id: 'desc' }],
@@ -101,7 +97,10 @@ export class TelaPedidosService {
           id: pedido.id,
           numero: pedido.numero.toString(),
           nome_completo: pedido.nome_completo,
-          createdAt: pedido.createdAt,
+          createdAt:
+            pedido.createdAt instanceof Date
+              ? pedido.createdAt.toISOString()
+              : pedido.createdAt,
           prontoAt: pedido.prontoAt ? pedido.prontoAt.toISOString() : null,
           pronto: Boolean(pedido.prontoAt),
           pago: Boolean(pedido.pago),
@@ -138,17 +137,5 @@ export class TelaPedidosService {
         'Não foi possível criar a configuração da tela de pedidos.',
       );
     }
-  }
-
-  private hojeSpIso(): string {
-    return new Date().toLocaleDateString('en-CA', {
-      timeZone: 'America/Sao_Paulo',
-    });
-  }
-
-  private intervaloDiaSp(data: string): { gte: Date; lt: Date } {
-    const inicio = new Date(`${data}T00:00:00-03:00`);
-    const fim = new Date(inicio.getTime() + 24 * 60 * 60 * 1000);
-    return { gte: inicio, lt: fim };
   }
 }

@@ -7,7 +7,12 @@ import { usePedidoProntoRealtime } from './hooks/usePedidoProntoRealtime';
 import { router } from './routes';
 import { persistOptions, queryClient } from './services/queryClient';
 import { clearToken } from './services/cookie';
-import { connectSocket, disconnectSocket, socket } from './services/socket';
+import {
+  connectSocket,
+  disconnectSocket,
+  isTelaPedidosPublicaPath,
+  socket,
+} from './services/socket';
 
 function AppRealtime() {
   useCardapioCarrinhoRealtime();
@@ -17,7 +22,9 @@ function AppRealtime() {
 
 function App() {
   useEffect(() => {
-    void connectSocket();
+    if (!isTelaPedidosPublicaPath()) {
+      void connectSocket();
+    }
 
     socket.on('connect', () => {
       console.log('Socket conectado:', socket.id);

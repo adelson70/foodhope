@@ -28,7 +28,7 @@ export class TelaPedidosController {
 
   @Get(':hash')
   @Public()
-  @ApiOperation({ summary: 'Lista pedidos prontos do dia (tela pública por hash)' })
+  @ApiOperation({ summary: 'Lista pedidos com status pronto (tela pública por hash)' })
   async listarPorHash(@Param('hash') hash: string) {
     return this.telaPedidos.listarPorHash(hash);
   }

@@ -1,20 +1,23 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
-import { FoodHopeLogo } from '../../../components/brand/FoodHopeLogo';
 import { useDeferredLoading } from '../../../hooks/useDeferredLoading';
-import { hojeSpIso, utcParaSpIso } from '../../../lib/dataSp';
 import {
   connectSocket,
+  disconnectSocket,
   getApiErrorMensagens,
+  isTelaPedidosPublicaPath,
   socket,
   TELA_PEDIDOS_PRONTOS,
   telaPedidosService,
 } from '../../../services';
 import type { Pedido } from '../../../services/types';
-import { TelaPedidosLista } from './TelaPedidosLista';
+import {
+  PEDIDOS_POR_TELA,
+  TelaPedidosLista,
+} from './TelaPedidosLista';
 
-const LISTAR_LIMIT = 24;
+const BUFFER_LIMIT = 24;
 
 export function TelaPedidos() {
   const { hash } = useParams<{ hash: string }>();
@@ -33,7 +36,10 @@ export function TelaPedidos() {
     });
 
     return () => {
-      void connectSocket();
+      disconnectSocket();
+      if (!isTelaPedidosPublicaPath()) {
+        void connectSocket();
+      }
     };
   }, [hash]);
 
@@ -60,7 +66,7 @@ export function TelaPedidos() {
           return;
         }
 
-        setPedidos(response.dados.pedidos ?? []);
+        setPedidos((response.dados.pedidos ?? []).slice(0, BUFFER_LIMIT));
       } catch (error: unknown) {
         if (cancelled) return;
         const mensagens = getApiErrorMensagens(error);
@@ -80,16 +86,9 @@ export function TelaPedidos() {
 
   useEffect(() => {
     function onPedidoSaiu(pedido: Pedido) {
-      if (
-        pedido.createdAt &&
-        utcParaSpIso(pedido.createdAt) !== hojeSpIso()
-      ) {
-        return;
-      }
-
       setPedidos((atual) => {
         if (atual.some((item) => item.id === pedido.id)) return atual;
-        return [pedido, ...atual].slice(0, LISTAR_LIMIT);
+        return [pedido, ...atual].slice(0, BUFFER_LIMIT);
       });
     }
 
@@ -111,22 +110,25 @@ export function TelaPedidos() {
     };
   }, []);
 
+  const pedidosVisiveis = pedidos.slice(0, PEDIDOS_POR_TELA);
+
   return (
-    <div className="flex min-h-dvh flex-col bg-background text-on-background">
-      <header className="flex items-center justify-between gap-3 border-b border-outline-variant/50 bg-surface/90 px-4 py-4 pt-[max(1rem,env(safe-area-inset-top))]">
-        <FoodHopeLogo
-          markClassName="size-14"
-          wordmarkClassName="text-headline-lg-mobile tracking-[0.2em]"
-        />
+    <div className="flex h-dvh flex-col bg-neutral-900 text-surface-container-low">
+      <header className="flex shrink-0 items-center justify-center bg-success px-4 py-4 pt-[max(1rem,env(safe-area-inset-top))] shadow-card">
+        <h1 className="text-center font-extrabold uppercase leading-none tracking-[0.08em] text-surface-container-low text-[10vh]">
+          PEDIDOS PRONTOS
+        </h1>
       </header>
 
-      <main className="flex-1 overflow-y-auto overscroll-y-contain px-6 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-        <TelaPedidosLista
-          pedidos={pedidos}
-          loading={showSkeleton}
-          pending={loading && !showSkeleton && pedidos.length === 0}
-          erro={erro}
-        />
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden px-1.5 py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
+        <div className="min-h-0 flex-1">
+          <TelaPedidosLista
+            pedidos={pedidosVisiveis}
+            loading={showSkeleton}
+            pending={loading && !showSkeleton && pedidos.length === 0}
+            erro={erro}
+          />
+        </div>
       </main>
     </div>
   );

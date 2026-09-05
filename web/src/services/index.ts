@@ -13,7 +13,13 @@ export { pedidoService } from './pedido.service';
 export { produtoService } from './produto.service';
 export { telaPedidosService } from './tela-pedidos.service';
 export { persistOptions, queryClient } from './queryClient';
-export { connectSocket, disconnectSocket, socket, TELA_PEDIDOS_PRONTOS } from './socket';
+export {
+  connectSocket,
+  disconnectSocket,
+  isTelaPedidosPublicaPath,
+  socket,
+  TELA_PEDIDOS_PRONTOS,
+} from './socket';
 export {
   clearVisitorSession,
   ensureVisitor,

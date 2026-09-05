@@ -53,7 +53,7 @@ const MARCAS_LINHA = [
     aplicar: (impressora: ThermalPrinter, texto: string) => {
       impressora.alignCenter();
       impressora.bold(true);
-      impressora.setTextSize(1, 1);
+      impressora.setTextQuadArea();
       impressora.print(texto);
       impressora.setTextNormal();
       impressora.bold(false);
@@ -79,11 +79,7 @@ const MARCAS_LINHA = [
     aplicar: (impressora: ThermalPrinter, texto: string) => {
       impressora.alignLeft();
       impressora.bold(true);
-      impressora.setTextDoubleHeight();
-      impressora.print(texto);
-      impressora.setTextNormal();
-      impressora.bold(false);
-      impressora.newLine();
+      impressora.println(texto);
     },
   },
   {
@@ -99,12 +95,7 @@ const MARCAS_LINHA = [
     aplicar: (impressora: ThermalPrinter, texto: string) => {
       impressora.alignCenter();
       impressora.bold(true);
-      impressora.setTextDoubleHeight();
-      impressora.print(texto);
-      impressora.setTextNormal();
-      impressora.bold(false);
-      impressora.alignCenter();
-      impressora.newLine();
+      impressora.println(texto);
     },
   },
   {
@@ -120,11 +111,7 @@ const MARCAS_LINHA = [
     aplicar: (impressora: ThermalPrinter, texto: string) => {
       impressora.alignLeft();
       impressora.bold(true);
-      impressora.setTextDoubleHeight();
-      impressora.print(texto);
-      impressora.setTextNormal();
-      impressora.bold(false);
-      impressora.newLine();
+      impressora.println(texto);
     },
   },
 ] as const;
@@ -132,14 +119,25 @@ const MARCAS_LINHA = [
 const DISPOSITIVO_RE =
   /^(?:\/dev\/(?:usb\/)?lp\d+|\/dev\/tty(?:USB|ACM)\d+|\/dev\/serial\/by-id\/[A-Za-z0-9._+-]+|COM\d+)$/i;
 
-const LINHAS_ANTES_DO_CORTE = 15;
+const LINHAS_ANTES_DO_CORTE = 5;
+
+const COMANDO_FORCAR_ESCPOS = Buffer.from([
+  0x1d,
+  0xf9,
+  0x35,
+  0x01,
+  0x1b,
+  0x40,
+  0x1b,
+  0x74,
+  0x02,
+]);
 
 const COMANDO_CORTE = Buffer.from([
   ...Array<number>(LINHAS_ANTES_DO_CORTE).fill(0x0a),
   0x1b,
   0x69,
 ]);
-
 type DestinoImpressora =
   | { tipo: 'rede'; ip: string }
   | { tipo: 'local'; dispositivo: string };
@@ -301,6 +299,8 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
     this.logger.log('Enviando dados para a impressora...');
 
     try {
+      this.impressora.clear();
+      this.impressora.add(COMANDO_FORCAR_ESCPOS);
       this.renderizarTexto(textoFormatado);
       this.impressora.add(COMANDO_CORTE);
       await this.impressora.execute();
@@ -338,9 +338,7 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
   private resetarEstilo(impressora: ThermalPrinter) {
     impressora.setTextNormal();
     impressora.bold(false);
-    impressora.invert(false);
     impressora.alignLeft();
-    impressora.resetLineSpacing();
   }
 
   estaConfigurada(): boolean {
@@ -414,7 +412,7 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
     return new ThermalPrinter({
       type: PrinterTypes.EPSON,
       interface: iface,
-      characterSet: CharacterSet.PC860_PORTUGUESE,
+      characterSet: CharacterSet.PC850_MULTILINGUAL,
       removeSpecialCharacters: true,
       breakLine: BreakLine.WORD,
     });

@@ -17,6 +17,55 @@ export const socket: Socket = io(import.meta.env.VITE_API_URL, {
 
 let connectChain: Promise<void> = Promise.resolve();
 
+export function isTelaPedidosPublicaPath(
+  pathname: string = window.location.pathname,
+) {
+  return /^\/painel\/tela-pedidos\/[a-fA-F0-9]{64}\/?$/.test(pathname);
+}
+
+function waitDisconnect(s: Socket): Promise<void> {
+  if (!s.connected && !s.active) return Promise.resolve();
+
+  if (!s.connected) {
+    s.disconnect();
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    s.once('disconnect', () => resolve());
+    s.disconnect();
+  });
+}
+
+function waitConnect(s: Socket): Promise<void> {
+  if (s.connected) return Promise.resolve();
+
+  return new Promise((resolve, reject) => {
+    const onConnect = () => {
+      cleanup();
+      resolve();
+    };
+    const onError = (error: Error) => {
+      cleanup();
+      reject(error);
+    };
+    const onDisconnect = () => {
+      cleanup();
+      reject(new Error('Socket desconectado durante conexão'));
+    };
+    const cleanup = () => {
+      s.off('connect', onConnect);
+      s.off('connect_error', onError);
+      s.off('disconnect', onDisconnect);
+    };
+
+    s.once('connect', onConnect);
+    s.once('connect_error', onError);
+    s.once('disconnect', onDisconnect);
+    s.connect();
+  });
+}
+
 export function connectSocket(
   options: ConnectSocketOptions = {},
 ): Promise<void> {
@@ -47,16 +96,19 @@ export function connectSocket(
         }
       }
 
-      if (socket.connected) {
-        socket.disconnect();
-      }
-
-      socket.connect();
+      await waitDisconnect(socket);
+      await waitConnect(socket);
     });
 
   return connectChain;
 }
 
-export const disconnectSocket = () => {
-  socket.disconnect();
-};
+export function disconnectSocket(): Promise<void> {
+  connectChain = connectChain
+    .catch(() => undefined)
+    .then(async () => {
+      await waitDisconnect(socket);
+    });
+
+  return connectChain;
+}
