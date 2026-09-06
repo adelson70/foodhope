@@ -19,9 +19,14 @@ import {
 } from '../../../schemas/criar-pedido.schema';
 import {
   getApiErrorMensagens,
-  pedidoService,
   produtoService,
 } from '../../../services';
+import { criarPedidoComOutbox } from '../../../lib/criarPedidoComOutbox';
+import {
+  obterCardapioOperador,
+  salvarCardapioOperador,
+} from '../../../lib/cardapioOperador';
+import { isNetworkFailure } from '../../../lib/network';
 import type {
   Pedido,
   Produto,
@@ -39,12 +44,14 @@ type PedidoCriarDrawerProps = {
   open: boolean;
   onClose: () => void;
   onCreated: (pedido: Pedido) => void;
+  onQueued?: (clientRequestId: string) => void;
 };
 
 export function PedidoCriarDrawer({
   open,
   onClose,
   onCreated,
+  onQueued,
 }: PedidoCriarDrawerProps) {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [produtosLoading, setProdutosLoading] = useState(false);
@@ -85,19 +92,41 @@ export function PedidoCriarDrawer({
 
     produtoService
       .listar({ limit: 100 })
-      .then((response) => {
+      .then(async (response) => {
         if (cancelled) return;
         if (!response.sucesso || !response.dados) {
+          const cache = await obterCardapioOperador();
+          if (cache?.produtos?.length) {
+            setProdutos(cache.produtos);
+            setProdutosErro(null);
+            return;
+          }
           setProdutosErro('Não foi possível carregar o cardápio.');
           setProdutos([]);
           return;
         }
-        setProdutos(response.dados.data ?? []);
+        const lista = response.dados.data ?? [];
+        setProdutos(lista);
+        void salvarCardapioOperador(lista);
       })
-      .catch((error: unknown) => {
+      .catch(async (error: unknown) => {
         if (cancelled) return;
+        const cache = await obterCardapioOperador();
+        if (cache?.produtos?.length && isNetworkFailure(error)) {
+          setProdutos(cache.produtos);
+          setProdutosErro(null);
+          return;
+        }
+        if (cache?.produtos?.length) {
+          setProdutos(cache.produtos);
+          setProdutosErro(null);
+          return;
+        }
         const mensagens = getApiErrorMensagens(error);
-        setProdutosErro(mensagens[0] ?? 'Não foi possível carregar o cardápio.');
+        setProdutosErro(
+          mensagens[0] ??
+            'Abra online uma vez para sincronizar o cardápio.',
+        );
         setProdutos([]);
       })
       .finally(() => {
@@ -184,28 +213,53 @@ export function PedidoCriarDrawer({
   async function onSubmit(values: CriarPedidoFormValues) {
     try {
       const sobrenome = values.cliente.sobrenome?.trim() || undefined;
+      const nomeCompleto = [values.cliente.primeiro_nome, sobrenome]
+        .filter(Boolean)
+        .join(' ');
 
-      const response = await pedidoService.criar({
-        tipo_consumo: tipoConsumo,
-        status_pagamento: statusPagamento,
-        cliente: {
-          primeiro_nome: values.cliente.primeiro_nome,
-          ...(sobrenome ? { sobrenome } : {}),
+      const itensPayload = values.itens.map(
+        ({ produtoId, qtd, adicional, retirar, observacao }) => ({
+          id: produtoId,
+          qtd,
+          adicional,
+          retirar,
+          observacao,
+        }),
+      );
+
+      const result = await criarPedidoComOutbox(
+        {
+          tipo_consumo: tipoConsumo,
+          status_pagamento: statusPagamento,
+          cliente: {
+            primeiro_nome: values.cliente.primeiro_nome,
+            ...(sobrenome ? { sobrenome } : {}),
+          },
+          itens: itensPayload,
         },
-        itens: values.itens.map(
-          ({ produtoId, qtd, adicional, retirar, observacao }) => ({
-            id: produtoId,
-            qtd,
-            adicional,
-            retirar,
-            observacao,
-          }),
-        ),
-      });
-      if (response.sucesso && response.dados?.pedido) {
-        onCreated(response.dados.pedido);
+        {
+          origem: 'painel',
+          snapshot: {
+            nome_completo: nomeCompleto,
+            tipo_consumo: tipoConsumo,
+            status_pagamento: statusPagamento,
+            totalEstimado: total,
+            itens: values.itens.map((item) => ({
+              nome: nomeProduto(item.produtoId),
+              qtd: item.qtd,
+            })),
+          },
+        },
+      );
+
+      if (result.kind === 'created') {
+        onCreated(result.pedido);
         onClose();
+        return;
       }
+
+      onQueued?.(result.clientRequestId);
+      onClose();
     } catch {
       return;
     }

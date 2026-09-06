@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useDeferredLoading } from '../../../hooks/useDeferredLoading';
+import { PULL_REFRESH_EVENT } from '../../../hooks/usePullToRefresh';
 import { dashService, getApiErrorMensagens } from '../../../services';
 import type { DashDados } from '../../../services/types';
 import { DashCharts } from './DashCharts';
@@ -14,38 +15,45 @@ export function Dash() {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const showSkeleton = useDeferredLoading(loading);
+  const requestIdRef = useRef(0);
 
-  useEffect(() => {
-    let cancelled = false;
-
+  const carregar = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     setErro(null);
 
-    dashService
-      .obter()
-      .then((response) => {
-        if (cancelled) return;
-        if (!response.sucesso || !response.dados) {
-          setErro('Não foi possível carregar o dashboard.');
-          setDados(null);
-          return;
-        }
-        setDados(response.dados);
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        const mensagens = getApiErrorMensagens(error);
-        setErro(mensagens[0] ?? 'Não foi possível carregar o dashboard.');
+    try {
+      const response = await dashService.obter();
+      if (requestId !== requestIdRef.current) return;
+      if (!response.sucesso || !response.dados) {
+        setErro('Não foi possível carregar o dashboard.');
         setDados(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
+        return;
+      }
+      setDados(response.dados);
+    } catch (error: unknown) {
+      if (requestId !== requestIdRef.current) return;
+      const mensagens = getApiErrorMensagens(error);
+      setErro(mensagens[0] ?? 'Não foi possível carregar o dashboard.');
+      setDados(null);
+    } finally {
+      if (requestId === requestIdRef.current) setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void carregar();
+  }, [carregar]);
+
+  useEffect(() => {
+    function onPullRefresh() {
+      void carregar();
+    }
+    window.addEventListener(PULL_REFRESH_EVENT, onPullRefresh);
+    return () => {
+      window.removeEventListener(PULL_REFRESH_EVENT, onPullRefresh);
+    };
+  }, [carregar]);
 
   if (showSkeleton) {
     return <DashSkeleton />;
@@ -53,7 +61,11 @@ export function Dash() {
 
   if (loading || (!dados && !erro)) {
     return (
-      <div className="min-h-40" aria-busy="true" aria-label="Carregando dashboard" />
+      <div
+        className="min-h-40"
+        aria-busy="true"
+        aria-label="Carregando dashboard"
+      />
     );
   }
 

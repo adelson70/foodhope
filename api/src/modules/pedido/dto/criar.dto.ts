@@ -11,6 +11,7 @@ import {
   Matches,
   ValidateIf,
   IsIn,
+  IsUUID,
 } from 'class-validator';
 
 export type TipoConsumoDto = 'LEVAR' | 'COMER_AQUI';
@@ -139,4 +140,13 @@ export class CriarPedidoDto {
     message: 'O status de pagamento deve ser PAGO, NAO_PAGO ou GRATUITO',
   })
   status_pagamento?: StatusPagamentoDto;
+
+  @ApiPropertyOptional({
+    example: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+    description:
+      'Idempotência do cliente (painel/totem offline). Replay com o mesmo id retorna o pedido já criado.',
+  })
+  @IsOptional()
+  @IsUUID('4', { message: 'O client_request_id deve ser um UUID válido' })
+  client_request_id?: string;
 }

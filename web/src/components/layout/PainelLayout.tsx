@@ -1,6 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 
+import { useAppPullToRefresh } from '../../hooks/useAppPullToRefresh';
+import {
+  useOnlineStatus,
+  usePedidoOutboxItems,
+  usePedidoOutboxSync,
+} from '../../hooks/usePedidoOutboxSync';
 import { useScrollFocusedIntoView } from '../../hooks/useScrollFocusedIntoView';
 import { cn } from '../../lib/cn';
 import { markScrollRoot } from '../../lib/scrollLock';
@@ -9,6 +15,7 @@ import { FoodHopeLogo } from '../brand/FoodHopeLogo';
 import { PainelBottomNav } from './PainelBottomNav';
 import { PainelLogoutButton } from './PainelLogoutButton';
 import { PainelSidebar } from './PainelSidebar';
+import { PullToRefreshIndicator } from './PullToRefreshIndicator';
 
 function isSubtelaSemBottomNav(pathname: string) {
   return (
@@ -29,8 +36,14 @@ export function PainelLayout() {
   const sessao = useSessao();
   const mainRef = useRef<HTMLElement>(null);
   useScrollFocusedIntoView(mainRef);
+  const pull = useAppPullToRefresh(mainRef);
   const isOperador = sessao.role === 'OPERADOR';
   const semBottomNav = isOperador || isSubtelaSemBottomNav(pathname);
+  const online = useOnlineStatus();
+  const { items: outboxItems } = usePedidoOutboxItems();
+  usePedidoOutboxSync(Boolean(sessao.operador));
+  const mostrarOffline =
+    !online || Boolean(sessao.offline) || outboxItems.length > 0;
 
   useEffect(() => {
     markScrollRoot(mainRef.current);
@@ -56,16 +69,31 @@ export function PainelLayout() {
           {isOperador ? <PainelLogoutButton /> : null}
         </header>
 
+        {mostrarOffline ? (
+          <div className="shrink-0 border-b border-primary-container/40 bg-primary-container/25 px-4 py-2 text-caption text-on-surface">
+            {!online || sessao.offline
+              ? outboxItems.length > 0
+                ? `Offline — ${outboxItems.length} pedido(s) aguardando sync`
+                : 'Offline — pedidos serão enviados ao reconectar'
+              : `${outboxItems.length} pedido(s) aguardando sync`}
+          </div>
+        ) : null}
+
         <main
           ref={mainRef}
           data-scroll-root=""
           className={cn(
-            'min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-4',
+            'relative min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-4',
             'lg:px-8 lg:py-6 lg:pb-6',
             semBottomNav ? MAIN_PB_PLAIN : MAIN_PB_NAV,
             'lg:pb-6',
           )}
         >
+          <PullToRefreshIndicator
+            pullDistance={pull.pullDistance}
+            refreshing={pull.refreshing}
+            armed={pull.armed}
+          />
           <div className="lg:mx-auto lg:max-w-6xl">
             <Outlet context={sessao} />
           </div>

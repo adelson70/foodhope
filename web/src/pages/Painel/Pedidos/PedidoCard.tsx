@@ -37,6 +37,7 @@ export function PedidoCard({
   const restantes = (pedido.itens?.length ?? 0) - nomesItens.length;
   const pronto = pedidoEstaPronto(pedido);
   const pendentePagamento = pedidoPendentePagamento(pedido.status_pagamento);
+  const localPendente = Boolean(pedido.pendingSync || pedido.syncFailed);
 
   return (
     <article className="rounded-xl border border-operator-border bg-operator-card p-4">
@@ -45,6 +46,7 @@ export function PedidoCard({
           type="button"
           onClick={() => onSelect(pedido)}
           className="min-w-0 flex-1 text-left"
+          disabled={localPendente}
         >
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <span className="text-label-sm uppercase tracking-widest text-primary-container">
@@ -57,6 +59,16 @@ export function PedidoCard({
               {rotuloTipoConsumo(pedido.tipo_consumo)}
             </span>
             <PedidoStatusPagamentoBadge status={pedido.status_pagamento} />
+            {pedido.pendingSync ? (
+              <span className="rounded-full bg-primary-container/40 px-2 py-0.5 text-label-sm font-medium text-on-surface">
+                Pendente sync
+              </span>
+            ) : null}
+            {pedido.syncFailed ? (
+              <span className="rounded-full bg-danger/15 px-2 py-0.5 text-label-sm font-medium text-danger">
+                Falha no sync
+              </span>
+            ) : null}
             {pronto ? (
               <span className="rounded-full bg-success/15 px-2 py-0.5 text-label-sm font-medium text-success">
                 Pronto
@@ -66,6 +78,9 @@ export function PedidoCard({
           <h2 className="mt-1 truncate text-subtitle-md font-medium text-on-surface">
             {pedido.nome_completo}
           </h2>
+          {pedido.syncError ? (
+            <p className="mt-1 text-caption text-danger">{pedido.syncError}</p>
+          ) : null}
           {nomesItens.length > 0 ? (
             <p className="mt-1 text-caption text-on-surface-variant">
               {nomesItens.join(', ')}
@@ -73,7 +88,7 @@ export function PedidoCard({
             </p>
           ) : null}
         </button>
-        {!pronto ? (
+        {!pronto && !localPendente ? (
           <Button
             type="button"
             variant="success"
@@ -88,10 +103,14 @@ export function PedidoCard({
       </div>
       <div className="mt-3 flex items-center justify-between gap-3">
         <p className="text-body-md font-medium text-on-surface">
-          {formatarMoeda(totalPedido(pedido))}
+          {localPendente
+            ? pedido.totalEstimado != null
+              ? formatarMoeda(pedido.totalEstimado)
+              : '—'
+            : formatarMoeda(totalPedido(pedido))}
         </p>
         <div className="flex items-center gap-2">
-          {pendentePagamento ? (
+          {pendentePagamento && !localPendente ? (
             <Button
               type="button"
               variant="secondary"
@@ -105,7 +124,11 @@ export function PedidoCard({
           <Button
             type="button"
             variant="dangerGhost"
-            aria-label={`Excluir pedido ${pedido.numero}`}
+            aria-label={
+              localPendente
+                ? 'Descartar pedido pendente'
+                : `Excluir pedido ${pedido.numero}`
+            }
             className="size-10 shrink-0 px-0 py-0"
             onClick={() => onDelete(pedido)}
           >

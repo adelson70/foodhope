@@ -4,6 +4,7 @@ import { ConfirmDialog } from '../../../components/ui';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { useDeferredLoading } from '../../../hooks/useDeferredLoading';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
+import { PULL_REFRESH_EVENT } from '../../../hooks/usePullToRefresh';
 import {
   getApiErrorMensagens,
   produtoService,
@@ -103,6 +104,16 @@ export function Cardapio() {
   useEffect(() => {
     void carregar(busca);
   }, [busca, carregar]);
+
+  useEffect(() => {
+    function onPullRefresh() {
+      void carregar(buscaRef.current);
+    }
+    window.addEventListener(PULL_REFRESH_EVENT, onPullRefresh);
+    return () => {
+      window.removeEventListener(PULL_REFRESH_EVENT, onPullRefresh);
+    };
+  }, [carregar]);
 
   const sentinelRef = useInfiniteScroll({
     enabled: hasNextPage && !loading && !loadingMore && !busca,

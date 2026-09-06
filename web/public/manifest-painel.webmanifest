@@ -1,0 +1,56 @@
+{
+  "id": "/painel",
+  "name": "Food Hope Administração",
+  "short_name": "FH Admin",
+  "description": "Painel Food Hope — pedidos, cardápio e operação.",
+  "theme_color": "#C9A227",
+  "background_color": "#F7F3EB",
+  "display": "standalone",
+  "lang": "pt-BR",
+  "start_url": "/login?utm_source=pwa-admin",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Pedidos",
+      "short_name": "Pedidos",
+      "description": "Lista de pedidos do painel",
+      "url": "/painel/pedido?utm_source=pwa-admin-shortcut",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Dash",
+      "short_name": "Dash",
+      "description": "Dashboard do dia",
+      "url": "/painel/dash?utm_source=pwa-admin-shortcut",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Cardápio",
+      "short_name": "Cardápio",
+      "description": "Gerenciar cardápio",
+      "url": "/painel/cardapio?utm_source=pwa-admin-shortcut",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Configurações",
+      "short_name": "Config",
+      "description": "Configurações do painel",
+      "url": "/painel/configuracoes?utm_source=pwa-admin-shortcut",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
+  ]
+}

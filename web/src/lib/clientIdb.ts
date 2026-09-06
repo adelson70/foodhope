@@ -1,10 +1,13 @@
 const DB_NAME = 'foodhope';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 export const STORE_VISITOR = 'visitor';
 export const STORE_CARRINHO = 'carrinho';
 export const STORE_PEDIDOS = 'pedidosLocais';
 export const STORE_CLIENTE = 'clientePerfil';
+export const STORE_PEDIDO_OUTBOX = 'pedidoOutbox';
+export const STORE_SESSAO_OPERADOR = 'sessaoOperador';
+export const STORE_CARDAPIO_OPERADOR = 'cardapioOperador';
 
 export class QuotaExceededIdbError extends Error {
   constructor(message = 'Armazenamento local sem espaço') {
@@ -18,6 +21,16 @@ function isQuotaError(error: unknown): boolean {
   const name = 'name' in error ? String(error.name) : '';
   return name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED';
 }
+
+const ALL_STORES = [
+  STORE_VISITOR,
+  STORE_CARRINHO,
+  STORE_PEDIDOS,
+  STORE_CLIENTE,
+  STORE_PEDIDO_OUTBOX,
+  STORE_SESSAO_OPERADOR,
+  STORE_CARDAPIO_OPERADOR,
+] as const;
 
 export function openClientDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -33,12 +46,7 @@ export function openClientDb(): Promise<IDBDatabase> {
 
     request.onupgradeneeded = () => {
       const db = request.result;
-      for (const name of [
-        STORE_VISITOR,
-        STORE_CARRINHO,
-        STORE_PEDIDOS,
-        STORE_CLIENTE,
-      ]) {
+      for (const name of ALL_STORES) {
         if (!db.objectStoreNames.contains(name)) {
           db.createObjectStore(name);
         }
@@ -62,6 +70,25 @@ export async function idbGet<T>(
       };
       request.onerror = () => {
         reject(request.error ?? new Error('Falha ao ler IndexedDB'));
+      };
+    });
+  } finally {
+    db.close();
+  }
+}
+
+export async function idbGetAll<T>(storeName: string): Promise<T[]> {
+  const db = await openClientDb();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, 'readonly');
+      const store = tx.objectStore(storeName);
+      const request = store.getAll();
+      request.onsuccess = () => {
+        resolve((request.result as T[]) ?? []);
+      };
+      request.onerror = () => {
+        reject(request.error ?? new Error('Falha ao listar IndexedDB'));
       };
     });
   } finally {

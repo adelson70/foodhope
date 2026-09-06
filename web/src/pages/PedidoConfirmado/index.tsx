@@ -5,6 +5,7 @@ import { Button, Skeleton } from '../../components/ui';
 import { useDeferredLoading } from '../../hooks/useDeferredLoading';
 import { appendPedidoLocal } from '../../lib/clienteStorage';
 import type { CarrinhoItem } from '../../lib/clienteTypes';
+import { PEDIDO_OUTBOX_SYNCED_EVENT } from '../../lib/pedidoOutbox';
 import { TIPO_CONSUMO_PADRAO } from '../../lib/tipoConsumo';
 import { infinitepayService } from '../../services';
 import type { Pedido, TipoConsumo } from '../../services/types';
@@ -13,6 +14,8 @@ import { PedidoConfirmadoCheck } from './PedidoConfirmadoCheck';
 
 type ConfirmadoLocationState = {
   numero?: string;
+  pendingSync?: boolean;
+  clientRequestId?: string;
 };
 
 function primeiroParam(
@@ -31,6 +34,8 @@ export function PedidoConfirmado() {
   const [searchParams] = useSearchParams();
   const state = (location.state ?? {}) as ConfirmadoLocationState;
   const stateNumero = state.numero;
+  const statePending = Boolean(state.pendingSync);
+  const stateClientRequestId = state.clientRequestId;
 
   const itens = useCarrinhoStore((s) => s.itens);
   const clear = useCarrinhoStore((s) => s.clear);
@@ -44,6 +49,7 @@ export function PedidoConfirmado() {
   const temQueryCheckout = Boolean(orderNsu && transactionNsu && slug);
 
   const [numero, setNumero] = useState<string | null>(stateNumero ?? null);
+  const [pendingSync, setPendingSync] = useState(statePending);
   const [erro, setErro] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState(temQueryCheckout);
   const showSkeleton = useDeferredLoading(confirmando);
@@ -101,7 +107,29 @@ export function PedidoConfirmado() {
     clear,
   ]);
 
-  if (!stateNumero && !temQueryCheckout && !numero) {
+  useEffect(() => {
+    if (!pendingSync || !stateClientRequestId) return;
+
+    function onSynced(event: Event) {
+      const detail = (
+        event as CustomEvent<{
+          clientRequestId: string;
+          pedido: Pedido;
+          origem: string;
+        }>
+      ).detail;
+      if (!detail || detail.clientRequestId !== stateClientRequestId) return;
+      setNumero(String(detail.pedido.numero));
+      setPendingSync(false);
+    }
+
+    window.addEventListener(PEDIDO_OUTBOX_SYNCED_EVENT, onSynced);
+    return () => {
+      window.removeEventListener(PEDIDO_OUTBOX_SYNCED_EVENT, onSynced);
+    };
+  }, [pendingSync, stateClientRequestId]);
+
+  if (!stateNumero && !temQueryCheckout && !numero && !pendingSync) {
     return <Navigate to="/" replace />;
   }
 
@@ -136,6 +164,39 @@ export function PedidoConfirmado() {
             Voltar ao carrinho
           </Button>
         </Link>
+      </div>
+    );
+  }
+
+  if (pendingSync && !numero) {
+    return (
+      <div className="flex flex-col items-center gap-6 p-6 text-center">
+        <PedidoConfirmadoCheck />
+
+        <div className="flex flex-col gap-2">
+          <h2 className="text-headline-lg-mobile text-on-surface">
+            Pedido registrado
+          </h2>
+          <p className="text-body-md text-on-surface-variant">
+            Pedido salvo neste totem. Será enviado à cozinha e impresso quando
+            houver conexão.
+          </p>
+        </div>
+
+        <div className="w-full rounded-xl border border-primary-container/40 bg-primary-container/25 px-4 py-4">
+          <p className="text-label-sm uppercase tracking-widest text-on-surface-variant">
+            Status
+          </p>
+          <p className="mt-1 text-title-md text-on-surface">Pendente sync</p>
+        </div>
+
+        <div className="flex w-full flex-col gap-3">
+          <Link to="/" className="w-full">
+            <Button type="button" fullWidth>
+              Próximo cliente
+            </Button>
+          </Link>
+        </div>
       </div>
     );
   }

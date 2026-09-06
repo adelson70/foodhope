@@ -250,6 +250,11 @@ export type Pedido = {
   pronto?: boolean;
   prontoAt?: string | null;
   status_pagamento?: StatusPagamento;
+  clientRequestId?: string | null;
+  pendingSync?: boolean;
+  syncFailed?: boolean;
+  syncError?: string;
+  totalEstimado?: number;
   createdAt?: string;
   updatedAt?: string;
   itens?: PedidoItem[];
@@ -280,6 +285,7 @@ export type CriarPedidoInput = {
   cliente: ClientePedidoInput;
   tipo_consumo?: TipoConsumo;
   status_pagamento?: StatusPagamento;
+  client_request_id?: string;
 };
 
 export type ListarPedidosDados = {

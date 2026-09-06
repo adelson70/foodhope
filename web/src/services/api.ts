@@ -5,6 +5,7 @@ import axios, {
 } from 'axios';
 
 import { clearToken, getToken } from './cookie';
+import { limparSessaoOperador } from '../lib/sessaoOperador';
 import type { ApiErrorBody, ApiResponse } from './types';
 import {
   clearVisitorSession,
@@ -89,6 +90,7 @@ api.interceptors.response.use(
 
       if (hadToken) {
         clearToken();
+        void limparSessaoOperador();
         if (!window.location.pathname.startsWith('/login')) {
           window.location.href = '/login';
         }

@@ -27,7 +27,8 @@ import {
   type CheckoutClienteValues,
   type CheckoutTotemValues,
 } from '../../schemas/checkout-cliente.schema';
-import { infinitepayService, pedidoService } from '../../services';
+import { infinitepayService } from '../../services';
+import { criarPedidoComOutbox } from '../../lib/criarPedidoComOutbox';
 import { getVisitorId } from '../../services/visitor';
 import {
   totalCarrinho,
@@ -120,23 +121,53 @@ export function Carrinho() {
   }
 
   async function finalizarTotem(cliente: ClientePedidoInput) {
-    const response = await pedidoService.criar(
+    const sobrenome = cliente.sobrenome?.trim() || undefined;
+    const nomeCompleto = [cliente.primeiro_nome, sobrenome]
+      .filter(Boolean)
+      .join(' ');
+
+    const result = await criarPedidoComOutbox(
       {
         tipo_consumo: tipoConsumo,
-        cliente,
+        cliente: {
+          primeiro_nome: cliente.primeiro_nome,
+          ...(sobrenome ? { sobrenome } : {}),
+        },
         itens: montarItens(),
       },
-      { silentSuccess: true },
+      {
+        origem: 'totem',
+        silentSuccess: true,
+        snapshot: {
+          nome_completo: nomeCompleto,
+          tipo_consumo: tipoConsumo,
+          status_pagamento: 'NAO_PAGO',
+          totalEstimado: total,
+          itens: itens.map((item) => ({
+            nome: item.nome,
+            qtd: item.qtd,
+          })),
+        },
+      },
     );
 
-    if (!response.sucesso || !response.dados?.pedido) return;
-
-    const pedido = response.dados.pedido;
     clear();
     totemForm.reset({ nome_completo: '' });
+
+    if (result.kind === 'created') {
+      navigate('/confirmado', {
+        replace: true,
+        state: { numero: String(result.pedido.numero) },
+      });
+      return;
+    }
+
     navigate('/confirmado', {
       replace: true,
-      state: { numero: String(pedido.numero) },
+      state: {
+        pendingSync: true,
+        clientRequestId: result.clientRequestId,
+      },
     });
   }
 
@@ -170,12 +201,16 @@ export function Carrinho() {
 
     const { primeiro_nome, sobrenome } = separarNome(values.nome_completo);
 
-    await finalizarTotem({
-      primeiro_nome,
-      sobrenome,
-      contato: '',
-      cidade: '',
-    });
+    try {
+      await finalizarTotem({
+        primeiro_nome,
+        sobrenome,
+        contato: '',
+        cidade: '',
+      });
+    } catch {
+      return;
+    }
   }
 
   return (

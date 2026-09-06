@@ -1,15 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 
+import { useAppPullToRefresh } from '../../hooks/useAppPullToRefresh';
+import { usePedidoOutboxSync } from '../../hooks/usePedidoOutboxSync';
 import { useScrollFocusedIntoView } from '../../hooks/useScrollFocusedIntoView';
 import { cn } from '../../lib/cn';
+import { isNetworkFailure } from '../../lib/network';
 import { markScrollRoot } from '../../lib/scrollLock';
+import {
+  obterSessaoOperador,
+  salvarSessaoOperador,
+} from '../../lib/sessaoOperador';
 import { useCarrinhoStore } from '../../stores/carrinho.store';
 import { ensureVisitor } from '../../services/visitor';
 import { authService, getToken } from '../../services';
 import { Button, Loading } from '../ui';
 import { FoodHopeLogo } from '../brand/FoodHopeLogo';
 import { ClienteBottomNav } from './ClienteBottomNav';
+import { PullToRefreshIndicator } from './PullToRefreshIndicator';
 
 function isLegalDoc(pathname: string) {
   return pathname === '/termos' || pathname === '/privacidade';
@@ -29,7 +37,9 @@ export function MobileAppLayout() {
   const [isTotem, setIsTotem] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
   useScrollFocusedIntoView(mainRef);
+  const pull = useAppPullToRefresh(mainRef, visitorReady && !visitorErro);
   const semBottomNav = isLegalDoc(pathname);
+  usePedidoOutboxSync(isTotem && Boolean(getToken()));
 
   useEffect(() => {
     markScrollRoot(mainRef.current);
@@ -51,9 +61,20 @@ export function MobileAppLayout() {
         .then((response) => {
           if (cancelled) return;
           setIsTotem(response.dados?.role === 'TOTEM');
+          if (response.dados) {
+            void salvarSessaoOperador(response.dados);
+          }
         })
-        .catch(() => {
-          if (!cancelled) setIsTotem(false);
+        .catch(async (error: unknown) => {
+          if (cancelled) return;
+          if (isNetworkFailure(error)) {
+            const cache = await obterSessaoOperador();
+            if (cache?.role === 'TOTEM' && getToken()) {
+              setIsTotem(true);
+              return;
+            }
+          }
+          setIsTotem(false);
         })
         .finally(async () => {
           await hydrate();
@@ -110,10 +131,15 @@ export function MobileAppLayout() {
           ref={mainRef}
           data-scroll-root=""
           className={cn(
-            'min-h-0 flex-1 overflow-y-auto overscroll-y-contain',
+            'relative min-h-0 flex-1 overflow-y-auto overscroll-y-contain',
             semBottomNav ? MAIN_PB_PLAIN : MAIN_PB_NAV,
           )}
         >
+          <PullToRefreshIndicator
+            pullDistance={pull.pullDistance}
+            refreshing={pull.refreshing}
+            armed={pull.armed}
+          />
           {visitorErro ? (
             <div className="flex flex-col gap-3 p-4">
               <p className="text-body-md text-danger">{visitorErro}</p>

@@ -1,10 +1,20 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { ConfirmDialog } from '../../../components/ui';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { useDeferredLoading } from '../../../hooks/useDeferredLoading';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
+import {
+  usePedidoOutboxItems,
+} from '../../../hooks/usePedidoOutboxSync';
+import { PULL_REFRESH_EVENT } from '../../../hooks/usePullToRefresh';
 import { hojeSpIso } from '../../../lib/dataSp';
+import { isNetworkFailure, isOfflineNow } from '../../../lib/network';
+import {
+  outboxParaPedidoLocal,
+  PEDIDO_OUTBOX_SYNCED_EVENT,
+  removerPedidoOutbox,
+} from '../../../lib/pedidoOutbox';
 import { pedidoPendentePagamento } from '../../../lib/statusPagamento';
 import {
   getApiErrorMensagens,
@@ -44,8 +54,32 @@ export function Pedidos() {
   const dataRef = useRef(data);
   dataRef.current = data;
   const nextCursorRef = useRef<string | null>(null);
+  const { items: outboxItems } = usePedidoOutboxItems();
+
+  const pedidosLocais = useMemo(
+    () =>
+      outboxItems
+        .filter((item) => item.origem === 'painel')
+        .map(outboxParaPedidoLocal),
+    [outboxItems],
+  );
+
+  const pedidosExibidos = useMemo(() => {
+    if (busca) return pedidos;
+    const idsServidor = new Set(pedidos.map((p) => p.id));
+    const locais = pedidosLocais.filter((p) => !idsServidor.has(p.id));
+    return [...locais, ...pedidos];
+  }, [busca, pedidos, pedidosLocais]);
 
   const carregar = useCallback(async (termo: string, dia: string) => {
+    if (isOfflineNow()) {
+      setLoading(false);
+      setErro(null);
+      setHasNextPage(false);
+      nextCursorRef.current = null;
+      return;
+    }
+
     setLoading(true);
     setErro(null);
     setHasNextPage(false);
@@ -76,6 +110,12 @@ export function Pedidos() {
       setHasNextPage(response.dados.meta.hasNextPage);
       nextCursorRef.current = response.dados.meta.nextCursor;
     } catch (error: unknown) {
+      if (isNetworkFailure(error)) {
+        setErro(null);
+        setHasNextPage(false);
+        nextCursorRef.current = null;
+        return;
+      }
       const mensagens = getApiErrorMensagens(error);
       setErro(mensagens[0] ?? 'Não foi possível carregar os pedidos.');
       setPedidos([]);
@@ -117,6 +157,16 @@ export function Pedidos() {
   useEffect(() => {
     void carregar(busca, data);
   }, [busca, data, carregar]);
+
+  useEffect(() => {
+    function onPullRefresh() {
+      void carregar(buscaRef.current, dataRef.current);
+    }
+    window.addEventListener(PULL_REFRESH_EVENT, onPullRefresh);
+    return () => {
+      window.removeEventListener(PULL_REFRESH_EVENT, onPullRefresh);
+    };
+  }, [carregar]);
 
   useEffect(() => {
     function onNovoPedido(pedido: Pedido) {
@@ -182,6 +232,32 @@ export function Pedidos() {
     };
   }, []);
 
+  useEffect(() => {
+    function onOutboxSynced(event: Event) {
+      const detail = (event as CustomEvent<{
+        clientRequestId: string;
+        pedido: Pedido;
+        origem: string;
+      }>).detail;
+      if (!detail || detail.origem !== 'painel') return;
+
+      setPedidos((atual) => {
+        const semLocal = atual.filter(
+          (p) => p.id !== `local:${detail.clientRequestId}`,
+        );
+        if (semLocal.some((p) => p.id === detail.pedido.id)) return semLocal;
+        if (buscaRef.current) return semLocal;
+        if (dataRef.current && dataRef.current !== hojeSpIso()) return semLocal;
+        return [detail.pedido, ...semLocal];
+      });
+    }
+
+    window.addEventListener(PEDIDO_OUTBOX_SYNCED_EVENT, onOutboxSynced);
+    return () => {
+      window.removeEventListener(PEDIDO_OUTBOX_SYNCED_EVENT, onOutboxSynced);
+    };
+  }, []);
+
   const sentinelRef = useInfiniteScroll({
     enabled: hasNextPage && !loading && !loadingMore && !busca,
     onLoadMore: carregarMais,
@@ -199,7 +275,12 @@ export function Pedidos() {
     });
   }
 
+  function handleQueued() {
+    return;
+  }
+
   async function handlePronto(pedido: Pedido) {
+    if (pedido.pendingSync || pedido.syncFailed) return;
     if (pedidoEstaPronto(pedido) || prontoLoadingId) return;
     setProntoLoadingId(pedido.id);
     try {
@@ -220,6 +301,7 @@ export function Pedidos() {
   }
 
   async function handleMarcarPago(pedido: Pedido) {
+    if (pedido.pendingSync || pedido.syncFailed) return;
     if (
       !pedidoPendentePagamento(pedido.status_pagamento) ||
       pagoLoadingId
@@ -248,6 +330,14 @@ export function Pedidos() {
     if (!pedidoExcluir) return;
     setDeleting(true);
     try {
+      if (pedidoExcluir.clientRequestId && pedidoExcluir.id.startsWith('local:')) {
+        await removerPedidoOutbox(pedidoExcluir.clientRequestId);
+        setPedidoExcluir(null);
+        setPedidoDetalhe((atual) =>
+          atual?.id === pedidoExcluir.id ? null : atual,
+        );
+        return;
+      }
       await pedidoService.deletar(pedidoExcluir.id);
       setPedidos((atual) =>
         atual.filter((p) => p.id !== pedidoExcluir.id),
@@ -273,10 +363,10 @@ export function Pedidos() {
         disabled={Boolean(buscaInput.trim())}
       />
       <PedidosLista
-        pedidos={pedidos}
+        pedidos={pedidosExibidos}
         loading={showSkeleton}
         loadingMore={showMoreSkeleton}
-        pending={loading && pedidos.length === 0 && !showSkeleton}
+        pending={loading && pedidos.length === 0 && !showSkeleton && pedidosLocais.length === 0}
         hasNextPage={hasNextPage && !busca}
         erro={erro}
         buscaAtiva={Boolean(busca)}
@@ -284,7 +374,10 @@ export function Pedidos() {
         sentinelRef={sentinelRef}
         prontoLoadingId={prontoLoadingId}
         pagoLoadingId={pagoLoadingId}
-        onSelect={setPedidoDetalhe}
+        onSelect={(pedido) => {
+          if (pedido.pendingSync || pedido.syncFailed) return;
+          setPedidoDetalhe(pedido);
+        }}
         onPronto={(pedido) => {
           void handlePronto(pedido);
         }}
@@ -298,6 +391,7 @@ export function Pedidos() {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         onCreated={handleCreated}
+        onQueued={handleQueued}
       />
 
       <PedidoDetalheDrawer
@@ -318,12 +412,20 @@ export function Pedidos() {
       <ConfirmDialog
         open={Boolean(pedidoExcluir)}
         title={
-          pedidoExcluir
-            ? `Excluir pedido #${pedidoExcluir.numero}?`
-            : 'Excluir pedido?'
+          pedidoExcluir?.id.startsWith('local:')
+            ? 'Descartar pedido pendente?'
+            : pedidoExcluir
+              ? `Excluir pedido #${pedidoExcluir.numero}?`
+              : 'Excluir pedido?'
         }
-        description="Esta ação não pode ser desfeita."
-        confirmLabel="Excluir"
+        description={
+          pedidoExcluir?.id.startsWith('local:')
+            ? 'Este pedido ainda não foi enviado ao servidor.'
+            : 'Esta ação não pode ser desfeita.'
+        }
+        confirmLabel={
+          pedidoExcluir?.id.startsWith('local:') ? 'Descartar' : 'Excluir'
+        }
         cancelLabel="Cancelar"
         variant="danger"
         loading={deleting}

@@ -77,6 +77,7 @@ model Pedido {
   tipo_consumo     TipoConsumo     @default(COMER_AQUI) @map("tipo_consumo")
   prontoAt         DateTime?       @map("pronto_at")
   status_pagamento StatusPagamento @default(PAGO) @map("status_pagamento")
+  clientRequestId  String?         @unique @map("client_request_id")
 
   itens PedidoItem[]
   checkoutSessao CheckoutSessao?

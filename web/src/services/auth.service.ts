@@ -1,5 +1,9 @@
 import { api, request } from './api';
 import { clearToken, setToken } from './cookie';
+import {
+  limparSessaoOperador,
+  salvarSessaoOperador,
+} from '../lib/sessaoOperador';
 import { withMutationToast } from './mutation-toast';
 import { connectSocket, disconnectSocket } from './socket';
 import type {
@@ -39,6 +43,7 @@ export const authService = {
         );
       } finally {
         clearToken();
+        void limparSessaoOperador();
         disconnectSocket();
         void connectSocket();
       }
@@ -49,7 +54,11 @@ export const authService = {
   },
 
   async me(): Promise<ApiResponse<Operador>> {
-    return request(api.get<ApiResponse<Operador>>('/auth/me'));
+    const response = await request(api.get<ApiResponse<Operador>>('/auth/me'));
+    if (response.sucesso && response.dados) {
+      await salvarSessaoOperador(response.dados);
+    }
+    return response;
   },
 
   async editar(input: EditarOperadorInput): Promise<ApiResponse<Operador>> {

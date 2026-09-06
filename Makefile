@@ -10,3 +10,6 @@ logs:
 
 down:
 	cd docker && $(COMPOSE) down api web
+
+deploy:
+	cd docker && $(COMPOSE) build web api && $(COMPOSE) up -d && $(COMPOSE) logs -f

@@ -246,7 +246,43 @@ export class PedidoService {
     status_pagamento: 'PAGO' | 'NAO_PAGO' | 'GRATUITO',
   ) {
     try {
+      const clientRequestId = dto.client_request_id?.trim() || undefined;
+
+      if (clientRequestId) {
+        const existente = await this.prismaRead.pedido.findUnique({
+          where: { clientRequestId },
+          include: {
+            itens: { include: { produto: true } },
+          },
+        });
+
+        if (existente) {
+          return {
+            mensagem: 'Pedido já registrado',
+            dados: {
+              pedido: this.formatarPedido(existente),
+            },
+          };
+        }
+      }
+
       const pedidoCompleto = await this.prismaWrite.$transaction(async (tx) => {
+        if (clientRequestId) {
+          const existenteTx = await tx.pedido.findUnique({
+            where: { clientRequestId },
+            include: {
+              itens: { include: { produto: true } },
+            },
+          });
+
+          if (existenteTx) {
+            return {
+              pedido: this.formatarPedido(existenteTx),
+              criadoAgora: false as const,
+            };
+          }
+        }
+
         const contato = dto.cliente.contato?.trim() || undefined;
         const sobrenome = dto.cliente.sobrenome?.trim() || undefined;
         const cidade = dto.cliente.cidade?.trim() || undefined;
@@ -389,6 +425,7 @@ export class PedidoService {
             nome_completo: nome_completo,
             tipo_consumo: dto.tipo_consumo ?? 'COMER_AQUI',
             status_pagamento,
+            ...(clientRequestId ? { clientRequestId } : {}),
             itens: {
               create: itensParaCriar,
             },
@@ -398,21 +435,52 @@ export class PedidoService {
           },
         });
 
-        return this.formatarPedido(pedidoCriado);
+        return {
+          pedido: this.formatarPedido(pedidoCriado),
+          criadoAgora: true as const,
+        };
       });
 
-      await this.enfileirarImpressao(pedidoCompleto, dto.cliente);
-
-      this.websocket.emitirParaOperadores('novo-pedido', pedidoCompleto);
+      if (pedidoCompleto.criadoAgora) {
+        await this.enfileirarImpressao(pedidoCompleto.pedido, dto.cliente);
+        this.websocket.emitirParaOperadores(
+          'novo-pedido',
+          pedidoCompleto.pedido,
+        );
+      }
 
       return {
-        mensagem: 'Pedido criado com sucesso',
+        mensagem: pedidoCompleto.criadoAgora
+          ? 'Pedido criado com sucesso'
+          : 'Pedido já registrado',
         dados: {
-          pedido: pedidoCompleto,
+          pedido: pedidoCompleto.pedido,
         },
       };
     } catch (erro) {
       console.error('Erro ao criar pedido:', erro);
+
+      if (
+        erro instanceof Prisma.PrismaClientKnownRequestError &&
+        erro.code === 'P2002' &&
+        dto.client_request_id
+      ) {
+        const existente = await this.prismaRead.pedido.findUnique({
+          where: { clientRequestId: dto.client_request_id },
+          include: {
+            itens: { include: { produto: true } },
+          },
+        });
+
+        if (existente) {
+          return {
+            mensagem: 'Pedido já registrado',
+            dados: {
+              pedido: this.formatarPedido(existente),
+            },
+          };
+        }
+      }
 
       if (erro instanceof Error && erro.message.includes('não encontrado')) {
         throw new NotFoundException(erro.message);

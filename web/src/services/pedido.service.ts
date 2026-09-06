@@ -19,6 +19,13 @@ export type CriarPedidoOptions = {
   silentSuccess?: boolean;
 };
 
+function comClientRequestId(input: CriarPedidoInput): CriarPedidoInput {
+  return {
+    ...input,
+    client_request_id: input.client_request_id ?? crypto.randomUUID(),
+  };
+}
+
 export const pedidoService = {
   async listar(
     params: ListarPedidosParams = {},
@@ -36,13 +43,23 @@ export const pedidoService = {
     );
   },
 
+  async criarRaw(
+    input: CriarPedidoInput,
+  ): Promise<ApiResponse<CriarPedidoDados>> {
+    return request(
+      api.post<ApiResponse<CriarPedidoDados>>(
+        '/pedido',
+        comClientRequestId(input),
+      ),
+    );
+  },
+
   async criar(
     input: CriarPedidoInput,
     options: CriarPedidoOptions = {},
   ): Promise<ApiResponse<CriarPedidoDados>> {
     return withMutationToast(
-      () =>
-        request(api.post<ApiResponse<CriarPedidoDados>>('/pedido', input)),
+      () => pedidoService.criarRaw(input),
       {
         success: options.silentSuccess
           ? false
