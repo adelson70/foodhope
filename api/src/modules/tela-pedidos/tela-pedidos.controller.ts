@@ -1,8 +1,9 @@
-import { Controller, Get, Param, Post } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Param, Post, Put } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { Public } from '../../common/decorator/public.decorator.js';
 import { Roles } from '../../common/decorator/roles.decorator.js';
+import { AtualizarVisualizacaoTelaPedidosDto } from './dto/atualizar-visualizacao.dto.js';
 import { TelaPedidosService } from './tela-pedidos.service.js';
 
 @ApiTags('Tela de pedidos')
@@ -18,12 +19,33 @@ export class TelaPedidosController {
     return this.telaPedidos.obterConfig();
   }
 
+  @Put()
+  @ApiBearerAuth()
+  @Roles('ADMIN')
+  @ApiOperation({
+    summary: 'Atualiza a visualização da tela (DIA ou TUDO)',
+  })
+  @ApiBody({ type: AtualizarVisualizacaoTelaPedidosDto })
+  async atualizar(@Body() dto: AtualizarVisualizacaoTelaPedidosDto) {
+    return this.telaPedidos.atualizarVisualizacao(dto.visualizacao);
+  }
+
   @Post('regenerar')
   @ApiBearerAuth()
   @Roles('ADMIN')
   @ApiOperation({ summary: 'Regenera o hash da tela pública (invalida links antigos)' })
   async regenerar() {
     return this.telaPedidos.regenerarHash();
+  }
+
+  @Post('refresh')
+  @ApiBearerAuth()
+  @Roles('ADMIN')
+  @ApiOperation({
+    summary: 'Força as TVs/kiosks a recarregarem a listagem de pedidos',
+  })
+  async forcarRefresh() {
+    return this.telaPedidos.forcarRefresh();
   }
 
   @Get(':hash')

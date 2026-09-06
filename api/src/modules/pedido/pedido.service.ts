@@ -25,9 +25,11 @@ import {
   linhaObsCupom,
   linhaSeparadora,
   linhaTotalCupom,
+  montarTextoObservacaoCupom,
   paraCupom,
 } from '../impressora/impressao-texto.js';
 import type { AuthUser } from '../../infra/auth/auth.guard.js';
+import { CozinhaService } from '../cozinha/cozinha.service.js';
 
 @Injectable()
 export class PedidoService {
@@ -36,6 +38,7 @@ export class PedidoService {
     private readonly prismaRead: PrismaReadService,
     @InjectQueue('fila-impressao') private filaImpressao: Queue,
     private readonly websocket: WebsocketGateway,
+    private readonly cozinha: CozinhaService,
   ) {}
 
   async listarPedido(dto: ListarDto) {
@@ -215,25 +218,33 @@ export class PedidoService {
       );
     }
 
-    let pago: boolean;
+    let status_pagamento: 'PAGO' | 'NAO_PAGO' | 'GRATUITO';
 
     if (user.role === 'TOTEM') {
-      pago = false;
+      await this.cozinha.assertAberta();
+      status_pagamento = 'NAO_PAGO';
     } else if (user.role === 'ADMIN' || user.role === 'OPERADOR') {
-      if (typeof dto.pago !== 'boolean') {
+      if (
+        dto.status_pagamento !== 'PAGO' &&
+        dto.status_pagamento !== 'NAO_PAGO' &&
+        dto.status_pagamento !== 'GRATUITO'
+      ) {
         throw new BadRequestException(
-          'Informe se o pedido está pago ou não.',
+          'Informe o status de pagamento do pedido.',
         );
       }
-      pago = dto.pago;
+      status_pagamento = dto.status_pagamento;
     } else {
       throw new BadRequestException('Operação não autorizada');
     }
 
-    return this.criarPedidoPago(dto, pago);
+    return this.criarPedidoPago(dto, status_pagamento);
   }
 
-  async criarPedidoPago(dto: CriarPedidoDto, pago: boolean) {
+  async criarPedidoPago(
+    dto: CriarPedidoDto,
+    status_pagamento: 'PAGO' | 'NAO_PAGO' | 'GRATUITO',
+  ) {
     try {
       const pedidoCompleto = await this.prismaWrite.$transaction(async (tx) => {
         const contato = dto.cliente.contato?.trim() || undefined;
@@ -336,11 +347,39 @@ export class PedidoService {
             }
           }
 
+          const retiradasVenda: Array<{ id: string; nome: string }> = [];
+          if (itemDto.retirar && itemDto.retirar.length > 0) {
+            const idsUnicos = [...new Set(itemDto.retirar)];
+            const ingredientes = await tx.ingredienteProduto.findMany({
+              where: {
+                id: { in: idsUnicos },
+                produto_id: produto.id,
+              },
+              select: { id: true, nome: true },
+            });
+
+            if (ingredientes.length !== idsUnicos.length) {
+              throw new Error(
+                'Um ou mais ingredientes para retirar estão indisponíveis neste produto.',
+              );
+            }
+
+            for (const id of idsUnicos) {
+              const ingrediente = ingredientes.find((item) => item.id === id);
+              if (!ingrediente) continue;
+              retiradasVenda.push({
+                id: ingrediente.id,
+                nome: ingrediente.nome,
+              });
+            }
+          }
+
           itensParaCriar.push({
             produto_id: produto.id,
             quantidade: itemDto.qtd,
             preco_produto: produto.preco,
             adicional_venda: adicionaisVenda,
+            retirada_venda: retiradasVenda,
             observacao: itemDto.observacao,
           });
         }
@@ -349,7 +388,7 @@ export class PedidoService {
           data: {
             nome_completo: nome_completo,
             tipo_consumo: dto.tipo_consumo ?? 'COMER_AQUI',
-            pago,
+            status_pagamento,
             itens: {
               create: itensParaCriar,
             },
@@ -459,7 +498,7 @@ export class PedidoService {
         throw new NotFoundException('Pedido não encontrado.');
       }
 
-      if (pedido.pago) {
+      if (pedido.status_pagamento === 'PAGO') {
         return {
           mensagem: 'Pedido já estava pago',
           dados: {
@@ -468,9 +507,15 @@ export class PedidoService {
         };
       }
 
+      if (pedido.status_pagamento === 'GRATUITO') {
+        throw new BadRequestException(
+          'Pedido gratuito não pode ser marcado como pago.',
+        );
+      }
+
       const atualizado = await this.prismaWrite.pedido.update({
         where: { id },
-        data: { pago: true },
+        data: { status_pagamento: 'PAGO' },
         include: {
           itens: { include: { produto: true } },
         },
@@ -484,7 +529,10 @@ export class PedidoService {
         dados: { pedido: pedidoCompleto },
       };
     } catch (erro) {
-      if (erro instanceof NotFoundException) {
+      if (
+        erro instanceof NotFoundException ||
+        erro instanceof BadRequestException
+      ) {
         throw erro;
       }
 
@@ -496,14 +544,18 @@ export class PedidoService {
   }
 
   private formatarPedido<
-    T extends { numero: bigint; prontoAt: Date | null; pago: boolean },
+    T extends {
+      numero: bigint;
+      prontoAt: Date | null;
+      status_pagamento: string;
+    },
   >(pedido: T) {
     return {
       ...pedido,
       numero: pedido.numero.toString(),
       prontoAt: pedido.prontoAt ? pedido.prontoAt.toISOString() : null,
       pronto: Boolean(pedido.prontoAt),
-      pago: Boolean(pedido.pago),
+      status_pagamento: pedido.status_pagamento,
     };
   }
 
@@ -522,27 +574,157 @@ export class PedidoService {
     return tipo === 'LEVAR' ? 'LEVAR' : 'COMER AQUI';
   }
 
-  private rotuloPago(pago?: boolean) {
-    return pago === false ? 'NAO PAGO' : 'PAGO';
+  private rotuloStatusPagamento(status?: string) {
+    if (status === 'NAO_PAGO') return 'NAO PAGO';
+    if (status === 'GRATUITO') return 'GRATUITO';
+    return 'PAGO';
   }
 
   private rotuloStatusCupom(pedido: any) {
-    return `${this.rotuloConsumo(pedido.tipo_consumo)} - ${this.rotuloPago(pedido.pago)}`;
+    return `${this.rotuloConsumo(pedido.tipo_consumo)} - ${this.rotuloStatusPagamento(pedido.status_pagamento)}`;
+  }
+
+  private temObservacao(item: {
+    observacao?: string | null;
+    retirada_venda?: unknown;
+  }) {
+    return Boolean(montarTextoObservacaoCupom(item));
+  }
+
+  private chaveAdicionaisImpressao(adicional_venda: unknown): string {
+    if (!Array.isArray(adicional_venda) || adicional_venda.length === 0) {
+      return '';
+    }
+    return [...adicional_venda]
+      .map(
+        (add: { id?: string; nome?: string; qtd?: number; preco?: number }) =>
+          `${add.id ?? add.nome ?? ''}:${Number(add.qtd)}:${Number(add.preco)}`,
+      )
+      .sort()
+      .join(',');
+  }
+
+  private chaveRetiradaImpressao(retirada_venda: unknown): string {
+    if (!Array.isArray(retirada_venda) || retirada_venda.length === 0) {
+      return '';
+    }
+    return [...retirada_venda]
+      .map((item: { id?: string; nome?: string }) => item.id ?? item.nome ?? '')
+      .filter((valor) => valor.length > 0)
+      .sort()
+      .join(',');
+  }
+
+  private chaveGrupoImpressao(item: any): string {
+    const produtoId =
+      item.produto_id ?? item.produto?.id ?? item.produto?.nome ?? '';
+    const obs = (item.observacao ?? '').trim().toLowerCase();
+    return `${produtoId}|${this.chaveAdicionaisImpressao(item.adicional_venda)}|${this.chaveRetiradaImpressao(item.retirada_venda)}|${obs}`;
+  }
+
+  private consolidarItensImpressao(itens: any[]): any[] {
+    const grupos = new Map<string, any>();
+
+    for (const item of itens) {
+      const chave = this.chaveGrupoImpressao(item);
+      const existente = grupos.get(chave);
+
+      if (!existente) {
+        grupos.set(chave, {
+          ...item,
+          adicional_venda: Array.isArray(item.adicional_venda)
+            ? item.adicional_venda.map((add: object) => ({ ...add }))
+            : item.adicional_venda,
+          retirada_venda: Array.isArray(item.retirada_venda)
+            ? item.retirada_venda.map((ret: object) => ({ ...ret }))
+            : item.retirada_venda,
+        });
+        continue;
+      }
+
+      existente.quantidade += item.quantidade;
+
+      if (
+        !Array.isArray(item.adicional_venda) ||
+        !Array.isArray(existente.adicional_venda)
+      ) {
+        continue;
+      }
+
+      for (const add of item.adicional_venda) {
+        const chaveAdd = add.id ?? add.nome;
+        const encontrado = existente.adicional_venda.find(
+          (atual: { id?: string; nome?: string }) =>
+            (atual.id ?? atual.nome) === chaveAdd,
+        );
+        if (encontrado) {
+          encontrado.qtd = Number(encontrado.qtd) + Number(add.qtd);
+        } else {
+          existente.adicional_venda.push({ ...add });
+        }
+      }
+    }
+
+    return [...grupos.values()];
   }
 
   private async enfileirarImpressao(pedidoCompleto: any, cliente: ClientePedido) {
-    const itensNormais = pedidoCompleto.itens.filter(
-      (item: { produto?: { imprimirSeparado?: boolean } }) =>
-        !item.produto?.imprimirSeparado,
+    const itens = Array.isArray(pedidoCompleto.itens)
+      ? pedidoCompleto.itens
+      : [];
+    const soIgnoraveis =
+      itens.length > 0 &&
+      itens.every(
+        (item: { produto?: { ignorarImpressaoSozinho?: boolean } }) =>
+          Boolean(item.produto?.ignorarImpressaoSozinho),
+      );
+
+    if (soIgnoraveis) {
+      return;
+    }
+
+    const acompanhamentos = itens.filter(
+      (item: { produto?: { ignorarImpressaoSozinho?: boolean } }) =>
+        Boolean(item.produto?.ignorarImpressaoSozinho),
     );
-    const itensSeparados = pedidoCompleto.itens.filter(
+    const demais = itens.filter(
+      (item: { produto?: { ignorarImpressaoSozinho?: boolean } }) =>
+        !item.produto?.ignorarImpressaoSozinho,
+    );
+
+    const itensSeparadoFlag = demais.filter(
       (item: { produto?: { imprimirSeparado?: boolean } }) =>
         Boolean(item.produto?.imprimirSeparado),
     );
+    const itensNormais = demais.filter(
+      (item: { produto?: { imprimirSeparado?: boolean } }) =>
+        !item.produto?.imprimirSeparado,
+    );
+    const itensNormaisComObs = itensNormais.filter((item) =>
+      this.temObservacao(item),
+    );
+    const itensNormaisSemObs = itensNormais.filter(
+      (item) => !this.temObservacao(item),
+    );
+    const separarPorObservacao =
+      this.consolidarItensImpressao(itensNormaisComObs).length > 1;
 
-    if (itensNormais.length > 0) {
-      const textoPrincipal = this.formatarParaImpressora(
-        { ...pedidoCompleto, itens: itensNormais },
+    const itensPrincipais = separarPorObservacao
+      ? itensNormaisSemObs
+      : itensNormais;
+    const itensParaSeparar = separarPorObservacao
+      ? [...itensSeparadoFlag, ...itensNormaisComObs]
+      : itensSeparadoFlag;
+    const resumoImprimirSeparado =
+      this.consolidarItensImpressao(itensSeparadoFlag);
+    const gruposSeparados = this.consolidarItensImpressao(itensParaSeparar);
+    const totalCuponsSeparados = gruposSeparados.length;
+    const temPrincipal = itensPrincipais.length > 0;
+
+    if (temPrincipal) {
+      const textoPrincipal = this.formatarCupom(
+        pedidoCompleto,
+        [...itensPrincipais, ...resumoImprimirSeparado, ...acompanhamentos],
         cliente,
       );
       await this.filaImpressao.add('imprimir-pedido', {
@@ -550,11 +732,33 @@ export class PedidoService {
       });
     }
 
-    for (const item of itensSeparados) {
-      const textoSeparado = this.formatarItemSeparado(
+    for (let indice = 0; indice < gruposSeparados.length; indice += 1) {
+      const ehPrimeiroSemPrincipal = !temPrincipal && indice === 0;
+      const grupoAtual = gruposSeparados[indice];
+      const extrasPrimeiro = ehPrimeiroSemPrincipal
+        ? [
+            ...resumoImprimirSeparado.filter(
+              (item) =>
+                this.chaveGrupoImpressao(item) !==
+                this.chaveGrupoImpressao(grupoAtual),
+            ),
+            ...acompanhamentos,
+          ]
+        : [];
+      const itensCupom = ehPrimeiroSemPrincipal
+        ? [grupoAtual, ...extrasPrimeiro]
+        : [grupoAtual];
+      const textoSeparado = this.formatarCupom(
         pedidoCompleto,
-        item,
+        itensCupom,
         cliente,
+        {
+          banner: 'A PARTE',
+          metaExtra:
+            totalCuponsSeparados > 1
+              ? `CUPOM ${indice + 1} DE ${totalCuponsSeparados}`
+              : undefined,
+        },
       );
       await this.filaImpressao.add('imprimir-pedido', {
         texto: textoSeparado,
@@ -565,7 +769,7 @@ export class PedidoService {
   private cabecalhoCupom(
     pedido: any,
     cliente: ClientePedido,
-    opcoes?: { banner?: string },
+    opcoes?: { banner?: string; metaExtra?: string },
   ) {
     const nomeCliente = paraCupom(
       [cliente.primeiro_nome, cliente.sobrenome].filter(Boolean).join(' '),
@@ -575,11 +779,14 @@ export class PedidoService {
       ? formatarHorarioCupom(pedido.createdAt)
       : '';
 
-    let impressao = '';
+    let impressao = '\n\n\n\n\n';
     if (opcoes?.banner) {
       impressao += `${linhaBanner(opcoes.banner)}\n`;
     }
     impressao += `${linhaNumeroPedido(pedido.numero)}\n`;
+    if (opcoes?.metaExtra) {
+      impressao += `${linhaMetaCupom(opcoes.metaExtra)}\n`;
+    }
     impressao += `${linhaCentralizada(status)}\n`;
     if (nomeCliente) {
       impressao += `${linhaCentralizada(nomeCliente)}\n`;
@@ -613,18 +820,24 @@ export class PedidoService {
       });
     }
 
-    if (item.observacao && item.observacao.trim() !== '') {
-      texto += `${linhaObsCupom(item.observacao)}\n`;
+    const observacaoCupom = montarTextoObservacaoCupom(item);
+    if (observacaoCupom) {
+      texto += `${linhaObsCupom(observacaoCupom)}\n`;
     }
 
     return { texto, total };
   }
 
-  private formatarParaImpressora(pedido: any, cliente: ClientePedido) {
-    let impressao = this.cabecalhoCupom(pedido, cliente);
+  private formatarCupom(
+    pedido: any,
+    itens: any[],
+    cliente: ClientePedido,
+    opcoes?: { banner?: string; metaExtra?: string },
+  ) {
+    let impressao = this.cabecalhoCupom(pedido, cliente, opcoes);
     let valorTotalPedido = 0;
 
-    pedido.itens.forEach((item: any, index: number) => {
+    itens.forEach((item: any, index: number) => {
       if (index > 0) {
         impressao += '\n';
       }
@@ -635,26 +848,6 @@ export class PedidoService {
 
     impressao += `${linhaSeparadora('-')}\n`;
     impressao += `${linhaTotalCupom('TOTAL', valorTotalPedido)}\n`;
-    impressao += `${linhaSeparadora('=')}\n`;
-    impressao += '\n\n\n';
-
-    return impressao;
-  }
-
-  private formatarItemSeparado(
-    pedido: any,
-    item: any,
-    cliente: ClientePedido,
-  ) {
-    let impressao = this.cabecalhoCupom(pedido, cliente, {
-      banner: 'A PARTE',
-    });
-
-    const bloco = this.formatarBlocoItem(item);
-    impressao += bloco.texto;
-
-    impressao += `${linhaSeparadora('-')}\n`;
-    impressao += `${linhaTotalCupom('TOTAL', bloco.total)}\n`;
     impressao += `${linhaSeparadora('=')}\n`;
     impressao += '\n\n\n';
 

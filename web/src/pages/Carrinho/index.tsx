@@ -11,6 +11,8 @@ import {
   TipoConsumoToggle,
 } from '../../components/ui';
 import { useClienteContext } from '../../components/layout/clienteContext';
+import { LojaFechadaBanner } from '../../components/LojaFechadaBanner';
+import { useCozinhaStatus } from '../../hooks/useCozinhaStatus';
 import { TIPO_CONSUMO_PADRAO } from '../../lib/tipoConsumo';
 import type { ClientePedidoInput, TipoConsumo } from '../../services/types';
 import {
@@ -45,12 +47,14 @@ function separarNome(nomeCompleto: string): {
 export function Carrinho() {
   const navigate = useNavigate();
   const { isTotem } = useClienteContext();
+  const { ativa: cozinhaAtiva } = useCozinhaStatus();
   const itens = useCarrinhoStore((state) => state.itens);
   const clear = useCarrinhoStore((state) => state.clear);
   const total = totalCarrinho(itens);
   const [tipoConsumo, setTipoConsumo] = useState<TipoConsumo>(
     TIPO_CONSUMO_PADRAO,
   );
+  const lojaFechada = !cozinhaAtiva;
 
   const {
     register,
@@ -107,6 +111,10 @@ export function Carrinho() {
               qtd: adic.qtd,
             }))
           : undefined,
+      retirar:
+        item.retirar && item.retirar.length > 0
+          ? item.retirar.map((ret) => ret.id)
+          : undefined,
       observacao: item.observacao,
     }));
   }
@@ -147,7 +155,7 @@ export function Carrinho() {
   }
 
   async function onSubmit(values: CheckoutClienteValues) {
-    if (itens.length === 0) return;
+    if (itens.length === 0 || lojaFechada) return;
 
     await finalizarCliente({
       primeiro_nome: values.primeiro_nome,
@@ -158,7 +166,7 @@ export function Carrinho() {
   }
 
   async function onSubmitTotem(values: CheckoutTotemValues) {
-    if (itens.length === 0) return;
+    if (itens.length === 0 || lojaFechada) return;
 
     const { primeiro_nome, sobrenome } = separarNome(values.nome_completo);
 
@@ -179,6 +187,8 @@ export function Carrinho() {
         </p>
       </div>
 
+      {lojaFechada ? <LojaFechadaBanner /> : null}
+
       <CarrinhoLista itens={itens} />
 
       {itens.length > 0 ? (
@@ -195,6 +205,7 @@ export function Carrinho() {
             <TipoConsumoToggle
               value={tipoConsumo}
               onChange={setTipoConsumo}
+              disabled={lojaFechada}
             />
           </div>
 
@@ -211,6 +222,7 @@ export function Carrinho() {
                   id="totem-nome"
                   placeholder="Nome completo"
                   autoComplete="name"
+                  disabled={lojaFechada}
                   error={Boolean(totemForm.formState.errors.nome_completo)}
                   {...totemForm.register('nome_completo')}
                 />
@@ -224,11 +236,13 @@ export function Carrinho() {
               <Button
                 type="submit"
                 fullWidth
-                disabled={totemForm.formState.isSubmitting}
+                disabled={lojaFechada || totemForm.formState.isSubmitting}
               >
-                {totemForm.formState.isSubmitting
-                  ? 'Enviando…'
-                  : 'Fazer pedido'}
+                {lojaFechada
+                  ? 'Loja fechada'
+                  : totemForm.formState.isSubmitting
+                    ? 'Enviando…'
+                    : 'Fazer pedido'}
               </Button>
             </form>
           ) : (
@@ -244,6 +258,7 @@ export function Carrinho() {
                   id="carrinho-nome"
                   placeholder="Primeiro nome"
                   autoComplete="given-name"
+                  disabled={lojaFechada}
                   error={Boolean(errors.primeiro_nome)}
                   {...register('primeiro_nome')}
                 />
@@ -259,6 +274,7 @@ export function Carrinho() {
                   id="carrinho-sobrenome"
                   placeholder="Sobrenome"
                   autoComplete="family-name"
+                  disabled={lojaFechada}
                   error={Boolean(errors.sobrenome)}
                   {...register('sobrenome')}
                 />
@@ -279,6 +295,7 @@ export function Carrinho() {
                       value={field.value}
                       onChange={field.onChange}
                       onBlur={field.onBlur}
+                      disabled={lojaFechada}
                       error={Boolean(errors.contato)}
                     />
                   )}
@@ -295,6 +312,7 @@ export function Carrinho() {
                   id="carrinho-cidade"
                   placeholder="Cidade"
                   autoComplete="address-level2"
+                  disabled={lojaFechada}
                   error={Boolean(errors.cidade)}
                   {...register('cidade')}
                 />
@@ -323,8 +341,16 @@ export function Carrinho() {
                 .
               </p>
 
-              <Button type="submit" fullWidth disabled={isSubmitting}>
-                {isSubmitting ? 'Redirecionando…' : 'Pagar e fazer pedido'}
+              <Button
+                type="submit"
+                fullWidth
+                disabled={lojaFechada || isSubmitting}
+              >
+                {lojaFechada
+                  ? 'Loja fechada'
+                  : isSubmitting
+                    ? 'Redirecionando…'
+                    : 'Pagar e fazer pedido'}
               </Button>
             </form>
           )}

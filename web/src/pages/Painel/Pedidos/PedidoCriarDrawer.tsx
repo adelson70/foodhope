@@ -1,20 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Controller, useFieldArray, useForm } from 'react-hook-form';
+import { useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Minus, Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 
 import {
   Button,
   Drawer,
   Input,
   Label,
-  Loading,
   PagoToggle,
-  PhoneInput,
-  Select,
   TipoConsumoToggle,
 } from '../../../components/ui';
 import { TIPO_CONSUMO_PADRAO } from '../../../lib/tipoConsumo';
+import { STATUS_PAGAMENTO_PADRAO } from '../../../lib/statusPagamento';
 import {
   criarPedidoSchema,
   type CriarPedidoFormValues,
@@ -24,19 +22,23 @@ import {
   pedidoService,
   produtoService,
 } from '../../../services';
-import type { Pedido, Produto, TipoConsumo } from '../../../services/types';
-import { onlyDigits } from '../../../lib/phone';
+import type {
+  Pedido,
+  Produto,
+  StatusPagamento,
+  TipoConsumo,
+} from '../../../services/types';
 import { formatarMoeda } from './pedidoTotais';
+import {
+  PedidoProdutoDrawer,
+  type PedidoProdutoItemDraft,
+} from './PedidoProdutoDrawer';
+import { rotuloRetiradas } from '../../../lib/retiradaPedido';
 
 type PedidoCriarDrawerProps = {
   open: boolean;
   onClose: () => void;
   onCreated: (pedido: Pedido) => void;
-};
-
-type AdicionalDraft = {
-  id: string;
-  qtd: number;
 };
 
 export function PedidoCriarDrawer({
@@ -47,15 +49,13 @@ export function PedidoCriarDrawer({
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [produtosLoading, setProdutosLoading] = useState(false);
   const [produtosErro, setProdutosErro] = useState<string | null>(null);
-  const [produtoSelecionadoId, setProdutoSelecionadoId] = useState('');
-  const [itemQtd, setItemQtd] = useState(1);
-  const [adicionaisDraft, setAdicionaisDraft] = useState<AdicionalDraft[]>([]);
-  const [observacaoDraft, setObservacaoDraft] = useState('');
-  const [itemErro, setItemErro] = useState<string | null>(null);
+  const [produtoDrawerOpen, setProdutoDrawerOpen] = useState(false);
   const [tipoConsumo, setTipoConsumo] = useState<TipoConsumo>(
     TIPO_CONSUMO_PADRAO,
   );
-  const [pago, setPago] = useState(true);
+  const [statusPagamento, setStatusPagamento] = useState<StatusPagamento>(
+    STATUS_PAGAMENTO_PADRAO,
+  );
 
   const {
     register,
@@ -66,7 +66,7 @@ export function PedidoCriarDrawer({
   } = useForm<CriarPedidoFormValues>({
     resolver: zodResolver(criarPedidoSchema),
     defaultValues: {
-      cliente: { primeiro_nome: '', sobrenome: '', contato: '', cidade: '' },
+      cliente: { primeiro_nome: '', sobrenome: '' },
       itens: [],
     },
   });
@@ -75,18 +75,6 @@ export function PedidoCriarDrawer({
     control,
     name: 'itens',
   });
-
-  const produtoOptions = useMemo(
-    () =>
-      produtos
-        .filter((produto) => produto.ativo !== false)
-        .map((produto) => ({
-          value: produto.id,
-          label: produto.nome,
-          description: formatarMoeda(Number(produto.preco)),
-        })),
-    [produtos],
-  );
 
   useEffect(() => {
     if (!open) return;
@@ -124,20 +112,14 @@ export function PedidoCriarDrawer({
   useEffect(() => {
     if (!open) {
       reset({
-        cliente: { primeiro_nome: '', sobrenome: '', contato: '', cidade: '' },
+        cliente: { primeiro_nome: '', sobrenome: '' },
         itens: [],
       });
-      setProdutoSelecionadoId('');
-      setItemQtd(1);
-      setAdicionaisDraft([]);
-      setObservacaoDraft('');
-      setItemErro(null);
+      setProdutoDrawerOpen(false);
       setTipoConsumo(TIPO_CONSUMO_PADRAO);
-      setPago(true);
+      setStatusPagamento(STATUS_PAGAMENTO_PADRAO);
     }
   }, [open, reset]);
-
-  const produtoSelecionado = produtos.find((p) => p.id === produtoSelecionadoId);
 
   function totalItemDraft(field: {
     produtoId: string;
@@ -170,69 +152,55 @@ export function PedidoCriarDrawer({
     });
   }
 
+  function nomesRetiradas(field: {
+    produtoId: string;
+    retirar?: string[];
+  }) {
+    const produto = produtos.find((p) => p.id === field.produtoId);
+    if (!produto || !field.retirar?.length) return [];
+    return field.retirar.map((id) => {
+      const info = produto.ingredientes?.find((item) => item.id === id);
+      return info?.nome ?? 'Ingrediente';
+    });
+  }
+
   const total = useMemo(
     () => fields.reduce((soma, field) => soma + totalItemDraft(field), 0),
     [fields, produtos],
   );
 
-  function toggleAdicional(adicionalId: string) {
-    setAdicionaisDraft((atual) => {
-      const existe = atual.find((a) => a.id === adicionalId);
-      if (existe) {
-        return atual.filter((a) => a.id !== adicionalId);
-      }
-      return [...atual, { id: adicionalId, qtd: 1 }];
-    });
+  function handleAddItem(item: PedidoProdutoItemDraft) {
+    append(item);
   }
 
-  function setAdicionalQtd(adicionalId: string, qtd: number) {
-    if (qtd < 1) return;
-    setAdicionaisDraft((atual) =>
-      atual.map((a) => (a.id === adicionalId ? { ...a, qtd } : a)),
-    );
-  }
-
-  function handleAddItem() {
-    if (!produtoSelecionadoId) {
-      setItemErro('Selecione um produto.');
+  function handleClose() {
+    if (produtoDrawerOpen) {
+      setProdutoDrawerOpen(false);
       return;
     }
-    setItemErro(null);
-    append({
-      produtoId: produtoSelecionadoId,
-      qtd: itemQtd,
-      adicional: adicionaisDraft.length > 0 ? adicionaisDraft : undefined,
-      observacao: observacaoDraft.trim() || undefined,
-    });
-    setProdutoSelecionadoId('');
-    setItemQtd(1);
-    setAdicionaisDraft([]);
-    setObservacaoDraft('');
+    onClose();
   }
 
   async function onSubmit(values: CriarPedidoFormValues) {
     try {
-      const contatoDigits = values.cliente.contato
-        ? onlyDigits(values.cliente.contato)
-        : undefined;
       const sobrenome = values.cliente.sobrenome?.trim() || undefined;
-      const cidade = values.cliente.cidade?.trim() || undefined;
 
       const response = await pedidoService.criar({
         tipo_consumo: tipoConsumo,
-        pago,
+        status_pagamento: statusPagamento,
         cliente: {
           primeiro_nome: values.cliente.primeiro_nome,
           ...(sobrenome ? { sobrenome } : {}),
-          ...(contatoDigits ? { contato: contatoDigits } : {}),
-          ...(cidade ? { cidade } : {}),
         },
-        itens: values.itens.map(({ produtoId, qtd, adicional, observacao }) => ({
-          id: produtoId,
-          qtd,
-          adicional,
-          observacao,
-        })),
+        itens: values.itens.map(
+          ({ produtoId, qtd, adicional, retirar, observacao }) => ({
+            id: produtoId,
+            qtd,
+            adicional,
+            retirar,
+            observacao,
+          }),
+        ),
       });
       if (response.sucesso && response.dados?.pedido) {
         onCreated(response.dados.pedido);
@@ -248,353 +216,189 @@ export function PedidoCriarDrawer({
   }
 
   return (
-    <Drawer
-      open={open}
-      title="Novo pedido"
-      onClose={onClose}
-      footer={
-        <div className="flex flex-col gap-3">
-          {fields.length > 0 ? (
-            <div className="flex items-center justify-between rounded-xl border border-operator-border bg-operator-card px-4 py-3">
-              <span className="text-subtitle-md text-on-surface">Total</span>
-              <span className="text-title-md text-primary">
-                {formatarMoeda(total)}
-              </span>
-            </div>
-          ) : null}
-          <Button
-            type="submit"
-            form="form-criar-pedido"
-            variant="primary"
-            fullWidth
-            disabled={isSubmitting || fields.length === 0}
-          >
-            {isSubmitting ? 'Criando…' : 'Criar pedido'}
-          </Button>
-        </div>
-      }
-    >
-      <form
-        id="form-criar-pedido"
-        className="flex flex-col gap-6"
-        onSubmit={handleSubmit(onSubmit)}
-        noValidate
+    <>
+      <Drawer
+        open={open}
+        title="Novo pedido"
+        onClose={handleClose}
+        footer={
+          <div className="flex flex-col gap-3">
+            {fields.length > 0 ? (
+              <div className="flex items-center justify-between rounded-xl border border-operator-border bg-operator-card px-4 py-3">
+                <span className="text-subtitle-md text-on-surface">Total</span>
+                <span className="text-title-md text-primary">
+                  {formatarMoeda(total)}
+                </span>
+              </div>
+            ) : null}
+            <Button
+              type="submit"
+              form="form-criar-pedido"
+              variant="primary"
+              fullWidth
+              disabled={isSubmitting || fields.length === 0}
+            >
+              {isSubmitting ? 'Criando…' : 'Criar pedido'}
+            </Button>
+          </div>
+        }
       >
-        <section className="flex flex-col gap-3">
-          <h3 className="text-subtitle-md font-medium text-on-surface">
-            Consumo
-          </h3>
-          <TipoConsumoToggle value={tipoConsumo} onChange={setTipoConsumo} />
-        </section>
+        <form
+          id="form-criar-pedido"
+          className="flex flex-col gap-6"
+          onSubmit={handleSubmit(onSubmit)}
+          noValidate
+        >
+          <section className="flex flex-col gap-3">
+            <h3 className="text-subtitle-md font-medium text-on-surface">
+              Consumo
+            </h3>
+            <TipoConsumoToggle value={tipoConsumo} onChange={setTipoConsumo} />
+          </section>
 
-        <section className="flex flex-col gap-3">
-          <h3 className="text-subtitle-md font-medium text-on-surface">
-            Pagamento
-          </h3>
-          <PagoToggle value={pago} onChange={setPago} />
-        </section>
-
-        <section className="flex flex-col gap-3">
-          <h3 className="text-subtitle-md font-medium text-on-surface">
-            Cliente
-          </h3>
-          <div className="space-y-2">
-            <Label htmlFor="primeiro_nome">Nome</Label>
-            <Input
-              id="primeiro_nome"
-              placeholder="Primeiro nome"
-              error={Boolean(errors.cliente?.primeiro_nome)}
-              {...register('cliente.primeiro_nome')}
+          <section className="flex flex-col gap-3">
+            <h3 className="text-subtitle-md font-medium text-on-surface">
+              Pagamento
+            </h3>
+            <PagoToggle
+              value={statusPagamento}
+              onChange={setStatusPagamento}
             />
-            {errors.cliente?.primeiro_nome ? (
-              <p className="px-1 text-caption text-danger">
-                {errors.cliente.primeiro_nome.message}
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <h3 className="text-subtitle-md font-medium text-on-surface">
+              Cliente
+            </h3>
+            <div className="space-y-2">
+              <Label htmlFor="primeiro_nome">Nome</Label>
+              <Input
+                id="primeiro_nome"
+                placeholder="Primeiro nome"
+                error={Boolean(errors.cliente?.primeiro_nome)}
+                {...register('cliente.primeiro_nome')}
+              />
+              {errors.cliente?.primeiro_nome ? (
+                <p className="px-1 text-caption text-danger">
+                  {errors.cliente.primeiro_nome.message}
+                </p>
+              ) : null}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sobrenome">Sobrenome</Label>
+              <Input
+                id="sobrenome"
+                placeholder="Sobrenome"
+                error={Boolean(errors.cliente?.sobrenome)}
+                {...register('cliente.sobrenome')}
+              />
+              {errors.cliente?.sobrenome ? (
+                <p className="px-1 text-caption text-danger">
+                  {errors.cliente.sobrenome.message}
+                </p>
+              ) : null}
+            </div>
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <h3 className="text-subtitle-md font-medium text-on-surface">
+              Itens do pedido
+            </h3>
+            {errors.itens?.root || errors.itens?.message ? (
+              <p className="text-caption text-danger">
+                {errors.itens.root?.message ?? errors.itens.message}
               </p>
             ) : null}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="sobrenome">Sobrenome</Label>
-            <Input
-              id="sobrenome"
-              placeholder="Sobrenome"
-              error={Boolean(errors.cliente?.sobrenome)}
-              {...register('cliente.sobrenome')}
-            />
-            {errors.cliente?.sobrenome ? (
-              <p className="px-1 text-caption text-danger">
-                {errors.cliente.sobrenome.message}
+            {fields.length === 0 ? (
+              <p className="text-caption text-on-surface-variant">
+                Nenhum item adicionado.
               </p>
-            ) : null}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="contato">Contato</Label>
-            <Controller
-              name="cliente.contato"
-              control={control}
-              render={({ field }) => (
-                <PhoneInput
-                  id="contato"
-                  value={field.value ?? ''}
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
-                  error={Boolean(errors.cliente?.contato)}
-                />
-              )}
-            />
-            {errors.cliente?.contato ? (
-              <p className="px-1 text-caption text-danger">
-                {errors.cliente.contato.message}
-              </p>
-            ) : null}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="cidade">Cidade</Label>
-            <Input
-              id="cidade"
-              placeholder="Cidade"
-              error={Boolean(errors.cliente?.cidade)}
-              {...register('cliente.cidade')}
-            />
-            {errors.cliente?.cidade ? (
-              <p className="px-1 text-caption text-danger">
-                {errors.cliente.cidade.message}
-              </p>
-            ) : null}
-          </div>
-        </section>
-
-        <section className="flex flex-col gap-3">
-          <h3 className="text-subtitle-md font-medium text-on-surface">
-            Adicionar item
-          </h3>
-
-          {produtosLoading ? (
-            <Loading
-              className="min-h-16 py-0"
-              dotClassName="size-6"
-              label="Carregando produtos"
-            />
-          ) : null}
-
-          {produtosErro ? (
-            <p className="text-caption text-danger">{produtosErro}</p>
-          ) : null}
-
-          {!produtosLoading && !produtosErro ? (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="produto">Produto</Label>
-                <Select
-                  id="produto"
-                  value={produtoSelecionadoId}
-                  onChange={(next) => {
-                    setProdutoSelecionadoId(next);
-                    setAdicionaisDraft([]);
-                    setItemErro(null);
-                  }}
-                  options={produtoOptions}
-                  placeholder="Selecione um produto"
-                  searchPlaceholder="Buscar produto…"
-                  emptyMessage="Nenhum produto encontrado"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Quantidade</Label>
-                <div className="flex items-center gap-3">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="size-10 px-0 py-0"
-                    aria-label="Diminuir quantidade"
-                    onClick={() => setItemQtd((q) => Math.max(1, q - 1))}
-                  >
-                    <Minus size={15} strokeWidth={1.75} />
-                  </Button>
-                  <span className="min-w-8 text-center text-body-md text-on-surface">
-                    {itemQtd}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="size-10 px-0 py-0"
-                    aria-label="Aumentar quantidade"
-                    onClick={() => setItemQtd((q) => q + 1)}
-                  >
-                    <Plus size={15} strokeWidth={1.75} />
-                  </Button>
-                </div>
-              </div>
-
-              {produtoSelecionado?.adicionais &&
-              produtoSelecionado.adicionais.some((a) => a.ativo !== false) ? (
-                <div className="space-y-2">
-                  <Label>Adicionais</Label>
-                  <ul className="flex flex-col gap-2">
-                    {produtoSelecionado.adicionais
-                      .filter((adicional) => adicional.ativo !== false)
-                      .map((adicional) => {
-                      const selecionado = adicionaisDraft.find(
-                        (a) => a.id === adicional.id,
-                      );
-                      return (
-                        <li
-                          key={adicional.id}
-                          className="rounded-xl border border-operator-border bg-operator-bg px-3 py-3"
-                        >
-                          <label className="flex items-center gap-3">
-                            <input
-                              type="checkbox"
-                              checked={Boolean(selecionado)}
-                              onChange={() => toggleAdicional(adicional.id)}
-                              className="size-4 accent-primary-container"
-                            />
-                            <span className="flex-1 text-body-md text-on-surface">
-                              {adicional.nome}
-                            </span>
-                            <span className="text-caption text-on-surface-variant">
-                              {formatarMoeda(Number(adicional.preco))}
-                            </span>
-                          </label>
-                          {selecionado ? (
-                            <div className="mt-2 flex items-center gap-2 pl-7">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                className="size-8 px-0 py-0"
-                                aria-label="Diminuir adicional"
-                                onClick={() =>
-                                  setAdicionalQtd(
-                                    adicional.id,
-                                    selecionado.qtd - 1,
-                                  )
-                                }
-                              >
-                                <Minus size={14} strokeWidth={1.75} />
-                              </Button>
-                              <span className="text-caption text-on-surface">
-                                {selecionado.qtd}
-                              </span>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                className="size-8 px-0 py-0"
-                                aria-label="Aumentar adicional"
-                                onClick={() =>
-                                  setAdicionalQtd(
-                                    adicional.id,
-                                    selecionado.qtd + 1,
-                                  )
-                                }
-                              >
-                                <Plus size={14} strokeWidth={1.75} />
-                              </Button>
-                            </div>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {fields.map((field, index) => {
+                  const adicionais = nomesAdicionais(field);
+                  const retiradas = nomesRetiradas(field);
+                  return (
+                    <li
+                      key={field.id}
+                      className="rounded-xl border border-operator-border bg-operator-card px-3 py-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-body-md text-on-surface">
+                              {field.qtd}× {nomeProduto(field.produtoId)}
+                            </p>
+                            <p className="shrink-0 text-body-md font-medium text-primary">
+                              {formatarMoeda(totalItemDraft(field))}
+                            </p>
+                          </div>
+                          {adicionais.length > 0 ? (
+                            <ul className="mt-1 flex flex-col gap-0.5">
+                              {adicionais.map((adic, adicIndex) => (
+                                <li
+                                  key={`${field.id}-adic-${adicIndex}`}
+                                  className="text-caption text-on-surface-variant"
+                                >
+                                  + {adic.qtd}× {adic.nome}
+                                  {adic.preco > 0
+                                    ? ` (${formatarMoeda(adic.preco)})`
+                                    : ''}
+                                </li>
+                              ))}
+                            </ul>
                           ) : null}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ) : null}
-
-              <div className="space-y-2">
-                <Label htmlFor="observacao">Observação</Label>
-                <Input
-                  id="observacao"
-                  placeholder="Opcional"
-                  maxLength={140}
-                  value={observacaoDraft}
-                  onChange={(event) => setObservacaoDraft(event.target.value)}
-                />
-              </div>
-
-              {itemErro ? (
-                <p className="text-caption text-danger">{itemErro}</p>
-              ) : null}
-
-              <Button
-                type="button"
-                variant="secondary"
-                fullWidth
-                onClick={handleAddItem}
-              >
-                Adicionar ao pedido
-              </Button>
-            </>
-          ) : null}
-        </section>
-
-        <section className="flex flex-col gap-3">
-          <h3 className="text-subtitle-md font-medium text-on-surface">
-            Itens do pedido
-          </h3>
-          {errors.itens?.root || errors.itens?.message ? (
-            <p className="text-caption text-danger">
-              {errors.itens.root?.message ?? errors.itens.message}
-            </p>
-          ) : null}
-          {fields.length === 0 ? (
-            <p className="text-caption text-on-surface-variant">
-              Nenhum item adicionado.
-            </p>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {fields.map((field, index) => {
-                const adicionais = nomesAdicionais(field);
-                return (
-                  <li
-                    key={field.id}
-                    className="rounded-xl border border-operator-border bg-operator-card px-3 py-3"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-body-md text-on-surface">
-                            {field.qtd}× {nomeProduto(field.produtoId)}
-                          </p>
-                          <p className="shrink-0 text-body-md font-medium text-primary">
-                            {formatarMoeda(totalItemDraft(field))}
-                          </p>
+                          {retiradas.length > 0 ? (
+                            <p className="mt-1 text-caption text-on-surface-variant">
+                              {rotuloRetiradas(
+                                retiradas.map((nome) => ({ nome })),
+                              )}
+                            </p>
+                          ) : null}
+                          {field.observacao ? (
+                            <p className="mt-1 text-caption text-on-surface-variant">
+                              Obs.: {field.observacao}
+                            </p>
+                          ) : null}
                         </div>
-                        {adicionais.length > 0 ? (
-                          <ul className="mt-1 flex flex-col gap-0.5">
-                            {adicionais.map((adic, adicIndex) => (
-                              <li
-                                key={`${field.id}-adic-${adicIndex}`}
-                                className="text-caption text-on-surface-variant"
-                              >
-                                + {adic.qtd}× {adic.nome}
-                                {adic.preco > 0
-                                  ? ` (${formatarMoeda(adic.preco)})`
-                                  : ''}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : null}
-                        {field.observacao ? (
-                          <p className="mt-1 text-caption text-on-surface-variant">
-                            Obs.: {field.observacao}
-                          </p>
-                        ) : null}
+                        <Button
+                          type="button"
+                          variant="dangerGhost"
+                          className="size-10 shrink-0 px-0 py-0"
+                          aria-label="Remover item"
+                          onClick={() => remove(index)}
+                        >
+                          <Trash2 size={15} strokeWidth={1.75} />
+                        </Button>
                       </div>
-                      <Button
-                        type="button"
-                        variant="dangerGhost"
-                        className="size-10 shrink-0 px-0 py-0"
-                        aria-label="Remover item"
-                        onClick={() => remove(index)}
-                      >
-                        <Trash2 size={15} strokeWidth={1.75} />
-                      </Button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
-      </form>
-    </Drawer>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+
+            <Button
+              type="button"
+              variant="secondary"
+              fullWidth
+              className="gap-2"
+              onClick={() => setProdutoDrawerOpen(true)}
+            >
+              <Plus size={16} strokeWidth={1.75} />
+              Adicionar produto
+            </Button>
+          </section>
+        </form>
+      </Drawer>
+
+      <PedidoProdutoDrawer
+        open={produtoDrawerOpen}
+        onClose={() => setProdutoDrawerOpen(false)}
+        produtos={produtos}
+        loading={produtosLoading}
+        erro={produtosErro}
+        onAdd={handleAddItem}
+      />
+    </>
   );
 }

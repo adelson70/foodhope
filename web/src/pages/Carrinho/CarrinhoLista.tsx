@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 import { Button } from '../../components/ui';
 import { formatarMoeda } from '../../lib/currency';
+import { rotuloRetiradas } from '../../lib/retiradaPedido';
 import {
   totalItemCarrinho,
   useCarrinhoStore,
@@ -46,6 +47,11 @@ export function CarrinhoLista({ itens }: CarrinhoListaProps) {
                 {item.adicionais
                   .map((adic) => `${adic.nome} ×${adic.qtd}`)
                   .join(', ')}
+              </p>
+            ) : null}
+            {rotuloRetiradas(item.retirar) ? (
+              <p className="mt-1 text-caption text-on-surface-variant">
+                {rotuloRetiradas(item.retirar)}
               </p>
             ) : null}
             {item.observacao ? (

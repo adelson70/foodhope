@@ -27,6 +27,8 @@ import {
   useCardapioBusca,
   useCardapioInfinito,
 } from './useCardapioQueries';
+import { LojaFechadaBanner } from '../../components/LojaFechadaBanner';
+import { useCozinhaStatus } from '../../hooks/useCozinhaStatus';
 
 const SCROLL_SPY_PAD = 8;
 
@@ -120,6 +122,7 @@ function categoriaAtivaNoScroll(): string | null {
 
 export function Home() {
   const queryClient = useQueryClient();
+  const { ativa: cozinhaAtiva } = useCozinhaStatus();
   const [buscaInput, setBuscaInput] = useState('');
   const busca = useDebouncedValue(buscaInput.trim());
   const buscaAtiva = Boolean(busca);
@@ -329,6 +332,11 @@ export function Home() {
       </div>
 
       <div className="px-4 pb-4">
+        {!cozinhaAtiva ? (
+          <div className="mb-4">
+            <LojaFechadaBanner />
+          </div>
+        ) : null}
         {showSkeleton ? (
           <HomeSkeleton />
         ) : initialPending ? (
@@ -354,6 +362,7 @@ export function Home() {
         produto={produtoSelecionado}
         open={Boolean(produtoSelecionado)}
         onClose={() => setProdutoSelecionado(null)}
+        lojaFechada={!cozinhaAtiva}
       />
     </div>
   );

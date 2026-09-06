@@ -98,10 +98,19 @@ export class WebsocketGateway
             return next(new Error('Acesso negado: Token inválido'));
           }
 
+          const operador = await this.prismaRead.operador.findUnique({
+            where: { id: payload.id },
+            select: { id: true, role: true, ativo: true },
+          });
+
+          if (!operador || !operador.ativo) {
+            return next(new Error('Acesso negado: Usuário desativado'));
+          }
+
           socket.data.user = {
             tipo: 'operador',
-            id: payload.id,
-            role: payload.role ?? 'OPERADOR',
+            id: operador.id,
+            role: operador.role,
           } satisfies SocketUser;
           return next();
         }

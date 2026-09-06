@@ -59,6 +59,24 @@ export const operadorService = {
     );
   },
 
+  async atualizarAtivo(
+    id: string,
+    ativo: boolean,
+  ): Promise<ApiResponse<Operador>> {
+    return withMutationToast(
+      () =>
+        request(
+          api.put<ApiResponse<Operador>>(`/operador/${id}/ativo`, { ativo }),
+        ),
+      {
+        success: ativo
+          ? 'Usuário ativado com sucesso'
+          : 'Usuário desativado com sucesso',
+        error: 'Não foi possível atualizar o usuário',
+      },
+    );
+  },
+
   async deletar(id: string): Promise<ApiResponse<{ mensagem: string }>> {
     return withMutationToast(
       () =>

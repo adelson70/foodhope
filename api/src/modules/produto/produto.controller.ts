@@ -49,7 +49,7 @@ export class ProdutoController {
 
   @Post()
   @ApiBearerAuth()
-  @Roles('ADMIN', 'OPERADOR')
+  @Roles('ADMIN')
   @ApiOperation({ summary: 'Criação de Produto (JSON)' })
   async criar(@Body() dto: CriarDto) {
     return this.produto.criarProduto(dto);
@@ -57,7 +57,7 @@ export class ProdutoController {
 
   @Put(':id/imagem')
   @ApiBearerAuth()
-  @Roles('ADMIN', 'OPERADOR')
+  @Roles('ADMIN')
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -82,7 +82,7 @@ export class ProdutoController {
 
   @Delete(':id/imagem')
   @ApiBearerAuth()
-  @Roles('ADMIN', 'OPERADOR')
+  @Roles('ADMIN')
   @ApiOperation({ summary: 'Remoção da imagem do produto' })
   async removerImagem(@Param('id') id: string) {
     return this.produto.removerImagemProduto(id);
@@ -90,7 +90,7 @@ export class ProdutoController {
 
   @Put(':id')
   @ApiBearerAuth()
-  @Roles('ADMIN', 'OPERADOR')
+  @Roles('ADMIN')
   @ApiBody({ type: EditarProdutoDto })
   @ApiOperation({ summary: 'Edição de Produto (JSON)' })
   async editar(@Param('id') id: string, @Body() dto: EditarProdutoDto) {
@@ -102,7 +102,10 @@ export class ProdutoController {
       dto.ordem === undefined &&
       dto.categoriaId === undefined &&
       (!dto.adicionais || dto.adicionais.length === 0) &&
-      dto.adicionalGlobalIds === undefined
+      dto.adicionalGlobalIds === undefined &&
+      (!dto.ingredientes || dto.ingredientes.length === 0) &&
+      dto.imprimirSeparado === undefined &&
+      dto.ignorarImpressaoSozinho === undefined
     ) {
       return { mensagem: 'Nada para editar :)' };
     }
@@ -112,7 +115,7 @@ export class ProdutoController {
 
   @Delete(':id')
   @ApiBearerAuth()
-  @Roles('ADMIN', 'OPERADOR')
+  @Roles('ADMIN')
   @ApiOperation({ summary: 'Deleção de Produto' })
   async deletar(@Param('id') id: string) {
     return this.produto.deletarProduto(id);

@@ -22,7 +22,7 @@ const persister = createSyncStoragePersister({
 export const persistOptions: Omit<PersistQueryClientOptions, 'queryClient'> = {
   persister,
   maxAge: 1000 * 60 * 60 * 24,
-  buster: (import.meta.env.VITE_APP_VERSION as string | undefined) ?? '1',
+  buster: (import.meta.env.VITE_APP_VERSION as string | undefined) ?? '2-retirar',
   dehydrateOptions: {
     shouldDehydrateQuery: (query) =>
       defaultShouldDehydrateQuery(query) &&

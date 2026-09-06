@@ -23,11 +23,20 @@ function tituloItens(pedido: PedidoLocal): string {
 }
 
 function resumoObservacoes(pedido: PedidoLocal): string | null {
-  const obs = pedido.itens
-    .map((item) => item.observacao?.trim())
-    .filter((valor): valor is string => Boolean(valor));
-  if (obs.length === 0) return null;
-  return obs.join(' · ');
+  const partes = pedido.itens
+    .map((item) => {
+      const bits: string[] = [];
+      if (item.retirar && item.retirar.length > 0) {
+        bits.push(`Retirar: ${item.retirar.map((r) => r.nome).join(', ')}`);
+      }
+      if (item.observacao?.trim()) {
+        bits.push(item.observacao.trim());
+      }
+      return bits.join(' · ');
+    })
+    .filter((valor) => valor.length > 0);
+  if (partes.length === 0) return null;
+  return partes.join(' · ');
 }
 
 export function PedidoLocalCard({ pedido, onSelect }: PedidoLocalCardProps) {

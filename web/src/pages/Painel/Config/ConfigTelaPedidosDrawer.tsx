@@ -1,22 +1,48 @@
 import { useEffect, useState } from 'react';
-import { Copy, ExternalLink } from 'lucide-react';
+import { Copy, ExternalLink, RefreshCw } from 'lucide-react';
 
-import { Button, ConfirmDialog, Drawer, Input, Label, Loading } from '../../../components/ui';
 import {
-  urlTelaPedidosCompleta,
-} from '../../../lib/abrirTelaPedidos';
+  Button,
+  ConfirmDialog,
+  Drawer,
+  Input,
+  Label,
+  Loading,
+} from '../../../components/ui';
+import { cn } from '../../../lib/cn';
+import { urlTelaPedidosCompleta } from '../../../lib/abrirTelaPedidos';
 import {
   getApiErrorMensagens,
   notifyError,
   notifySuccess,
   telaPedidosService,
 } from '../../../services';
-import type { ConfigTelaPedidos } from '../../../services/types';
+import type {
+  ConfigTelaPedidos,
+  VisualizacaoTelaPedidos,
+} from '../../../services/types';
 
 type ConfigTelaPedidosDrawerProps = {
   open: boolean;
   onClose: () => void;
 };
+
+const OPCOES_VISUALIZACAO: Array<{
+  value: VisualizacaoTelaPedidos;
+  label: string;
+  descricao: string;
+}> = [
+  {
+    value: 'DIA',
+    label: 'Por dia',
+    descricao: 'Só pedidos prontos de hoje (fuso de São Paulo)',
+  },
+  {
+    value: 'TUDO',
+    label: 'Tudo',
+    descricao: 'Todos os pedidos prontos, sem filtro de data',
+  },
+];
 
 export function ConfigTelaPedidosDrawer({
   open,
@@ -27,6 +53,8 @@ export function ConfigTelaPedidosDrawer({
   const [config, setConfig] = useState<ConfigTelaPedidos | null>(null);
   const [confirmRegenerar, setConfirmRegenerar] = useState(false);
   const [regenerando, setRegenerando] = useState(false);
+  const [salvandoVisualizacao, setSalvandoVisualizacao] = useState(false);
+  const [atualizandoTela, setAtualizandoTela] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -65,6 +93,7 @@ export function ConfigTelaPedidosDrawer({
   }, [open]);
 
   const urlCompleta = config ? urlTelaPedidosCompleta(config.urlPath) : '';
+  const visualizacaoAtiva = config?.visualizacao ?? 'DIA';
 
   async function copiarUrl() {
     if (!urlCompleta) return;
@@ -102,6 +131,41 @@ export function ConfigTelaPedidosDrawer({
     }
   }
 
+  async function alterarVisualizacao(visualizacao: VisualizacaoTelaPedidos) {
+    if (
+      !config ||
+      config.visualizacao === visualizacao ||
+      salvandoVisualizacao
+    ) {
+      return;
+    }
+
+    setSalvandoVisualizacao(true);
+    try {
+      const response =
+        await telaPedidosService.atualizarVisualizacao(visualizacao);
+      if (response.sucesso && response.dados) {
+        setConfig(response.dados);
+      }
+    } catch {
+      return;
+    } finally {
+      setSalvandoVisualizacao(false);
+    }
+  }
+
+  async function forcarRefresh() {
+    if (atualizandoTela) return;
+    setAtualizandoTela(true);
+    try {
+      await telaPedidosService.forcarRefresh();
+    } catch {
+      return;
+    } finally {
+      setAtualizandoTela(false);
+    }
+  }
+
   const pronto = !loading && !erro && config;
 
   return (
@@ -116,6 +180,23 @@ export function ConfigTelaPedidosDrawer({
               <Button type="button" fullWidth onClick={abrirTela}>
                 <ExternalLink size={15} strokeWidth={2} aria-hidden />
                 Abrir tela
+              </Button>
+              <Button
+                type="button"
+                fullWidth
+                variant="secondary"
+                disabled={atualizandoTela}
+                onClick={() => {
+                  void forcarRefresh();
+                }}
+              >
+                <RefreshCw
+                  size={15}
+                  strokeWidth={2}
+                  aria-hidden
+                  className={cn(atualizandoTela && 'animate-spin')}
+                />
+                {atualizandoTela ? 'Atualizando…' : 'Atualizar tela'}
               </Button>
               <Button
                 type="button"
@@ -143,10 +224,11 @@ export function ConfigTelaPedidosDrawer({
         ) : null}
 
         {pronto ? (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-5">
             <p className="text-caption text-on-surface-variant">
               Link público para TV ou kiosk. Quem tiver a URL vê os pedidos
-              prontos do dia, sem login.
+              prontos
+              {visualizacaoAtiva === 'DIA' ? ' do dia' : ''}, sem login.
             </p>
 
             <div className="space-y-2">
@@ -170,6 +252,47 @@ export function ConfigTelaPedidosDrawer({
                   <Copy size={17} strokeWidth={1.75} />
                 </Button>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label id="tela-pedidos-visualizacao-label">Visualização</Label>
+              <div
+                role="radiogroup"
+                aria-labelledby="tela-pedidos-visualizacao-label"
+                className="grid grid-cols-2 gap-2"
+              >
+                {OPCOES_VISUALIZACAO.map((opcao) => {
+                  const ativo = visualizacaoAtiva === opcao.value;
+                  return (
+                    <button
+                      key={opcao.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={ativo}
+                      disabled={salvandoVisualizacao}
+                      onClick={() => {
+                        void alterarVisualizacao(opcao.value);
+                      }}
+                      className={cn(
+                        'rounded-xl border px-4 py-3 text-body-md font-medium transition-colors',
+                        'disabled:opacity-50',
+                        ativo
+                          ? 'border-primary bg-primary-container/40 text-on-surface'
+                          : 'border-operator-border bg-operator-card text-on-surface-variant hover:text-on-surface',
+                      )}
+                    >
+                      {opcao.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-caption text-on-surface-variant">
+                {
+                  OPCOES_VISUALIZACAO.find(
+                    (opcao) => opcao.value === visualizacaoAtiva,
+                  )?.descricao
+                }
+              </p>
             </div>
           </div>
         ) : null}

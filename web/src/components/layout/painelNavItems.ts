@@ -30,9 +30,8 @@ const config: FloatingNavItem = {
 };
 
 export function painelNavItems(role: RoleOperador): FloatingNavItem[] {
-  return role === 'ADMIN'
-    ? [dash, cardapio, pedidos, config]
-    : [cardapio, pedidos];
+  if (role !== 'ADMIN') return [];
+  return [dash, cardapio, pedidos, config];
 }
 
 export function isPainelNavActive(pathname: string, to: string) {

@@ -206,6 +206,7 @@ async function persistirPedidoLocal(
           preco: adic.preco,
           qtd: adic.qtd,
         })),
+        retirar: item.retirar?.map((ret) => ({ nome: ret.nome })),
         observacao: item.observacao,
       })),
     });
@@ -228,6 +229,9 @@ async function persistirPedidoLocal(
         nome: adic.nome,
         preco: Number(adic.preco),
         qtd: adic.qtd,
+      })),
+      retirar: (item.retirada_venda ?? []).map((ret) => ({
+        nome: ret.nome,
       })),
       observacao: item.observacao ?? undefined,
     })),

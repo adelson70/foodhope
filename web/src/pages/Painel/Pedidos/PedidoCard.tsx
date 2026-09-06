@@ -1,8 +1,10 @@
 import { Check, Trash2 } from 'lucide-react';
 
 import { Button } from '../../../components/ui';
+import { pedidoPendentePagamento } from '../../../lib/statusPagamento';
 import { rotuloTipoConsumo } from '../../../lib/tipoConsumo';
 import type { Pedido } from '../../../services/types';
+import { PedidoStatusPagamentoBadge } from './PedidoStatusPagamentoBadge';
 import {
   formatarDataPedido,
   formatarMoeda,
@@ -34,7 +36,7 @@ export function PedidoCard({
     .slice(0, 3);
   const restantes = (pedido.itens?.length ?? 0) - nomesItens.length;
   const pronto = pedidoEstaPronto(pedido);
-  const pago = pedido.pago !== false;
+  const pendentePagamento = pedidoPendentePagamento(pedido.status_pagamento);
 
   return (
     <article className="rounded-xl border border-operator-border bg-operator-card p-4">
@@ -54,15 +56,7 @@ export function PedidoCard({
             <span className="rounded-full bg-primary-container/40 px-2 py-0.5 text-label-sm font-medium text-on-surface">
               {rotuloTipoConsumo(pedido.tipo_consumo)}
             </span>
-            {pago ? (
-              <span className="rounded-full bg-success/15 px-2 py-0.5 text-label-sm font-medium text-success">
-                Pago
-              </span>
-            ) : (
-              <span className="rounded-full bg-danger/15 px-2 py-0.5 text-label-sm font-medium text-danger">
-                Não pago
-              </span>
-            )}
+            <PedidoStatusPagamentoBadge status={pedido.status_pagamento} />
             {pronto ? (
               <span className="rounded-full bg-success/15 px-2 py-0.5 text-label-sm font-medium text-success">
                 Pronto
@@ -97,7 +91,7 @@ export function PedidoCard({
           {formatarMoeda(totalPedido(pedido))}
         </p>
         <div className="flex items-center gap-2">
-          {!pago ? (
+          {pendentePagamento ? (
             <Button
               type="button"
               variant="secondary"

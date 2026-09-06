@@ -1,6 +1,7 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter } from 'react-router-dom';
 import { MobileAppLayout } from '../components/layout/MobileLayout';
 import { PainelLayout } from '../components/layout/PainelLayout';
+import { PainelHomeRedirect } from './PainelHomeRedirect';
 import { ProtectedRoute } from './ProtectedRoute';
 import { RequireRole } from './RequireRole';
 
@@ -51,12 +52,12 @@ export const router = createBrowserRouter([
       {
         element: <PainelLayout />,
         children: [
-          { index: true, element: <Navigate to="cardapio" replace /> },
-          { path: 'cardapio', element: <Cardapio /> },
+          { index: true, element: <PainelHomeRedirect /> },
           { path: 'pedido', element: <Pedidos /> },
           {
             element: <RequireRole allow={['ADMIN']} />,
             children: [
+              { path: 'cardapio', element: <Cardapio /> },
               { path: 'dash', element: <Dash /> },
               { path: 'relatorio', element: <Relatorio /> },
               { path: 'configuracoes', element: <Config /> },

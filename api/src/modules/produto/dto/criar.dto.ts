@@ -15,6 +15,7 @@ import {
 } from 'class-validator';
 import { IsObrigatorio } from '../../../common/decorator/is-obrigatorio.decorator.js';
 import { AdicionalDto } from './adicional.dto.js';
+import { IngredienteDto } from './ingrediente.dto.js';
 
 export class CriarDto {
   @ApiProperty({
@@ -61,6 +62,15 @@ export class CriarDto {
   imprimirSeparado?: boolean;
 
   @ApiPropertyOptional({
+    description:
+      'Se true, pedido só com este(s) produto(s) não imprime; com outros itens imprime normalmente',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  ignorarImpressaoSozinho?: boolean;
+
+  @ApiPropertyOptional({
     description: 'Lista de adicionais específicos do lanche',
     type: [AdicionalDto],
   })
@@ -78,6 +88,16 @@ export class CriarDto {
   @IsArray()
   @IsUUID('4', { each: true, message: 'Cada adicional global deve ser um UUID válido' })
   adicionalGlobalIds?: string[];
+
+  @ApiPropertyOptional({
+    description: 'Ingredientes do lanche que o cliente pode marcar para retirar',
+    type: [IngredienteDto],
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => IngredienteDto)
+  ingredientes?: IngredienteDto[];
 
   @ApiPropertyOptional({
     description: 'ID da categoria (omitir ou null = sem categoria)',

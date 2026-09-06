@@ -102,6 +102,11 @@ export function PedidoLocalDetalheDrawer({
                       ))}
                     </ul>
                   ) : null}
+                  {item.retirar && item.retirar.length > 0 ? (
+                    <p className="mt-2 text-caption text-on-surface-variant">
+                      Retirar: {item.retirar.map((r) => r.nome).join(', ')}
+                    </p>
+                  ) : null}
                   {item.observacao ? (
                     <p className="mt-2 text-caption text-on-surface-variant">
                       Obs.: {item.observacao}

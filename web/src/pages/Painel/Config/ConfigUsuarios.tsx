@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { LogOut, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Ban, CheckCircle2, LogOut, Pencil, Plus, Trash2 } from 'lucide-react';
 
 import { Button, ConfirmDialog, Skeleton } from '../../../components/ui';
 import { useDeferredLoading } from '../../../hooks/useDeferredLoading';
+import { cn } from '../../../lib/cn';
 import { getApiErrorMensagens, operadorService } from '../../../services';
 import type { Operador, RoleOperador } from '../../../services/types';
 import { useSessao } from '../../../routes/sessao';
@@ -23,6 +24,7 @@ export function ConfigUsuarios() {
   const [drawerAberto, setDrawerAberto] = useState(false);
   const [editando, setEditando] = useState<Operador | null>(null);
   const [excluindo, setExcluindo] = useState<Operador | null>(null);
+  const [desativando, setDesativando] = useState<Operador | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const showSkeleton = useDeferredLoading(loading);
 
@@ -73,6 +75,35 @@ export function ConfigUsuarios() {
     setBusyId(usuario.id);
     try {
       await operadorService.forcarLogout(usuario.id);
+    } catch {
+      return;
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleAtivar(usuario: Operador) {
+    setBusyId(usuario.id);
+    try {
+      const response = await operadorService.atualizarAtivo(usuario.id, true);
+      if (!response.sucesso) return;
+      await carregar();
+    } catch {
+      return;
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function confirmarDesativacao() {
+    if (!desativando) return;
+    const id = desativando.id;
+    setBusyId(id);
+    try {
+      const response = await operadorService.atualizarAtivo(id, false);
+      if (!response.sucesso) return;
+      setDesativando(null);
+      await carregar();
     } catch {
       return;
     } finally {
@@ -150,10 +181,18 @@ export function ConfigUsuarios() {
         <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {usuarios.map((usuario) => {
             const isSelf = usuario.id === atual.id;
+            const podeDesativar =
+              !isSelf &&
+              (usuario.role === 'OPERADOR' || usuario.role === 'TOTEM');
+            const inativo = usuario.ativo === false;
+
             return (
               <li
                 key={usuario.id}
-                className="rounded-xl border border-operator-border bg-operator-card p-4 shadow-card"
+                className={cn(
+                  'rounded-xl border border-operator-border bg-operator-card p-4 shadow-card',
+                  inativo && 'opacity-70',
+                )}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
@@ -166,9 +205,16 @@ export function ConfigUsuarios() {
                         </span>
                       ) : null}
                     </p>
-                    <span className="mt-1 inline-flex rounded-full bg-primary-container/30 px-2 py-0.5 text-caption font-medium text-primary">
-                      {ROLE_LABEL[usuario.role]}
-                    </span>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      <span className="inline-flex rounded-full bg-primary-container/30 px-2 py-0.5 text-caption font-medium text-primary">
+                        {ROLE_LABEL[usuario.role]}
+                      </span>
+                      {inativo ? (
+                        <span className="inline-flex rounded-full bg-danger/15 px-2 py-0.5 text-caption font-medium text-danger">
+                          Inativo
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
 
@@ -197,7 +243,33 @@ export function ConfigUsuarios() {
                   ) : null}
                 </div>
 
-                {!isSelf ? (
+                {podeDesativar ? (
+                  inativo ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="mt-2 h-9 w-full px-3"
+                      disabled={busyId === usuario.id}
+                      onClick={() => void handleAtivar(usuario)}
+                    >
+                      <CheckCircle2 size={13} strokeWidth={1.75} />
+                      Ativar
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="mt-2 h-9 w-full px-3"
+                      disabled={busyId === usuario.id}
+                      onClick={() => setDesativando(usuario)}
+                    >
+                      <Ban size={13} strokeWidth={1.75} />
+                      Desativar
+                    </Button>
+                  )
+                ) : null}
+
+                {!isSelf && !inativo ? (
                   <Button
                     type="button"
                     variant="secondary"
@@ -220,6 +292,22 @@ export function ConfigUsuarios() {
         usuario={editando}
         onClose={fecharDrawer}
         onSaved={handleSaved}
+      />
+
+      <ConfirmDialog
+        open={Boolean(desativando)}
+        title="Desativar usuário?"
+        description={
+          desativando
+            ? `"${desativando.nome}" não poderá mais fazer login até ser ativado novamente.`
+            : undefined
+        }
+        confirmLabel="Desativar"
+        cancelLabel="Cancelar"
+        variant="danger"
+        loading={busyId === desativando?.id}
+        onConfirm={() => void confirmarDesativacao()}
+        onCancel={() => setDesativando(null)}
       />
 
       <ConfirmDialog

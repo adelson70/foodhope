@@ -69,10 +69,19 @@ export class AuthGuard implements CanActivate {
           throw new UnauthorizedException('Operação não autorizada');
         }
 
+        const operador = await this.prismaRead.operador.findUnique({
+          where: { id: payload.id },
+          select: { id: true, role: true, ativo: true },
+        });
+
+        if (!operador || !operador.ativo) {
+          throw new UnauthorizedException('Operação não autorizada');
+        }
+
         req.user = {
           tipo: 'operador',
-          id: payload.id,
-          role: payload.role ?? 'OPERADOR',
+          id: operador.id,
+          role: operador.role,
         };
         return true;
       } catch {

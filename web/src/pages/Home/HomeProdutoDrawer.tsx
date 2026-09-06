@@ -10,27 +10,32 @@ import {
   HomeProdutoAdicionais,
   type AdicionalDraft,
 } from './HomeProdutoAdicionais';
+import { HomeProdutoRetirar } from './HomeProdutoRetirar';
 
 type HomeProdutoDrawerProps = {
   produto: Produto | null;
   open: boolean;
   onClose: () => void;
+  lojaFechada?: boolean;
 };
 
 export function HomeProdutoDrawer({
   produto,
   open,
   onClose,
+  lojaFechada = false,
 }: HomeProdutoDrawerProps) {
   const addItem = useCarrinhoStore((state) => state.addItem);
   const [qtd, setQtd] = useState(1);
   const [adicionais, setAdicionais] = useState<AdicionalDraft[]>([]);
+  const [retirarIds, setRetirarIds] = useState<string[]>([]);
   const [observacao, setObservacao] = useState('');
 
   useEffect(() => {
     if (!open) return;
     setQtd(1);
     setAdicionais([]);
+    setRetirarIds([]);
     setObservacao('');
   }, [open, produto?.id]);
 
@@ -42,11 +47,18 @@ export function HomeProdutoDrawer({
         return disponivel && disponivel.ativo !== false;
       }),
     );
+    setRetirarIds((atual) =>
+      atual.filter((id) =>
+        (produto.ingredientes ?? []).some((item) => item.id === id),
+      ),
+    );
   }, [produto]);
 
   const imagem = urlImagemProduto(produto?.imagemUrl, produto?.updatedAt);
   const adicionaisDisponiveis = produto?.adicionais ?? [];
+  const ingredientesDisponiveis = produto?.ingredientes ?? [];
   const produtoIndisponivel = produto?.ativo === false;
+  const compraBloqueada = produtoIndisponivel || lojaFechada;
 
   const totalPreview = useMemo(() => {
     if (!produto) return 0;
@@ -61,6 +73,7 @@ export function HomeProdutoDrawer({
   function resetDraft() {
     setQtd(1);
     setAdicionais([]);
+    setRetirarIds([]);
     setObservacao('');
   }
 
@@ -75,7 +88,7 @@ export function HomeProdutoDrawer({
     preco: string | number;
     ativo?: boolean;
   }) {
-    if (adicional.ativo === false || produtoIndisponivel) return;
+    if (adicional.ativo === false || compraBloqueada) return;
     setAdicionais((atual) => {
       if (atual.some((item) => item.id === adicional.id)) return atual;
       return [
@@ -91,6 +104,7 @@ export function HomeProdutoDrawer({
   }
 
   function setAdicionalQtd(id: string, nextQtd: number) {
+    if (compraBloqueada) return;
     if (nextQtd < 1) {
       setAdicionais((atual) => atual.filter((item) => item.id !== id));
       return;
@@ -100,14 +114,25 @@ export function HomeProdutoDrawer({
     );
   }
 
+  function toggleRetirar(id: string) {
+    if (compraBloqueada) return;
+    setRetirarIds((atual) =>
+      atual.includes(id) ? atual.filter((item) => item !== id) : [...atual, id],
+    );
+  }
+
   function handleAdd() {
-    if (!produto || produtoIndisponivel) return;
+    if (!produto || compraBloqueada) return;
+    const retirar = ingredientesDisponiveis
+      .filter((item) => retirarIds.includes(item.id))
+      .map((item) => ({ id: item.id, nome: item.nome }));
     addItem({
       produtoId: produto.id,
       nome: produto.nome,
       preco: Number(produto.preco),
       qtd,
       adicionais,
+      retirar: retirar.length > 0 ? retirar : undefined,
       observacao: observacao.trim() || undefined,
     });
     handleClose();
@@ -123,18 +148,20 @@ export function HomeProdutoDrawer({
           type="button"
           fullWidth
           onClick={handleAdd}
-          disabled={!produto || produtoIndisponivel}
+          disabled={!produto || compraBloqueada}
         >
-          {produtoIndisponivel
-            ? 'Fora de estoque'
-            : `Adicionar · ${formatarMoeda(totalPreview)}`}
+          {lojaFechada
+            ? 'Loja fechada'
+            : produtoIndisponivel
+              ? 'Fora de estoque'
+              : `Adicionar · ${formatarMoeda(totalPreview)}`}
         </Button>
       }
     >
       {produto ? (
         <div
           className={
-            produtoIndisponivel
+            compraBloqueada
               ? 'flex flex-col gap-4 opacity-50'
               : 'flex flex-col gap-4'
           }
@@ -160,7 +187,9 @@ export function HomeProdutoDrawer({
             )}
           </div>
 
-          {produtoIndisponivel ? (
+          {lojaFechada ? (
+            <p className="text-caption text-danger">Loja fechada</p>
+          ) : produtoIndisponivel ? (
             <p className="text-caption text-danger">Fora de estoque</p>
           ) : null}
 
@@ -174,7 +203,7 @@ export function HomeProdutoDrawer({
             {formatarMoeda(Number(produto.preco))}
           </p>
 
-          {!produtoIndisponivel ? (
+          {!compraBloqueada ? (
             <div className="flex items-center justify-between rounded-xl border border-operator-border bg-operator-card px-3 py-2">
               <span className="text-subtitle-md text-on-surface">
                 Quantidade
@@ -212,7 +241,14 @@ export function HomeProdutoDrawer({
             onChangeQtd={setAdicionalQtd}
           />
 
-          {!produtoIndisponivel ? (
+          <HomeProdutoRetirar
+            disponiveis={ingredientesDisponiveis}
+            selecionados={retirarIds}
+            onToggle={toggleRetirar}
+            disabled={compraBloqueada}
+          />
+
+          {!compraBloqueada ? (
             <div className="flex flex-col gap-2">
               <label
                 htmlFor="home-produto-obs"
@@ -224,7 +260,7 @@ export function HomeProdutoDrawer({
                 id="home-produto-obs"
                 value={observacao}
                 maxLength={140}
-                placeholder="Ex.: sem cebola"
+                placeholder="Ex.: bem passado"
                 onChange={(event) => setObservacao(event.target.value)}
               />
             </div>

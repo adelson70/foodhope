@@ -2,9 +2,12 @@ import { useState } from 'react';
 import { Check, Printer, Trash2 } from 'lucide-react';
 
 import { Button, Drawer } from '../../../components/ui';
+import { rotuloRetiradas } from '../../../lib/retiradaPedido';
+import { pedidoPendentePagamento } from '../../../lib/statusPagamento';
 import { rotuloTipoConsumo } from '../../../lib/tipoConsumo';
 import { pedidoService } from '../../../services';
 import type { Pedido } from '../../../services/types';
+import { PedidoStatusPagamentoBadge } from './PedidoStatusPagamentoBadge';
 import { formatarMoeda, pedidoEstaPronto, totalItem, totalPedido } from './pedidoTotais';
 
 type PedidoDetalheDrawerProps = {
@@ -43,7 +46,9 @@ export function PedidoDetalheDrawer({
   const total = pedido ? totalPedido(pedido) : 0;
   const itens = pedido?.itens ?? [];
   const pronto = pedido ? pedidoEstaPronto(pedido) : false;
-  const pago = pedido ? pedido.pago !== false : true;
+  const pendentePagamento = pedido
+    ? pedidoPendentePagamento(pedido.status_pagamento)
+    : false;
 
   async function handleReimprimir() {
     if (!pedido) return;
@@ -65,7 +70,7 @@ export function PedidoDetalheDrawer({
       footer={
         pedido ? (
           <div className="flex flex-col gap-2">
-            {!pago ? (
+            {pendentePagamento ? (
               <Button
                 type="button"
                 variant="primary"
@@ -124,15 +129,10 @@ export function PedidoDetalheDrawer({
                 <span className="rounded-full bg-primary-container/40 px-3 py-1 text-label-sm font-medium text-on-surface">
                   {rotuloTipoConsumo(pedido.tipo_consumo)}
                 </span>
-                {pago ? (
-                  <span className="rounded-full bg-success/15 px-3 py-1 text-label-sm font-medium text-success">
-                    Pago
-                  </span>
-                ) : (
-                  <span className="rounded-full bg-danger/15 px-3 py-1 text-label-sm font-medium text-danger">
-                    Não pago
-                  </span>
-                )}
+                <PedidoStatusPagamentoBadge
+                  status={pedido.status_pagamento}
+                  className="px-3 py-1"
+                />
                 {pronto ? (
                   <span className="rounded-full bg-success/15 px-3 py-1 text-label-sm font-medium text-success">
                     Pronto
@@ -175,6 +175,11 @@ export function PedidoDetalheDrawer({
                         </li>
                       ))}
                     </ul>
+                  ) : null}
+                  {rotuloRetiradas(item.retirada_venda) ? (
+                    <p className="mt-2 text-caption text-on-surface-variant">
+                      {rotuloRetiradas(item.retirada_venda)}
+                    </p>
                   ) : null}
                   {item.observacao ? (
                     <p className="mt-2 text-caption text-on-surface-variant">

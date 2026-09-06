@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { Toaster } from './components/ui/Toaster';
 import { useCardapioCarrinhoRealtime } from './hooks/useCardapioCarrinhoRealtime';
+import { useCozinhaStatusRealtime } from './hooks/useCozinhaStatusRealtime';
 import { usePedidoProntoRealtime } from './hooks/usePedidoProntoRealtime';
 import { router } from './routes';
 import { persistOptions, queryClient } from './services/queryClient';
@@ -17,6 +18,7 @@ import {
 function AppRealtime() {
   useCardapioCarrinhoRealtime();
   usePedidoProntoRealtime();
+  useCozinhaStatusRealtime();
   return null;
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
 import { useDeferredLoading } from '../../../hooks/useDeferredLoading';
+import { ouvirRefreshTelaPedidos } from '../../../lib/telaPedidosSync';
 import {
   connectSocket,
   disconnectSocket,
@@ -107,6 +108,20 @@ export function TelaPedidos() {
     socket.on('pedido:deletado', onPedidoDeletado);
     return () => {
       socket.off('pedido:deletado', onPedidoDeletado);
+    };
+  }, []);
+
+  useEffect(() => {
+    function recarregarTela() {
+      window.location.reload();
+    }
+
+    socket.on('tela-pedidos:refresh', recarregarTela);
+    const pararBroadcast = ouvirRefreshTelaPedidos(recarregarTela);
+
+    return () => {
+      socket.off('tela-pedidos:refresh', recarregarTela);
+      pararBroadcast();
     };
   }, []);
 

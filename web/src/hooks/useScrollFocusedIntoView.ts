@@ -2,13 +2,25 @@ import { type RefObject, useEffect } from 'react';
 
 function isFocusableField(target: EventTarget | null): target is HTMLElement {
   if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+
   const tag = target.tagName;
-  return (
-    tag === 'INPUT' ||
-    tag === 'TEXTAREA' ||
-    tag === 'SELECT' ||
-    target.isContentEditable
-  );
+  if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  if (tag !== 'INPUT') return false;
+
+  const type = (target as HTMLInputElement).type.toLowerCase();
+  return ![
+    'checkbox',
+    'radio',
+    'button',
+    'submit',
+    'reset',
+    'file',
+    'hidden',
+    'image',
+    'range',
+    'color',
+  ].includes(type);
 }
 
 export function useScrollFocusedIntoView(

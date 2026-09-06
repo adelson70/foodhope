@@ -39,6 +39,12 @@ type CategoriaRow = {
   ordem: number;
 } | null;
 
+type IngredienteRow = {
+  id: string;
+  nome: string;
+  ordem: number;
+};
+
 type ProdutoComAdicionais = {
   id: string;
   nome: string;
@@ -47,6 +53,7 @@ type ProdutoComAdicionais = {
   imagemUrl: string | null;
   ativo: boolean;
   imprimirSeparado?: boolean;
+  ignorarImpressaoSozinho?: boolean;
   ordem?: number;
   categoria_id?: string | null;
   createdAt?: Date;
@@ -54,6 +61,7 @@ type ProdutoComAdicionais = {
   categoria?: CategoriaRow;
   adicionais: AdicionalEspecificoRow[];
   adicionaisGlobais: AdicionalGlobalVinculoRow[];
+  ingredientes: IngredienteRow[];
 };
 
 const produtoAdicionaisInclude = {
@@ -71,6 +79,10 @@ const produtoAdicionaisInclude = {
         select: { id: true, nome: true, preco: true, ativo: true },
       },
     },
+  },
+  ingredientes: {
+    select: { id: true, nome: true, ordem: true },
+    orderBy: [{ ordem: 'asc' as const }, { nome: 'asc' as const }, { id: 'asc' as const }],
   },
 } satisfies Prisma.ProdutoInclude;
 
@@ -113,10 +125,17 @@ function montarRespostaProduto(produto: ProdutoComAdicionais) {
   const {
     adicionais: _a,
     adicionaisGlobais: _g,
+    ingredientes: ingredientesRaw,
     categoria_id: _cid,
     categoria,
     ...rest
   } = produto;
+
+  const ingredientes = ingredientesRaw.map((item) => ({
+    id: item.id,
+    nome: item.nome,
+    ordem: item.ordem,
+  }));
 
   return {
     ...rest,
@@ -126,6 +145,7 @@ function montarRespostaProduto(produto: ProdutoComAdicionais) {
     adicionais: [...especificos, ...globais],
     adicionaisEspecificos,
     adicionalGlobalIds,
+    ingredientes,
   };
 }
 
@@ -438,6 +458,7 @@ export class ProdutoService {
             preco: dto.preco,
             ativo: dto.ativo ?? true,
             imprimirSeparado: dto.imprimirSeparado ?? false,
+            ignorarImpressaoSozinho: dto.ignorarImpressaoSozinho ?? false,
             ordem,
             ...(categoriaId
               ? { categoria: { connect: { id: categoriaId } } }
@@ -451,6 +472,16 @@ export class ProdutoService {
               nome: adicional.nome,
               preco: adicional.preco,
               ativo: adicional.ativo ?? true,
+              produto_id: novoProduto.id,
+            })),
+          });
+        }
+
+        if (dto.ingredientes && dto.ingredientes.length > 0) {
+          await tx.ingredienteProduto.createMany({
+            data: dto.ingredientes.map((ingrediente, index) => ({
+              nome: ingrediente.nome.trim(),
+              ordem: index,
               produto_id: novoProduto.id,
             })),
           });
@@ -531,6 +562,9 @@ export class ProdutoService {
         if (dto.imprimirSeparado !== undefined) {
           dadosUpdate.imprimirSeparado = dto.imprimirSeparado;
         }
+        if (dto.ignorarImpressaoSozinho !== undefined) {
+          dadosUpdate.ignorarImpressaoSozinho = dto.ignorarImpressaoSozinho;
+        }
 
         if (dto.categoriaId !== undefined) {
           const categoriaId = await this.validarCategoriaId(tx, dto.categoriaId);
@@ -585,6 +619,47 @@ export class ProdutoService {
           }
 
           dadosUpdate.adicionais = adicionaisNested;
+        }
+
+        if (dto.ingredientes && dto.ingredientes.length > 0) {
+          const deletados = dto.ingredientes.filter((a) => a.foiDeletado && a.id);
+          const editados = dto.ingredientes.filter(
+            (a) => !a.foiDeletado && a.id && a.nome !== undefined,
+          );
+          const novos = dto.ingredientes.filter((a) => !a.foiDeletado && !a.id);
+
+          const ingredientesNested: Prisma.IngredienteProdutoUpdateManyWithoutProdutoNestedInput =
+            {};
+
+          if (deletados.length > 0) {
+            ingredientesNested.delete = deletados.map((a) => ({ id: a.id! }));
+          }
+
+          if (editados.length > 0) {
+            ingredientesNested.update = editados.map((a) => ({
+              where: { id: a.id! },
+              data: { nome: a.nome! },
+            }));
+          }
+
+          if (novos.length > 0) {
+            const maxOrdem = await tx.ingredienteProduto.aggregate({
+              where: { produto_id: id },
+              _max: { ordem: true },
+            });
+            let proximaOrdem = (maxOrdem._max.ordem ?? -1) + 1;
+
+            ingredientesNested.create = novos.map((a) => {
+              const ordem = proximaOrdem;
+              proximaOrdem += 1;
+              return {
+                nome: a.nome!.trim(),
+                ordem,
+              };
+            });
+          }
+
+          dadosUpdate.ingredientes = ingredientesNested;
         }
 
         if (Object.keys(dadosUpdate).length > 0) {

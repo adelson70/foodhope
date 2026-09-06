@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { Prisma } from '../../../generated/prisma/client.js';
 import { PrismaReadService } from '../../infra/database/prisma-read.service.js';
 import { PrismaWriteService } from '../../infra/database/prisma-write.service.js';
+import { CozinhaService } from '../cozinha/cozinha.service.js';
 import { CriarPedidoDto } from '../pedido/dto/criar.dto.js';
 import { PedidoService } from '../pedido/pedido.service.js';
 import {
@@ -53,6 +54,7 @@ export class InfinitePayService {
     private readonly prismaWrite: PrismaWriteService,
     private readonly client: InfinitePayClient,
     private readonly pedido: PedidoService,
+    private readonly cozinha: CozinhaService,
   ) {}
 
   async obter() {
@@ -136,6 +138,7 @@ export class InfinitePayService {
   }
 
   async iniciarCheckout(dto: CriarPedidoDto) {
+    await this.cozinha.assertAberta();
     const handle = await this.obterHandleObrigatorio();
     const { items, amountCentavos, payload } =
       await this.montarItensDoBanco(dto);
@@ -490,7 +493,7 @@ export class InfinitePayService {
       tipo_consumo: payload.tipo_consumo,
     };
 
-    const criado = await this.pedido.criarPedidoPago(dto, true);
+    const criado = await this.pedido.criarPedidoPago(dto, 'PAGO');
     const pedido = criado.dados.pedido;
 
     await this.prismaWrite.checkoutSessao.update({
@@ -655,7 +658,7 @@ export class InfinitePayService {
       numero: pedido.numero.toString(),
       prontoAt: pedido.prontoAt ? pedido.prontoAt.toISOString() : null,
       pronto: Boolean(pedido.prontoAt),
-      pago: Boolean(pedido.pago),
+      status_pagamento: pedido.status_pagamento,
     };
   }
 

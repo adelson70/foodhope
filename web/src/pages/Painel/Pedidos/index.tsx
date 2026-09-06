@@ -5,6 +5,7 @@ import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { useDeferredLoading } from '../../../hooks/useDeferredLoading';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { hojeSpIso } from '../../../lib/dataSp';
+import { pedidoPendentePagamento } from '../../../lib/statusPagamento';
 import {
   getApiErrorMensagens,
   pedidoService,
@@ -219,7 +220,12 @@ export function Pedidos() {
   }
 
   async function handleMarcarPago(pedido: Pedido) {
-    if (pedido.pago !== false || pagoLoadingId) return;
+    if (
+      !pedidoPendentePagamento(pedido.status_pagamento) ||
+      pagoLoadingId
+    ) {
+      return;
+    }
     setPagoLoadingId(pedido.id);
     try {
       const response = await pedidoService.marcarPago(pedido.id);

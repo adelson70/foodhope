@@ -12,6 +12,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { AdicionalEditarDto } from './adicional.dto.js';
+import { IngredienteEditarDto } from './ingrediente.dto.js';
 
 export class EditarProdutoDto {
   @ApiProperty({ example: 'X Salada', description: 'Nome do produto', required: false })
@@ -47,6 +48,14 @@ export class EditarProdutoDto {
   imprimirSeparado?: boolean;
 
   @ApiPropertyOptional({
+    description:
+      'Se true, pedido só com este(s) produto(s) não imprime; com outros itens imprime normalmente',
+  })
+  @IsOptional()
+  @IsBoolean()
+  ignorarImpressaoSozinho?: boolean;
+
+  @ApiPropertyOptional({
     example: 0,
     description: 'Ordem dentro da categoria (0 = primeiro do grupo)',
   })
@@ -76,6 +85,18 @@ export class EditarProdutoDto {
   @IsArray()
   @IsUUID('4', { each: true, message: 'Cada adicional global deve ser um UUID válido' })
   adicionalGlobalIds?: string[];
+
+  @ApiProperty({
+    description:
+      'Lista de alterações de ingredientes (criar sem id, editar/deletar com id)',
+    type: [IngredienteEditarDto],
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => IngredienteEditarDto)
+  ingredientes?: IngredienteEditarDto[];
 
   @ApiPropertyOptional({
     description: 'ID da categoria (null remove a categoria)',

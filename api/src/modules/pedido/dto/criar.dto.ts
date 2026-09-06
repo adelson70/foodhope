@@ -11,10 +11,10 @@ import {
   Matches,
   ValidateIf,
   IsIn,
-  IsBoolean,
 } from 'class-validator';
 
 export type TipoConsumoDto = 'LEVAR' | 'COMER_AQUI';
+export type StatusPagamentoDto = 'PAGO' | 'NAO_PAGO' | 'GRATUITO';
 
 function emptyToUndefined({ value }: { value: unknown }) {
   if (typeof value !== 'string') return value;
@@ -88,7 +88,17 @@ export class ItemPedidoDto {
   @Type(() => AdicionalPedidoDto)
   adicional?: AdicionalPedidoDto[];
 
-  @ApiProperty({ example: 'Retirar carne', description: 'Observação do item do pedido' })
+  @ApiPropertyOptional({
+    description: 'IDs dos ingredientes a retirar do lanche',
+    type: [String],
+    example: ['3fa85f64-5717-4562-b3fc-2c963f66afa6'],
+  })
+  @IsOptional()
+  @IsArray({ message: 'As retiradas devem ser enviadas em formato de lista (array)' })
+  @IsString({ each: true, message: 'Cada retirada deve ser o ID do ingrediente' })
+  retirar?: string[];
+
+  @ApiProperty({ example: 'Bem passado', description: 'Observação livre do item do pedido' })
   @IsString()
   @IsOptional()
   observacao: string;
@@ -120,10 +130,13 @@ export class CriarPedidoDto {
   tipo_consumo?: TipoConsumoDto;
 
   @ApiPropertyOptional({
+    enum: ['PAGO', 'NAO_PAGO', 'GRATUITO'],
     description:
-      'Se o pedido já está pago. Obrigatório para ADMIN/OPERADOR; ignorado no totem e no checkout visitor.',
+      'Status de pagamento. Obrigatório para ADMIN/OPERADOR; ignorado no totem e no checkout visitor.',
   })
   @IsOptional()
-  @IsBoolean({ message: 'Informe se o pedido está pago ou não' })
-  pago?: boolean;
+  @IsIn(['PAGO', 'NAO_PAGO', 'GRATUITO'], {
+    message: 'O status de pagamento deve ser PAGO, NAO_PAGO ou GRATUITO',
+  })
+  status_pagamento?: StatusPagamentoDto;
 }

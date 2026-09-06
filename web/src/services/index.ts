@@ -3,6 +3,7 @@ export { adicionalService } from './adicional.service';
 export { authService } from './auth.service';
 export { categoriaService } from './categoria.service';
 export { clearToken, getToken, setToken } from './cookie';
+export { cozinhaService } from './cozinha.service';
 export { dashService } from './dash.service';
 export { impressoraService } from './impressora.service';
 export { infinitepayService } from './infinitepay.service';

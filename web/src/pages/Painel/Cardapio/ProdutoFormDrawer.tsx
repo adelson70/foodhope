@@ -27,6 +27,7 @@ import type {
   AdicionalEditarInput,
   AdicionalGlobal,
   Categoria,
+  IngredienteEditarInput,
   Produto,
 } from '../../../services/types';
 import { ProdutoImagemField } from './ProdutoImagemField';
@@ -49,9 +50,11 @@ function valoresIniciais(produto: Produto | null): ProdutoFormValues {
       preco: 0,
       ativo: true,
       imprimirSeparado: false,
+      ignorarImpressaoSozinho: false,
       categoriaId: null,
       adicionais: [],
       adicionalGlobalIds: [],
+      ingredientes: [],
     };
   }
 
@@ -61,6 +64,7 @@ function valoresIniciais(produto: Produto | null): ProdutoFormValues {
     preco: Number(produto.preco),
     ativo: produto.ativo ?? true,
     imprimirSeparado: produto.imprimirSeparado ?? false,
+    ignorarImpressaoSozinho: produto.ignorarImpressaoSozinho ?? false,
     categoriaId: produto.categoria?.id ?? null,
     adicionais: (produto.adicionaisEspecificos ?? []).map((item) => ({
       id: item.id,
@@ -69,6 +73,10 @@ function valoresIniciais(produto: Produto | null): ProdutoFormValues {
       ativo: item.ativo ?? true,
     })),
     adicionalGlobalIds: produto.adicionalGlobalIds ?? [],
+    ingredientes: (produto.ingredientes ?? []).map((item) => ({
+      id: item.id,
+      nome: item.nome,
+    })),
   };
 }
 
@@ -120,6 +128,40 @@ function montarAdicionaisEdicao(
   return payload;
 }
 
+function montarIngredientesEdicao(
+  atuais: ProdutoFormValues['ingredientes'],
+  originais: { id: string; nome: string }[],
+): IngredienteEditarInput[] {
+  const payload: IngredienteEditarInput[] = [];
+  const idsOriginais = new Set(originais.map((item) => item.id));
+  const idsAtuais = new Set(
+    atuais.map((item) => item.id).filter(idAdicionalValido),
+  );
+
+  for (const original of originais) {
+    if (!idsAtuais.has(original.id)) {
+      payload.push({ id: original.id, foiDeletado: true });
+    }
+  }
+
+  for (const item of atuais) {
+    const id = idAdicionalValido(item.id) ? item.id : undefined;
+    const nome = item.nome.trim();
+
+    if (!id || !idsOriginais.has(id)) {
+      payload.push({ nome });
+      continue;
+    }
+
+    const original = originais.find((o) => o.id === id);
+    if (original && original.nome !== nome) {
+      payload.push({ id, nome });
+    }
+  }
+
+  return payload;
+}
+
 export function ProdutoFormDrawer({
   open,
   produto,
@@ -132,6 +174,11 @@ export function ProdutoFormDrawer({
   const [removerImagem, setRemoverImagem] = useState(false);
   const [animarPrimeiroAdicional, setAnimarPrimeiroAdicional] = useState(false);
   const [adicionaisSaindo, setAdicionaisSaindo] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [animarPrimeiroIngrediente, setAnimarPrimeiroIngrediente] =
+    useState(false);
+  const [ingredientesSaindo, setIngredientesSaindo] = useState<Set<string>>(
     () => new Set(),
   );
   const [globais, setGlobais] = useState<AdicionalGlobal[]>([]);
@@ -155,6 +202,15 @@ export function ProdutoFormDrawer({
     name: 'adicionais',
   });
 
+  const {
+    fields: ingredientesFields,
+    prepend: prependIngrediente,
+    remove: removeIngrediente,
+  } = useFieldArray({
+    control,
+    name: 'ingredientes',
+  });
+
   const adicionalGlobalIds = watch('adicionalGlobalIds');
 
   useEffect(() => {
@@ -165,6 +221,8 @@ export function ProdutoFormDrawer({
     setRemoverImagem(false);
     setAnimarPrimeiroAdicional(false);
     setAdicionaisSaindo(new Set());
+    setAnimarPrimeiroIngrediente(false);
+    setIngredientesSaindo(new Set());
 
     let cancelled = false;
     adicionalService
@@ -197,6 +255,11 @@ export function ProdutoFormDrawer({
     document.getElementById('adicional-nome-0')?.focus();
   }, [animarPrimeiroAdicional, fields]);
 
+  useEffect(() => {
+    if (!animarPrimeiroIngrediente) return;
+    document.getElementById('ingrediente-nome-0')?.focus();
+  }, [animarPrimeiroIngrediente, ingredientesFields]);
+
   function handleAdicionarAdicional() {
     prepend({ nome: '', preco: 0, ativo: true });
     setAnimarPrimeiroAdicional(true);
@@ -215,6 +278,26 @@ export function ProdutoFormDrawer({
       return proximo;
     });
     if (index >= 0) remove(index);
+  }
+
+  function handleAdicionarIngrediente() {
+    prependIngrediente({ nome: '' });
+    setAnimarPrimeiroIngrediente(true);
+  }
+
+  function handleRemoverIngrediente(fieldId: string) {
+    if (ingredientesSaindo.has(fieldId)) return;
+    setIngredientesSaindo((atual) => new Set(atual).add(fieldId));
+  }
+
+  function finalizarRemocaoIngrediente(fieldId: string) {
+    const index = ingredientesFields.findIndex((item) => item.id === fieldId);
+    setIngredientesSaindo((atual) => {
+      const proximo = new Set(atual);
+      proximo.delete(fieldId);
+      return proximo;
+    });
+    if (index >= 0) removeIngrediente(index);
   }
 
   function toggleGlobal(id: string) {
@@ -239,6 +322,11 @@ export function ProdutoFormDrawer({
       return !fieldId || !adicionaisSaindo.has(fieldId);
     });
 
+    const ingredientesAtuais = values.ingredientes.filter((_, index) => {
+      const fieldId = ingredientesFields[index]?.id;
+      return !fieldId || !ingredientesSaindo.has(fieldId);
+    });
+
     try {
       if (!produto) {
         const response = await produtoService.criar({
@@ -247,6 +335,7 @@ export function ProdutoFormDrawer({
           preco: values.preco,
           ativo: values.ativo,
           imprimirSeparado: values.imprimirSeparado,
+          ignorarImpressaoSozinho: values.ignorarImpressaoSozinho,
           categoriaId: values.categoriaId,
           adicionais: adicionaisAtuais.map((item) => ({
             nome: item.nome.trim(),
@@ -254,6 +343,9 @@ export function ProdutoFormDrawer({
             ativo: item.ativo,
           })),
           adicionalGlobalIds: values.adicionalGlobalIds,
+          ingredientes: ingredientesAtuais.map((item) => ({
+            nome: item.nome.trim(),
+          })),
           imagem: imagemFile ?? undefined,
         });
 
@@ -271,15 +363,28 @@ export function ProdutoFormDrawer({
       }));
       const adicionais = montarAdicionaisEdicao(adicionaisAtuais, originais);
 
+      const ingredientesOriginais = (produto.ingredientes ?? []).map(
+        (item) => ({
+          id: item.id,
+          nome: item.nome,
+        }),
+      );
+      const ingredientes = montarIngredientesEdicao(
+        ingredientesAtuais,
+        ingredientesOriginais,
+      );
+
       const response = await produtoService.editar(produto.id, {
         nome: values.nome.trim(),
         descricao: descricao ?? '',
         preco: values.preco,
         ativo: values.ativo,
         imprimirSeparado: values.imprimirSeparado,
+        ignorarImpressaoSozinho: values.ignorarImpressaoSozinho,
         categoriaId: values.categoriaId,
         adicionais: adicionais.length > 0 ? adicionais : undefined,
         adicionalGlobalIds: values.adicionalGlobalIds,
+        ingredientes: ingredientes.length > 0 ? ingredientes : undefined,
         imagem: imagemFile ?? undefined,
         removerImagem: removerImagem && !imagemFile,
       });
@@ -455,7 +560,8 @@ export function ProdutoFormDrawer({
           <div className="min-w-0">
             <Label htmlFor="produto-imprimir-separado">Imprimir à parte</Label>
             <p className="text-caption text-on-surface-variant">
-              Sai em um cupom separado, referenciando o pedido
+              Sai em cupom separado e também aparece no primeiro cupom do
+              pedido
             </p>
           </div>
           <button
@@ -478,6 +584,45 @@ export function ProdutoFormDrawer({
               className={cn(
                 'absolute top-0.5 left-0.5 size-4 rounded-full bg-surface shadow-card transition-transform',
                 watch('imprimirSeparado') && 'translate-x-4',
+              )}
+            />
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-operator-border bg-operator-card px-3 py-3">
+          <div className="min-w-0">
+            <Label htmlFor="produto-ignorar-impressao-sozinho">
+              Não imprimir sozinho
+            </Label>
+            <p className="text-caption text-on-surface-variant">
+              Pedido só com este item não gera cupom; com outros produtos, entra
+              no primeiro cupom (ex.: refri, água)
+            </p>
+          </div>
+          <button
+            type="button"
+            id="produto-ignorar-impressao-sozinho"
+            role="switch"
+            aria-checked={watch('ignorarImpressaoSozinho')}
+            disabled={isSubmitting}
+            onClick={() =>
+              setValue(
+                'ignorarImpressaoSozinho',
+                !watch('ignorarImpressaoSozinho'),
+                { shouldDirty: true },
+              )
+            }
+            className={cn(
+              'relative h-5 w-9 shrink-0 rounded-full transition-colors',
+              watch('ignorarImpressaoSozinho')
+                ? 'bg-primary'
+                : 'bg-outline-variant',
+            )}
+          >
+            <span
+              className={cn(
+                'absolute top-0.5 left-0.5 size-4 rounded-full bg-surface shadow-card transition-transform',
+                watch('ignorarImpressaoSozinho') && 'translate-x-4',
               )}
             />
           </button>
@@ -660,6 +805,88 @@ export function ProdutoFormDrawer({
                           <Trash2 size={17} strokeWidth={1.75} />
                         </Button>
                       </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <Label>Ingredientes (retirar)</Label>
+              <p className="text-caption text-on-surface-variant">
+                Aparecem como opções de retirada no pedido
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-10 px-3"
+              disabled={isSubmitting}
+              onClick={handleAdicionarIngrediente}
+            >
+              <Plus size={14} strokeWidth={1.75} />
+              Adicionar
+            </Button>
+          </div>
+
+          {ingredientesFields.length === 0 ? (
+            <p className="text-caption text-on-surface-variant">
+              Nenhum ingrediente. Use “Adicionar” para mapear o lanche.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {ingredientesFields.map((field, index) => {
+                const saindo = ingredientesSaindo.has(field.id);
+                const entrando =
+                  index === 0 && animarPrimeiroIngrediente && !saindo;
+
+                return (
+                  <li
+                    key={field.id}
+                    className={cn(
+                      'overflow-hidden rounded-xl border border-operator-border bg-operator-bg p-3',
+                      entrando && 'list-item-enter',
+                      saindo && 'list-item-exit',
+                    )}
+                    onAnimationEnd={(event) => {
+                      if (event.target !== event.currentTarget) return;
+                      if (saindo) {
+                        finalizarRemocaoIngrediente(field.id);
+                        return;
+                      }
+                      if (entrando) setAnimarPrimeiroIngrediente(false);
+                    }}
+                  >
+                    <div className="flex items-end gap-2">
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <Label htmlFor={`ingrediente-nome-${index}`}>Nome</Label>
+                        <Input
+                          id={`ingrediente-nome-${index}`}
+                          placeholder="Ex.: Cebola"
+                          error={Boolean(errors.ingredientes?.[index]?.nome)}
+                          disabled={isSubmitting || saindo}
+                          {...register(`ingredientes.${index}.nome`)}
+                        />
+                        {errors.ingredientes?.[index]?.nome ? (
+                          <p className="text-caption text-danger">
+                            {errors.ingredientes[index]?.nome?.message}
+                          </p>
+                        ) : null}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="dangerGhost"
+                        aria-label="Remover ingrediente"
+                        className="size-12 shrink-0 px-0 py-0"
+                        disabled={isSubmitting || saindo}
+                        onClick={() => handleRemoverIngrediente(field.id)}
+                      >
+                        <Trash2 size={17} strokeWidth={1.75} />
+                      </Button>
                     </div>
                   </li>
                 );

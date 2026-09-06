@@ -16,6 +16,7 @@ import {
 } from '@nestjs/swagger';
 
 import { OperadorService } from './operador.service.js';
+import { AtualizarAtivoDto } from './dto/atualizar-ativo.dto.js';
 import { CriarOperadorDto } from './dto/criar.dto.js';
 import { EditarOperadorAdminDto } from './dto/editar.dto.js';
 import { Roles } from '../../common/decorator/roles.decorator.js';
@@ -57,6 +58,19 @@ export class OperadorController {
     }
 
     return this.operador.editar(id, dto);
+  }
+
+  @Put(':id/ativo')
+  @ApiOperation({
+    summary: 'Ativa ou desativa o login de um operador ou totem',
+  })
+  @ApiBody({ type: AtualizarAtivoDto })
+  async atualizarAtivo(
+    @Param('id') id: string,
+    @Body() dto: AtualizarAtivoDto,
+    @Req() req: { user: AuthUser },
+  ) {
+    return this.operador.atualizarAtivo(id, dto.ativo, req.user.id);
   }
 
   @Post(':id/logout')

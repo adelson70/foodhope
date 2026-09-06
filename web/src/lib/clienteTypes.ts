@@ -5,6 +5,11 @@ export type CarrinhoAdicional = {
   qtd: number;
 };
 
+export type CarrinhoRetirada = {
+  id: string;
+  nome: string;
+};
+
 export type CarrinhoItem = {
   id: string;
   produtoId: string;
@@ -12,6 +17,7 @@ export type CarrinhoItem = {
   preco: number;
   qtd: number;
   adicionais: CarrinhoAdicional[];
+  retirar?: CarrinhoRetirada[];
   observacao?: string;
 };
 
@@ -23,6 +29,9 @@ export type PedidoLocalItem = {
     nome: string;
     preco: number;
     qtd: number;
+  }>;
+  retirar?: Array<{
+    nome: string;
   }>;
   observacao?: string;
 };

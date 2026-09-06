@@ -30,7 +30,7 @@ const ROLE_OPTIONS: SelectOption[] = [
   {
     value: 'OPERADOR',
     label: 'Operador',
-    description: 'Cardápio e pedidos',
+    description: 'Só pedidos: cria e gerencia cadastros',
   },
   {
     value: 'TOTEM',

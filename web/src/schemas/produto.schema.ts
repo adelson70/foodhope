@@ -12,6 +12,14 @@ const adicionalSchema = z.object({
   ativo: z.boolean().default(true),
 });
 
+const ingredienteSchema = z.object({
+  id: z
+    .union([z.string(), z.literal('')])
+    .optional()
+    .transform((value) => (value && value.trim() !== '' ? value : undefined)),
+  nome: z.string().min(1, 'Informe o nome do ingrediente'),
+});
+
 export const produtoSchema = z.object({
   nome: z
     .string()
@@ -28,9 +36,11 @@ export const produtoSchema = z.object({
     .max(99999999.99, 'O valor excede o limite permitido'),
   ativo: z.boolean().default(true),
   imprimirSeparado: z.boolean().default(false),
+  ignorarImpressaoSozinho: z.boolean().default(false),
   categoriaId: z.string().nullable().optional(),
   adicionais: z.array(adicionalSchema).default([]),
   adicionalGlobalIds: z.array(z.string()).default([]),
+  ingredientes: z.array(ingredienteSchema).default([]),
 });
 
 export type ProdutoFormValues = {
@@ -39,6 +49,7 @@ export type ProdutoFormValues = {
   preco: number;
   ativo: boolean;
   imprimirSeparado: boolean;
+  ignorarImpressaoSozinho: boolean;
   categoriaId: string | null;
   adicionais: Array<{
     id?: string;
@@ -47,4 +58,8 @@ export type ProdutoFormValues = {
     ativo: boolean;
   }>;
   adicionalGlobalIds: string[];
+  ingredientes: Array<{
+    id?: string;
+    nome: string;
+  }>;
 };

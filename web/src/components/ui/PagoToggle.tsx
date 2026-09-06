@@ -1,35 +1,32 @@
 import { cn } from '../../lib/cn';
+import { STATUS_PAGAMENTO_OPCOES } from '../../lib/statusPagamento';
+import type { StatusPagamento } from '../../services/types';
 
 type PagoToggleProps = {
-  value: boolean;
-  onChange: (value: boolean) => void;
+  value: StatusPagamento;
+  onChange: (value: StatusPagamento) => void;
   disabled?: boolean;
 };
-
-const OPCOES: Array<{ value: boolean; label: string }> = [
-  { value: true, label: 'Pago' },
-  { value: false, label: 'Não pago' },
-];
 
 export function PagoToggle({ value, onChange, disabled }: PagoToggleProps) {
   return (
     <div
       role="radiogroup"
       aria-label="Status de pagamento"
-      className="grid grid-cols-2 gap-2"
+      className="grid grid-cols-3 gap-2"
     >
-      {OPCOES.map((opcao) => {
+      {STATUS_PAGAMENTO_OPCOES.map((opcao) => {
         const ativo = value === opcao.value;
         return (
           <button
-            key={String(opcao.value)}
+            key={opcao.value}
             type="button"
             role="radio"
             aria-checked={ativo}
             disabled={disabled}
             onClick={() => onChange(opcao.value)}
             className={cn(
-              'rounded-xl border px-4 py-3 text-body-md font-medium transition-colors',
+              'rounded-xl border px-3 py-3 text-body-md font-medium transition-colors',
               'disabled:opacity-50',
               ativo
                 ? 'border-primary bg-primary-container/40 text-on-surface'

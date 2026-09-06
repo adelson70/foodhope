@@ -18,6 +18,7 @@ export type Operador = {
   id: string;
   nome: string;
   role: RoleOperador;
+  ativo?: boolean;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -77,6 +78,7 @@ export type Produto = {
   imagemUrl: string | null;
   ativo?: boolean;
   imprimirSeparado?: boolean;
+  ignorarImpressaoSozinho?: boolean;
   ordem?: number;
   categoria?: ProdutoCategoria | null;
   createdAt?: string;
@@ -84,6 +86,13 @@ export type Produto = {
   adicionais?: Adicional[];
   adicionaisEspecificos?: Adicional[];
   adicionalGlobalIds?: string[];
+  ingredientes?: IngredienteProduto[];
+};
+
+export type IngredienteProduto = {
+  id: string;
+  nome: string;
+  ordem?: number;
 };
 
 export type CursorMeta = {
@@ -126,6 +135,16 @@ export type AdicionalEditarInput = {
   ativo?: boolean;
 };
 
+export type IngredienteCriarInput = {
+  nome: string;
+};
+
+export type IngredienteEditarInput = {
+  id?: string;
+  foiDeletado?: boolean;
+  nome?: string;
+};
+
 export type CriarAdicionalGlobalInput = {
   nome: string;
   preco: number;
@@ -160,9 +179,11 @@ export type CriarProdutoInput = {
   preco: number;
   ativo?: boolean;
   imprimirSeparado?: boolean;
+  ignorarImpressaoSozinho?: boolean;
   categoriaId?: string | null;
   adicionais?: AdicionalCriarInput[];
   adicionalGlobalIds?: string[];
+  ingredientes?: IngredienteCriarInput[];
   imagem?: File;
 };
 
@@ -172,10 +193,12 @@ export type EditarProdutoInput = {
   preco?: number;
   ativo?: boolean;
   imprimirSeparado?: boolean;
+  ignorarImpressaoSozinho?: boolean;
   ordem?: number;
   categoriaId?: string | null;
   adicionais?: AdicionalEditarInput[];
   adicionalGlobalIds?: string[];
+  ingredientes?: IngredienteEditarInput[];
   imagem?: File;
   removerImagem?: boolean;
 };
@@ -196,6 +219,11 @@ export type AdicionalVenda = {
   qtd: number;
 };
 
+export type RetiradaVenda = {
+  id: string;
+  nome: string;
+};
+
 export type PedidoItem = {
   id: string;
   pedido_id: string;
@@ -203,6 +231,7 @@ export type PedidoItem = {
   quantidade: number;
   preco_produto: string | number;
   adicional_venda: AdicionalVenda[] | null;
+  retirada_venda?: RetiradaVenda[] | null;
   observacao: string | null;
   createdAt?: string;
   updatedAt?: string;
@@ -211,6 +240,8 @@ export type PedidoItem = {
 
 export type TipoConsumo = 'LEVAR' | 'COMER_AQUI';
 
+export type StatusPagamento = 'PAGO' | 'NAO_PAGO' | 'GRATUITO';
+
 export type Pedido = {
   id: string;
   numero: string;
@@ -218,7 +249,7 @@ export type Pedido = {
   tipo_consumo?: TipoConsumo;
   pronto?: boolean;
   prontoAt?: string | null;
-  pago?: boolean;
+  status_pagamento?: StatusPagamento;
   createdAt?: string;
   updatedAt?: string;
   itens?: PedidoItem[];
@@ -240,6 +271,7 @@ export type ItemPedidoInput = {
   id: string;
   qtd: number;
   adicional?: AdicionalPedidoInput[];
+  retirar?: string[];
   observacao?: string;
 };
 
@@ -247,7 +279,7 @@ export type CriarPedidoInput = {
   itens: ItemPedidoInput[];
   cliente: ClientePedidoInput;
   tipo_consumo?: TipoConsumo;
-  pago?: boolean;
+  status_pagamento?: StatusPagamento;
 };
 
 export type ListarPedidosDados = {
@@ -308,13 +340,21 @@ export type ConfigInfinitePay = {
   webhookUrl: string | null;
 };
 
+export type VisualizacaoTelaPedidos = 'DIA' | 'TUDO';
+
 export type ConfigTelaPedidos = {
   hash: string;
   urlPath: string;
+  visualizacao: VisualizacaoTelaPedidos;
+};
+
+export type ConfigCozinha = {
+  ativa: boolean;
 };
 
 export type ListarTelaPedidosPublicoDados = {
   pedidos: Pedido[];
+  visualizacao: VisualizacaoTelaPedidos;
 };
 
 export type ConfigurarInfinitePayInput = {

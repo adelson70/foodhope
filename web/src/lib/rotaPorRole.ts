@@ -2,6 +2,6 @@ import type { RoleOperador } from '../services/types';
 
 export function rotaInicialPorRole(role: RoleOperador): string {
   if (role === 'TOTEM') return '/';
-  if (role === 'OPERADOR') return '/painel/cardapio';
+  if (role === 'OPERADOR') return '/painel/pedido';
   return '/painel/dash';
 }

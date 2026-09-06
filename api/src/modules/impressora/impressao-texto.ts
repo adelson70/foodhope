@@ -1,4 +1,4 @@
-export const LARGURA_CUPOM = 48;
+export const LARGURA_CUPOM = 42;
 
 export const MARCA_BIG_ABRE = '[[BIG]]';
 export const MARCA_BIG_FECHA = '[[/BIG]]';
@@ -63,6 +63,31 @@ export function linhaObsCupom(texto: string): string {
   return `${MARCA_OBS_ABRE}OBS: ${paraCupom(texto.trim())}${MARCA_OBS_FECHA}`;
 }
 
+export function montarTextoObservacaoCupom(item: {
+  observacao?: string | null;
+  retirada_venda?: unknown;
+}): string {
+  const partes: string[] = [];
+  const retiradas = Array.isArray(item.retirada_venda)
+    ? item.retirada_venda
+        .map((r: { nome?: string }) =>
+          typeof r?.nome === 'string' ? r.nome.trim() : '',
+        )
+        .filter((nome) => nome.length > 0)
+    : [];
+
+  if (retiradas.length > 0) {
+    partes.push(retiradas.map((nome) => `SEM ${nome}`).join(', '));
+  }
+
+  const obs = item.observacao?.trim();
+  if (obs) {
+    partes.push(obs);
+  }
+
+  return partes.join(' | ');
+}
+
 export function linhaTotalCupom(rotulo: string, valor: number | string): string {
   return `${MARCA_TOTAL_ABRE}${alinharLinha(paraCupom(rotulo), formatarMoeda(valor), ' ')}${MARCA_TOTAL_FECHA}`;
 }
@@ -96,20 +121,28 @@ export function alinharLinha(
   preenchimento = '.',
   tamanhoTotal = LARGURA_CUPOM,
 ): string {
-  const espacoLivre = tamanhoTotal - textoDir.length;
+  const dir =
+    textoDir.length > tamanhoTotal
+      ? textoDir.slice(textoDir.length - tamanhoTotal)
+      : textoDir;
+  const maxEsq = Math.max(0, tamanhoTotal - dir.length);
   let textoLimitado = textoEsq;
 
-  if (textoEsq.length > espacoLivre - 1) {
-    textoLimitado = textoEsq.substring(0, espacoLivre - 2) + preenchimento;
+  if (textoLimitado.length > maxEsq) {
+    const corte = Math.max(0, maxEsq - 1);
+    textoLimitado =
+      corte > 0 ? textoLimitado.slice(0, corte) + preenchimento : '';
+    if (textoLimitado.length > maxEsq) {
+      textoLimitado = textoLimitado.slice(0, maxEsq);
+    }
   }
 
-  const quantidadePreenchimento =
-    tamanhoTotal - textoLimitado.length - textoDir.length;
+  const quantidadePreenchimento = maxEsq - textoLimitado.length;
   const caracteresPreenchimento = preenchimento.repeat(
     quantidadePreenchimento > 0 ? quantidadePreenchimento : 0,
   );
 
-  return `${textoLimitado}${caracteresPreenchimento}${textoDir}`;
+  return `${textoLimitado}${caracteresPreenchimento}${dir}`;
 }
 
 export function linhaSeparadora(char = '='): string {
@@ -125,6 +158,8 @@ type RelatorioDiaInput = {
   data: string;
   faturamento: number;
   pedidos: number;
+  pedidosGratuitos: number;
+  valorGratuito: number;
   topProdutos: ItemRankRelatorio[];
   topAdicionais: ItemRankRelatorio[];
   geradoEm: Date;
@@ -178,11 +213,19 @@ export function formatarRelatorioDia(input: RelatorioDiaInput): string {
     ) + '\n';
   impressao +=
     alinharLinha('PEDIDOS ', ` ${input.pedidos}`, '.') + '\n';
+  impressao +=
+    alinharLinha('GRATUITOS ', ` ${input.pedidosGratuitos}`, '.') + '\n';
+  impressao +=
+    alinharLinha(
+      'VALOR GRATUITO ',
+      ` ${formatarMoeda(input.valorGratuito)}`,
+      '.',
+    ) + '\n';
   impressao += `${linhaSeparadora('-')}\n`;
-  impressao += 'TOP 5 PRODUTOS\n';
+  impressao += 'PRODUTOS\n';
   impressao += formatarRanking(input.topProdutos);
   impressao += `${linhaSeparadora('-')}\n`;
-  impressao += 'TOP 5 ADICIONAIS\n';
+  impressao += 'ADICIONAIS\n';
   impressao += formatarRanking(input.topAdicionais);
   impressao += `${linhaSeparadora('=')}\n`;
   impressao += '\n\n\n';

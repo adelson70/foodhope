@@ -40,6 +40,8 @@ type PedidoValorRow = {
 type DiaResumoRow = {
   pedidos: number | bigint | string;
   faturamento: number | string;
+  pedidosGratuitos: number | bigint | string;
+  valorGratuito: number | string;
 };
 
 function toNumber(value: number | bigint | string | null | undefined): number {
@@ -119,7 +121,7 @@ export class DashService {
               INNER JOIN pedido p ON p.id = pi.pedido_id
               WHERE (p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
                 = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
-                AND p.pago = true
+                AND p.status_pagamento = 'PAGO'
             ) AS "faturamentoHoje",
             (
               SELECT COUNT(*)::int FROM lead
@@ -230,8 +232,44 @@ export class DashService {
             INNER JOIN pedido p ON p.id = pi.pedido_id
             WHERE (p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
               = CAST(${data} AS DATE)
-              AND p.pago = true
-          ) AS faturamento
+              AND p.status_pagamento = 'PAGO'
+          ) AS faturamento,
+          (
+            SELECT COUNT(*)::int
+            FROM pedido p
+            WHERE (p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
+              = CAST(${data} AS DATE)
+              AND p.status_pagamento = 'GRATUITO'
+          ) AS "pedidosGratuitos",
+          (
+            SELECT COALESCE(
+              SUM(
+                pi.quantidade * pi.preco_produto
+                + COALESCE(
+                  (
+                    SELECT SUM(
+                      (elem->>'qtd')::numeric * (elem->>'preco')::numeric
+                    )
+                    FROM jsonb_array_elements(
+                      CASE
+                        WHEN pi.adicional_venda IS NULL THEN '[]'::jsonb
+                        WHEN jsonb_typeof(pi.adicional_venda::jsonb) = 'array'
+                          THEN pi.adicional_venda::jsonb
+                        ELSE '[]'::jsonb
+                      END
+                    ) AS elem
+                  ),
+                  0
+                )
+              ),
+              0
+            )
+            FROM pedido_item pi
+            INNER JOIN pedido p ON p.id = pi.pedido_id
+            WHERE (p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
+              = CAST(${data} AS DATE)
+              AND p.status_pagamento = 'GRATUITO'
+          ) AS "valorGratuito"
       `,
       this.prismaRead.$queryRaw<ProdutoRow[]>`
         SELECT
@@ -243,10 +281,9 @@ export class DashService {
         INNER JOIN produto pr ON pr.id = pi.produto_id
         WHERE (p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
           = CAST(${data} AS DATE)
-          AND p.pago = true
+          AND p.status_pagamento = 'PAGO'
         GROUP BY pr.id, pr.nome
         ORDER BY quantidade DESC
-        LIMIT 5
       `,
       this.prismaRead.$queryRaw<AdicionalRow[]>`
         SELECT
@@ -265,11 +302,10 @@ export class DashService {
         ) AS elem
         WHERE (p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
           = CAST(${data} AS DATE)
-          AND p.pago = true
+          AND p.status_pagamento = 'PAGO'
           AND COALESCE(elem->>'id', '') <> ''
         GROUP BY elem->>'id', elem->>'nome'
         ORDER BY quantidade DESC
-        LIMIT 5
       `,
     ]);
 
@@ -278,6 +314,8 @@ export class DashService {
     return {
       faturamento: toNumber(resumo?.faturamento),
       pedidos: toNumber(resumo?.pedidos),
+      pedidosGratuitos: toNumber(resumo?.pedidosGratuitos),
+      valorGratuito: toNumber(resumo?.valorGratuito),
       topProdutos: topProdutosRows.map((row) => ({
         nome: row.nome,
         quantidade: toNumber(row.quantidade),
@@ -319,7 +357,7 @@ export class DashService {
       LEFT JOIN pedido_item pi ON pi.pedido_id = p.id
       WHERE (p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
         = CAST(${data} AS DATE)
-        AND p.pago = true
+        AND p.status_pagamento = 'PAGO'
       GROUP BY p.id, p.nome_completo, p."createdAt"
       ORDER BY lower(p.nome_completo) ASC, p."createdAt" ASC
     `;
@@ -363,6 +401,8 @@ export class DashService {
           data: dataRelatorio,
           faturamento: resumido.faturamento,
           pedidos: resumido.pedidos,
+          pedidosGratuitos: resumido.pedidosGratuitos,
+          valorGratuito: resumido.valorGratuito,
           topProdutos: resumido.topProdutos,
           topAdicionais: resumido.topAdicionais,
           geradoEm,

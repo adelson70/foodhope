@@ -36,6 +36,12 @@ export class AuthService {
       throw new UnauthorizedException('Usuário ou senha inválidos');
     }
 
+    if (!operador.ativo) {
+      throw new UnauthorizedException(
+        'Usuário desativado. Contate o administrador.',
+      );
+    }
+
     const senhaValida = await bcrypt.compare(dto.senha, operador.senha);
 
     if (!senhaValida) {
@@ -59,7 +65,7 @@ export class AuthService {
   }
 
   async me(id: string) {
-    return this.prisma.operador.findUnique({
+    const operador = await this.prisma.operador.findUnique({
       where: {
         id,
       },
@@ -68,17 +74,28 @@ export class AuthService {
         id: true,
         nome: true,
         role: true,
+        ativo: true,
       },
     });
+
+    if (!operador || !operador.ativo) {
+      throw new UnauthorizedException('Operação não autorizada');
+    }
+
+    return {
+      id: operador.id,
+      nome: operador.nome,
+      role: operador.role,
+    };
   }
 
   async editar(id: string, dto: EditarOperadorDto) {
     const operador = await this.prisma.operador.findUnique({
       where: { id },
-      select: { id: true },
+      select: { id: true, ativo: true },
     });
 
-    if (!operador) {
+    if (!operador || !operador.ativo) {
       throw new NotFoundException('Operador não encontrado');
     }
 

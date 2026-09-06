@@ -19,6 +19,7 @@ import { PrismaReadService } from '../../infra/database/prisma-read.service.js';
 import { PrismaWriteService } from '../../infra/database/prisma-write.service.js';
 import { ConfigurarImpressoraDto } from './dto/configurar.dto.js';
 import {
+  LARGURA_CUPOM,
   MARCA_BANNER_ABRE,
   MARCA_BANNER_FECHA,
   MARCA_BIG_ABRE,
@@ -412,9 +413,10 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
     return new ThermalPrinter({
       type: PrinterTypes.EPSON,
       interface: iface,
+      width: LARGURA_CUPOM,
       characterSet: CharacterSet.PC850_MULTILINGUAL,
       removeSpecialCharacters: true,
-      breakLine: BreakLine.WORD,
+      breakLine: BreakLine.NONE,
     });
   }
 

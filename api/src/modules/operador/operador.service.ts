@@ -18,6 +18,7 @@ const OPERADOR_SELECT = {
   id: true,
   nome: true,
   role: true,
+  ativo: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -157,6 +158,81 @@ export class OperadorService {
 
       throw new InternalServerErrorException(
         'Não foi possível editar o usuário. Tente novamente.',
+      );
+    }
+  }
+
+  async atualizarAtivo(id: string, ativo: boolean, solicitanteId: string) {
+    try {
+      if (id === solicitanteId) {
+        throw new BadRequestException(
+          'Você não pode desativar o seu próprio usuário.',
+        );
+      }
+
+      const operador = await this.prismaRead.operador.findUnique({
+        where: { id },
+        select: { id: true, role: true, ativo: true },
+      });
+
+      if (!operador) {
+        throw new NotFoundException('Usuário não encontrado.');
+      }
+
+      if (operador.role === 'ADMIN') {
+        throw new BadRequestException(
+          'Não é possível desativar um administrador.',
+        );
+      }
+
+      if (operador.ativo === ativo) {
+        return {
+          mensagem: ativo
+            ? 'Usuário já está ativo'
+            : 'Usuário já está desativado',
+          dados: {
+            id: operador.id,
+            role: operador.role,
+            ativo: operador.ativo,
+          },
+        };
+      }
+
+      const atualizado = await this.prismaWrite.operador.update({
+        where: { id },
+        data: { ativo },
+        select: OPERADOR_SELECT,
+      });
+
+      if (!ativo) {
+        this.websocket.forcarLogout(atualizado.id);
+      }
+
+      return {
+        mensagem: ativo
+          ? 'Usuário ativado com sucesso'
+          : 'Usuário desativado com sucesso',
+        dados: atualizado,
+      };
+    } catch (erro) {
+      console.error('Erro ao atualizar ativo do operador:', erro);
+
+      if (
+        erro instanceof NotFoundException ||
+        erro instanceof BadRequestException
+      ) {
+        throw erro;
+      }
+
+      if (
+        erro instanceof Prisma.PrismaClientKnownRequestError &&
+        erro.code === 'P2025'
+      ) {
+        throw new NotFoundException('Usuário não encontrado.');
+      }
+
+      throw new InternalServerErrorException(
+        'Não foi possível atualizar o usuário. Tente novamente.',
       );
     }
   }

@@ -7,6 +7,7 @@ import { markScrollRoot } from '../../lib/scrollLock';
 import { useSessao } from '../../routes/sessao';
 import { FoodHopeLogo } from '../brand/FoodHopeLogo';
 import { PainelBottomNav } from './PainelBottomNav';
+import { PainelLogoutButton } from './PainelLogoutButton';
 import { PainelSidebar } from './PainelSidebar';
 
 function isSubtelaSemBottomNav(pathname: string) {
@@ -28,7 +29,8 @@ export function PainelLayout() {
   const sessao = useSessao();
   const mainRef = useRef<HTMLElement>(null);
   useScrollFocusedIntoView(mainRef);
-  const semBottomNav = isSubtelaSemBottomNav(pathname);
+  const isOperador = sessao.role === 'OPERADOR';
+  const semBottomNav = isOperador || isSubtelaSemBottomNav(pathname);
 
   useEffect(() => {
     markScrollRoot(mainRef.current);
@@ -36,7 +38,7 @@ export function PainelLayout() {
 
   return (
     <div className="flex min-h-dvh bg-background text-on-background lg:h-dvh lg:overflow-hidden">
-      <PainelSidebar role={sessao.role} />
+      {isOperador ? null : <PainelSidebar role={sessao.role} />}
 
       <div
         className={cn(
@@ -44,8 +46,14 @@ export function PainelLayout() {
           'lg:mx-0 lg:max-w-none lg:flex-1 lg:shadow-none lg:pt-0',
         )}
       >
-        <header className="shrink-0 border-b border-outline-variant/50 bg-surface/90 px-4 py-3 lg:hidden">
+        <header
+          className={cn(
+            'flex shrink-0 items-center justify-between gap-3 border-b border-outline-variant/50 bg-surface/90 px-4 py-3',
+            isOperador ? null : 'lg:hidden',
+          )}
+        >
           <FoodHopeLogo markClassName="size-7" />
+          {isOperador ? <PainelLogoutButton /> : null}
         </header>
 
         <main

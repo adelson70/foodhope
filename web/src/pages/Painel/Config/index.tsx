@@ -95,10 +95,10 @@ export function Config() {
             </span>
             <span className="min-w-0 flex-1">
               <span className="block text-body-md font-medium text-on-surface">
-                Informações da cozinha
+                Operação da cozinha
               </span>
               <span className="block text-caption text-on-surface-variant">
-                Adicionais e categorias
+                Abertura, adicionais e categorias
               </span>
             </span>
             <ChevronRight

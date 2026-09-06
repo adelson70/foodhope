@@ -22,6 +22,7 @@ import { InfraJwtModule } from './infra/auth/jwt.module.js';
 import { OperadorModule } from './modules/operador/operador.module.js';
 import { InfinitePayModule } from './modules/infinitepay/infinitepay.module.js';
 import { TelaPedidosModule } from './modules/tela-pedidos/tela-pedidos.module.js';
+import { CozinhaModule } from './modules/cozinha/cozinha.module.js';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor.js';
 
 @Module({
@@ -62,6 +63,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     OperadorModule,
     InfinitePayModule,
     TelaPedidosModule,
+    CozinhaModule,
   ],
   controllers: [AppController],
   providers: [

@@ -24,6 +24,7 @@ model Operador {
   nome      String
   senha     String
   role      RoleOperador @default(OPERADOR)
+  ativo     Boolean      @default(true)
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
@@ -62,14 +63,20 @@ enum TipoConsumo {
   COMER_AQUI
 }
 
+enum StatusPagamento {
+  PAGO
+  NAO_PAGO
+  GRATUITO
+}
+
 model Pedido {
   id            String @id @default(uuid())
   numero BigInt @default(autoincrement()) @unique
   nome_completo String
 
-  tipo_consumo TipoConsumo @default(COMER_AQUI) @map("tipo_consumo")
-  prontoAt     DateTime?   @map("pronto_at")
-  pago         Boolean     @default(true)
+  tipo_consumo     TipoConsumo     @default(COMER_AQUI) @map("tipo_consumo")
+  prontoAt         DateTime?       @map("pronto_at")
+  status_pagamento StatusPagamento @default(PAGO) @map("status_pagamento")
 
   itens PedidoItem[]
   checkoutSessao CheckoutSessao?
@@ -80,7 +87,7 @@ model Pedido {
   @@index([numero])
   @@index([nome_completo])
   @@index([prontoAt])
-  @@index([pago])
+  @@index([status_pagamento])
   @@map("pedido")
 }
 
@@ -104,15 +111,17 @@ model Produto {
   descricao String?
   preco     Decimal @db.Decimal(10, 2)
   imagemUrl String? @map("imagem_url")
-  ativo             Boolean @default(true)
-  imprimirSeparado  Boolean @default(false) @map("imprimir_separado")
-  ordem             Int     @default(0)
+  ativo                     Boolean @default(true)
+  imprimirSeparado          Boolean @default(false) @map("imprimir_separado")
+  ignorarImpressaoSozinho   Boolean @default(false) @map("ignorar_impressao_sozinho")
+  ordem                     Int     @default(0)
 
   categoria_id String?    @map("categoria_id")
   categoria    Categoria? @relation(fields: [categoria_id], references: [id], onDelete: SetNull)
 
   adicionais AdicionalProduto[]
   adicionaisGlobais ProdutoAdicionalGlobal[]
+  ingredientes IngredienteProduto[]
   itens PedidoItem[]
 
   createdAt DateTime @default(now())
@@ -163,6 +172,21 @@ model AdicionalProduto {
   @@map("adicional_produto")
 }
 
+model IngredienteProduto {
+  id         String @id @default(uuid())
+  produto_id String @map("produto_id")
+  nome       String
+  ordem      Int    @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  produto Produto @relation(fields: [produto_id], references: [id], onDelete: Cascade)
+
+  @@index([produto_id])
+  @@map("ingrediente_produto")
+}
+
 model PedidoItem {
   id String @id @default(uuid())
 
@@ -174,6 +198,8 @@ model PedidoItem {
   preco_produto Decimal @db.Decimal(10, 2)
 
   adicional_venda Json?
+
+  retirada_venda Json?
 
   observacao String? @db.VarChar(140)
 
@@ -208,13 +234,28 @@ model ConfigInfinitePay {
   @@map("config_infinitepay")
 }
 
+enum VisualizacaoTelaPedidos {
+  DIA
+  TUDO
+}
+
 model ConfigTelaPedidos {
+  id            String                   @id @default("default")
+  hash          String
+  visualizacao  VisualizacaoTelaPedidos  @default(DIA)
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+
+  @@map("config_tela_pedidos")
+}
+
+model ConfigCozinha {
   id        String   @id @default("default")
-  hash      String
+  ativa     Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@map("config_tela_pedidos")
+  @@map("config_cozinha")
 }
 
 model CheckoutSessao {
