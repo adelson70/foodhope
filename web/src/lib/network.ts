@@ -1,5 +1,9 @@
 import axios from 'axios';
 
+import { isAppOffline } from './conectividade';
+
+const GATEWAY_STATUSES = new Set([502, 503, 504]);
+
 export function isNetworkFailure(error: unknown): boolean {
   if (!navigator.onLine) return true;
 
@@ -9,9 +13,16 @@ export function isNetworkFailure(error: unknown): boolean {
     return true;
   }
 
+  const status = error.response?.status;
+  if (status != null && GATEWAY_STATUSES.has(status)) {
+    return true;
+  }
+
   return !error.response;
 }
 
 export function isOfflineNow(): boolean {
-  return typeof navigator !== 'undefined' && navigator.onLine === false;
+  return isAppOffline();
 }
+
+export { isAppOffline } from './conectividade';

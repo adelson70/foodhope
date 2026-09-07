@@ -9,6 +9,9 @@
   "lang": "pt-BR",
   "start_url": "/login?utm_source=pwa-admin",
   "scope": "/",
+  "launch_handler": {
+    "client_mode": ["navigate-existing", "auto"]
+  },
   "icons": [
     {
       "src": "/logo.svg",

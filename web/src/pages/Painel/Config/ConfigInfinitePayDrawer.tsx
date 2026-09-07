@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Check, Copy } from 'lucide-react';
 
 import { Button, Drawer, Input, Label, Loading } from '../../../components/ui';
+import { isOfflineNow } from '../../../lib/network';
 import {
   infinitepaySchema,
   type InfinitePayFormValues,
@@ -55,9 +56,16 @@ export function ConfigInfinitePayDrawer({
     if (!open) return;
 
     let cancelled = false;
-    setLoading(true);
     setErro(null);
     setTestadoOk(false);
+
+    if (isOfflineNow()) {
+      setLoading(false);
+      setErro('InfinitePay indisponível offline.');
+      return;
+    }
+
+    setLoading(true);
 
     infinitepayService
       .obter()

@@ -4,6 +4,7 @@ import { Ban, CheckCircle2, LogOut, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button, ConfirmDialog, Skeleton } from '../../../components/ui';
 import { useDeferredLoading } from '../../../hooks/useDeferredLoading';
 import { cn } from '../../../lib/cn';
+import { isOfflineNow } from '../../../lib/network';
 import { getApiErrorMensagens, operadorService } from '../../../services';
 import type { Operador, RoleOperador } from '../../../services/types';
 import { useSessao } from '../../../routes/sessao';
@@ -29,6 +30,13 @@ export function ConfigUsuarios() {
   const showSkeleton = useDeferredLoading(loading);
 
   const carregar = useCallback(async () => {
+    if (isOfflineNow()) {
+      setLoading(false);
+      setErro('Usuários indisponíveis offline.');
+      setUsuarios([]);
+      return;
+    }
+
     setLoading(true);
     setErro(null);
     try {

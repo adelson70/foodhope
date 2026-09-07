@@ -4,6 +4,7 @@ import { ChevronRight, Layers, Plus } from 'lucide-react';
 
 import { useDeferredLoading } from '../../../hooks/useDeferredLoading';
 import { cn } from '../../../lib/cn';
+import { isOfflineNow } from '../../../lib/network';
 import { cozinhaService, getApiErrorMensagens } from '../../../services';
 import { Skeleton } from '../../../components/ui';
 import { ConfigBackLink } from './ConfigBackLink';
@@ -19,6 +20,12 @@ export function ConfigCozinha() {
     let cancelled = false;
 
     void (async () => {
+      if (isOfflineNow()) {
+        setErro('Operação da cozinha indisponível offline.');
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setErro(null);
       try {

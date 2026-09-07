@@ -1,17 +1,18 @@
+import { FoodHopeMark } from '../brand/FoodHopeLogo';
 import { cn } from '../../lib/cn';
 
 type LoadingProps = {
   label?: string;
   fullScreen?: boolean;
   className?: string;
-  dotClassName?: string;
+  markClassName?: string;
 };
 
 export function Loading({
   label = 'Carregando',
   fullScreen = false,
   className,
-  dotClassName,
+  markClassName,
 }: LoadingProps) {
   return (
     <div
@@ -24,12 +25,11 @@ export function Loading({
       aria-busy="true"
       aria-label={label}
     >
-      <span
-        className={cn(
-          'size-8 animate-pulse rounded-full bg-primary shadow-primary-glow',
-          dotClassName,
-        )}
-      />
+      <span className="loading-logo text-primary">
+        <FoodHopeMark
+          className={cn(fullScreen ? 'size-16' : 'size-12', markClassName)}
+        />
+      </span>
     </div>
   );
 }

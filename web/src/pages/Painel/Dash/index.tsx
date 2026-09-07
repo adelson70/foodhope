@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useDeferredLoading } from '../../../hooks/useDeferredLoading';
+import { useOnReconnect } from '../../../hooks/useOnReconnect';
 import { PULL_REFRESH_EVENT } from '../../../hooks/usePullToRefresh';
+import { isOfflineNow } from '../../../lib/network';
 import { dashService, getApiErrorMensagens } from '../../../services';
 import type { DashDados } from '../../../services/types';
 import { DashCharts } from './DashCharts';
@@ -19,6 +21,15 @@ export function Dash() {
 
   const carregar = useCallback(async () => {
     const requestId = ++requestIdRef.current;
+
+    if (isOfflineNow()) {
+      if (requestId !== requestIdRef.current) return;
+      setLoading(false);
+      setErro('Dashboard indisponível offline.');
+      setDados(null);
+      return;
+    }
+
     setLoading(true);
     setErro(null);
 
@@ -33,6 +44,11 @@ export function Dash() {
       setDados(response.dados);
     } catch (error: unknown) {
       if (requestId !== requestIdRef.current) return;
+      if (isOfflineNow()) {
+        setErro('Dashboard indisponível offline.');
+        setDados(null);
+        return;
+      }
       const mensagens = getApiErrorMensagens(error);
       setErro(mensagens[0] ?? 'Não foi possível carregar o dashboard.');
       setDados(null);
@@ -44,6 +60,10 @@ export function Dash() {
   useEffect(() => {
     void carregar();
   }, [carregar]);
+
+  useOnReconnect(() => {
+    void carregar();
+  });
 
   useEffect(() => {
     function onPullRefresh() {

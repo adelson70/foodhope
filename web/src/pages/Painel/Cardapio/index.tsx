@@ -4,7 +4,10 @@ import { ConfirmDialog } from '../../../components/ui';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { useDeferredLoading } from '../../../hooks/useDeferredLoading';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
+import { useOnReconnect } from '../../../hooks/useOnReconnect';
 import { PULL_REFRESH_EVENT } from '../../../hooks/usePullToRefresh';
+import { obterCardapioOperador, salvarCardapioOperador } from '../../../lib/cardapioOperador';
+import { isNetworkFailure, isOfflineNow } from '../../../lib/network';
 import {
   getApiErrorMensagens,
   produtoService,
@@ -37,6 +40,29 @@ export function Cardapio() {
   const nextCursorRef = useRef<string | null>(null);
 
   const carregar = useCallback(async (termo: string) => {
+    if (isOfflineNow()) {
+      if (termo) {
+        setProdutos([]);
+        setErro('Busca indisponível offline.');
+        setLoading(false);
+        setHasNextPage(false);
+        nextCursorRef.current = null;
+        return;
+      }
+      const cache = await obterCardapioOperador();
+      if (cache?.produtos?.length) {
+        setProdutos(cache.produtos);
+        setErro(null);
+      } else {
+        setProdutos([]);
+        setErro('Abra online uma vez para sincronizar o cardápio.');
+      }
+      setLoading(false);
+      setHasNextPage(false);
+      nextCursorRef.current = null;
+      return;
+    }
+
     setLoading(true);
     setErro(null);
     setHasNextPage(false);
@@ -63,7 +89,21 @@ export function Cardapio() {
       setProdutos(response.dados.data ?? []);
       setHasNextPage(response.dados.meta.hasNextPage);
       nextCursorRef.current = response.dados.meta.nextCursor;
+      void salvarCardapioOperador(response.dados.data ?? []);
     } catch (error: unknown) {
+      if (isNetworkFailure(error)) {
+        const cache = await obterCardapioOperador();
+        if (cache?.produtos?.length) {
+          setProdutos(cache.produtos);
+          setErro(null);
+        } else {
+          setProdutos([]);
+          setErro('Abra online uma vez para sincronizar o cardápio.');
+        }
+        setHasNextPage(false);
+        nextCursorRef.current = null;
+        return;
+      }
       const mensagens = getApiErrorMensagens(error);
       setErro(mensagens[0] ?? 'Não foi possível carregar os produtos.');
       setProdutos([]);
@@ -104,6 +144,10 @@ export function Cardapio() {
   useEffect(() => {
     void carregar(busca);
   }, [busca, carregar]);
+
+  useOnReconnect(() => {
+    void carregar(buscaRef.current);
+  });
 
   useEffect(() => {
     function onPullRefresh() {

@@ -15,6 +15,7 @@ import {
   impressoraSchema,
   type ImpressoraFormValues,
 } from '../../../schemas/impressora.schema';
+import { isOfflineNow } from '../../../lib/network';
 import { getApiErrorMensagens, impressoraService } from '../../../services';
 import type { PortaImpressora } from '../../../services/types';
 
@@ -69,10 +70,17 @@ export function ConfigImpressoraDrawer({
     if (!open) return;
 
     let cancelled = false;
-    setLoading(true);
     setErro(null);
     setTestadoOk(false);
     setPortas([]);
+
+    if (isOfflineNow()) {
+      setLoading(false);
+      setErro('Impressora indisponível offline.');
+      return;
+    }
+
+    setLoading(true);
 
     Promise.all([impressoraService.obter(), impressoraService.listarPortas()])
       .then(([configResponse, portasResponse]) => {

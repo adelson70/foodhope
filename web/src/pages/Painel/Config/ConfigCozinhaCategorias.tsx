@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 
 import { Button, ConfirmDialog, Skeleton } from '../../../components/ui';
 import { useDeferredLoading } from '../../../hooks/useDeferredLoading';
+import { isOfflineNow } from '../../../lib/network';
 import {
   categoriaService,
   getApiErrorMensagens,
@@ -23,6 +24,13 @@ export function ConfigCozinhaCategorias() {
   const showSkeleton = useDeferredLoading(loading);
 
   const carregar = useCallback(async () => {
+    if (isOfflineNow()) {
+      setLoading(false);
+      setErro('Categorias indisponíveis offline.');
+      setCategorias([]);
+      return;
+    }
+
     setLoading(true);
     setErro(null);
     try {

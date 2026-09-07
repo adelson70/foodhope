@@ -5,8 +5,13 @@ import {
   notificarFalhaSync,
   sincronizarPedidoOutboxItem,
 } from '../lib/criarPedidoComOutbox';
-import { getToken } from '../services/cookie';
+import {
+  initConectividade,
+  isAppOffline,
+  subscribeConectividade,
+} from '../lib/conectividade';
 import { isNetworkFailure, isOfflineNow } from '../lib/network';
+import { getToken } from '../services/cookie';
 import { notifySuccess } from '../services/notify';
 import {
   atualizarPedidoOutbox,
@@ -17,27 +22,21 @@ import {
   type PedidoOutboxItem,
 } from '../lib/pedidoOutbox';
 
-export function useOnlineStatus() {
-  const [online, setOnline] = useState(
-    () => typeof navigator === 'undefined' || navigator.onLine,
-  );
+export function useAppOffline() {
+  const [offline, setOffline] = useState(() => isAppOffline());
 
   useEffect(() => {
-    function onOnline() {
-      setOnline(true);
-    }
-    function onOffline() {
-      setOnline(false);
-    }
-    window.addEventListener('online', onOnline);
-    window.addEventListener('offline', onOffline);
-    return () => {
-      window.removeEventListener('online', onOnline);
-      window.removeEventListener('offline', onOffline);
-    };
+    initConectividade();
+    return subscribeConectividade(() => {
+      setOffline(isAppOffline());
+    });
   }, []);
 
-  return online;
+  return offline;
+}
+
+export function useOnlineStatus() {
+  return !useAppOffline();
 }
 
 export function usePedidoOutboxItems() {

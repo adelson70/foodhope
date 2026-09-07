@@ -6,6 +6,7 @@ import {
   usePullToRefresh,
   type PullToRefreshState,
 } from './usePullToRefresh';
+import { liberarRetryApi } from '../lib/conectividade';
 import { getToken } from '../services/cookie';
 import { queryClient } from '../services/queryClient';
 
@@ -14,6 +15,7 @@ export function useAppPullToRefresh(
   enabled = true,
 ): PullToRefreshState {
   const onRefresh = useCallback(async () => {
+    liberarRetryApi();
     if (getToken()) {
       await flushPedidoOutbox();
     }

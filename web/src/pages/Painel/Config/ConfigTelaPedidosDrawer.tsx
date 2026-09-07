@@ -11,6 +11,7 @@ import {
 } from '../../../components/ui';
 import { cn } from '../../../lib/cn';
 import { urlTelaPedidosCompleta } from '../../../lib/abrirTelaPedidos';
+import { isOfflineNow } from '../../../lib/network';
 import {
   getApiErrorMensagens,
   notifyError,
@@ -60,8 +61,16 @@ export function ConfigTelaPedidosDrawer({
     if (!open) return;
 
     let cancelled = false;
-    setLoading(true);
     setErro(null);
+
+    if (isOfflineNow()) {
+      setLoading(false);
+      setConfig(null);
+      setErro('Tela de pedidos indisponível offline.');
+      return;
+    }
+
+    setLoading(true);
 
     telaPedidosService
       .obter()

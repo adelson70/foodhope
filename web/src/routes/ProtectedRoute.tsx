@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 
 import { Loading } from '../components/ui';
+import { useOnReconnect } from '../hooks/useOnReconnect';
+import { useAppOffline } from '../hooks/usePedidoOutboxSync';
+import { isAppOffline, marcarApiInalcancavel } from '../lib/conectividade';
 import { isNetworkFailure } from '../lib/network';
 import {
   obterSessaoOperador,
@@ -18,12 +21,28 @@ type ProtectedRouteProps = {
   allow?: RoleOperador[];
 };
 
+function operadorDoCache(cache: {
+  id: string;
+  nome: string;
+  role: RoleOperador;
+  ativo: boolean;
+}): Operador {
+  return {
+    id: cache.id,
+    nome: cache.nome,
+    role: cache.role,
+    ativo: cache.ativo,
+  };
+}
+
 export function ProtectedRoute({ allow }: ProtectedRouteProps) {
+  const appOffline = useAppOffline();
   const [status, setStatus] = useState<GuardStatus>(() =>
     getToken() ? 'checking' : 'denied',
   );
   const [operador, setOperador] = useState<Operador | null>(null);
   const [offlineSessao, setOfflineSessao] = useState(false);
+  const bootFeitoRef = useRef(false);
 
   useEffect(() => {
     if (!getToken()) {
@@ -33,46 +52,87 @@ export function ProtectedRoute({ allow }: ProtectedRouteProps) {
 
     let cancelled = false;
 
-    setStatus('checking');
+    void (async () => {
+      const cache = await obterSessaoOperador();
+      if (cancelled) return;
 
-    authService
-      .me()
-      .then(async (response) => {
+      if (isAppOffline()) {
+        if (cache && getToken()) {
+          setOperador(operadorDoCache(cache));
+          setOfflineSessao(true);
+          setStatus('ok');
+          bootFeitoRef.current = true;
+          return;
+        }
+        setStatus('denied');
+        return;
+      }
+
+      if (cache && getToken()) {
+        setOperador(operadorDoCache(cache));
+        setOfflineSessao(false);
+        setStatus('ok');
+      } else {
+        setStatus('checking');
+      }
+
+      try {
+        const response = await authService.me();
         if (cancelled) return;
         if (response.sucesso && response.dados) {
           await salvarSessaoOperador(response.dados);
           setOperador(response.dados);
           setOfflineSessao(false);
           setStatus('ok');
+          bootFeitoRef.current = true;
           return;
         }
-        setStatus('denied');
-      })
-      .catch(async (error: unknown) => {
+        if (!cache) setStatus('denied');
+      } catch (error: unknown) {
         if (cancelled) return;
 
         if (isNetworkFailure(error)) {
-          const cache = await obterSessaoOperador();
+          marcarApiInalcancavel();
           if (cache && getToken()) {
-            setOperador({
-              id: cache.id,
-              nome: cache.nome,
-              role: cache.role,
-              ativo: cache.ativo,
-            });
+            setOperador(operadorDoCache(cache));
             setOfflineSessao(true);
             setStatus('ok');
+            bootFeitoRef.current = true;
             return;
           }
         }
 
         setStatus('denied');
-      });
+      } finally {
+        bootFeitoRef.current = true;
+      }
+    })();
 
     return () => {
       cancelled = true;
     };
   }, []);
+
+  useOnReconnect(() => {
+    if (!bootFeitoRef.current || !getToken()) return;
+
+    void authService
+      .me()
+      .then(async (response) => {
+        if (response.sucesso && response.dados) {
+          await salvarSessaoOperador(response.dados);
+          setOperador(response.dados);
+          setOfflineSessao(false);
+          setStatus('ok');
+        }
+      })
+      .catch((error: unknown) => {
+        if (isNetworkFailure(error)) {
+          marcarApiInalcancavel();
+          setOfflineSessao(true);
+        }
+      });
+  });
 
   if (status === 'denied') {
     return <Navigate to="/login" replace />;
@@ -91,7 +151,7 @@ export function ProtectedRoute({ allow }: ProtectedRouteProps) {
   const context: SessaoContext = {
     operador,
     role: operador.role,
-    offline: offlineSessao,
+    offline: offlineSessao || appOffline,
   };
 
   return <Outlet context={context} />;

@@ -26,7 +26,7 @@ import {
   obterCardapioOperador,
   salvarCardapioOperador,
 } from '../../../lib/cardapioOperador';
-import { isNetworkFailure } from '../../../lib/network';
+import { isNetworkFailure, isOfflineNow } from '../../../lib/network';
 import type {
   Pedido,
   Produto,
@@ -90,36 +90,52 @@ export function PedidoCriarDrawer({
     setProdutosLoading(true);
     setProdutosErro(null);
 
-    produtoService
-      .listar({ limit: 100 })
-      .then(async (response) => {
+    void (async () => {
+      const cache = await obterCardapioOperador();
+      if (cancelled) return;
+
+      if (cache?.produtos?.length) {
+        setProdutos(cache.produtos);
+        setProdutosLoading(false);
+      }
+
+      if (isOfflineNow()) {
+        if (!cache?.produtos?.length) {
+          setProdutos([]);
+          setProdutosErro(
+            'Abra online uma vez para sincronizar o cardápio.',
+          );
+        }
+        setProdutosLoading(false);
+        return;
+      }
+
+      try {
+        const response = await produtoService.listar({ limit: 100 });
         if (cancelled) return;
         if (!response.sucesso || !response.dados) {
-          const cache = await obterCardapioOperador();
-          if (cache?.produtos?.length) {
-            setProdutos(cache.produtos);
-            setProdutosErro(null);
-            return;
+          if (!cache?.produtos?.length) {
+            setProdutosErro('Não foi possível carregar o cardápio.');
+            setProdutos([]);
           }
-          setProdutosErro('Não foi possível carregar o cardápio.');
-          setProdutos([]);
           return;
         }
         const lista = response.dados.data ?? [];
         setProdutos(lista);
+        setProdutosErro(null);
         void salvarCardapioOperador(lista);
-      })
-      .catch(async (error: unknown) => {
+      } catch (error: unknown) {
         if (cancelled) return;
-        const cache = await obterCardapioOperador();
-        if (cache?.produtos?.length && isNetworkFailure(error)) {
+        if (cache?.produtos?.length) {
           setProdutos(cache.produtos);
           setProdutosErro(null);
           return;
         }
-        if (cache?.produtos?.length) {
-          setProdutos(cache.produtos);
-          setProdutosErro(null);
+        if (isNetworkFailure(error)) {
+          setProdutosErro(
+            'Abra online uma vez para sincronizar o cardápio.',
+          );
+          setProdutos([]);
           return;
         }
         const mensagens = getApiErrorMensagens(error);
@@ -128,10 +144,10 @@ export function PedidoCriarDrawer({
             'Abra online uma vez para sincronizar o cardápio.',
         );
         setProdutos([]);
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setProdutosLoading(false);
-      });
+      }
+    })();
 
     return () => {
       cancelled = true;

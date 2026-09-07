@@ -4,6 +4,7 @@ import { ConfirmDialog } from '../../../components/ui';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { useDeferredLoading } from '../../../hooks/useDeferredLoading';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
+import { useOnReconnect } from '../../../hooks/useOnReconnect';
 import {
   usePedidoOutboxItems,
 } from '../../../hooks/usePedidoOutboxSync';
@@ -157,6 +158,10 @@ export function Pedidos() {
   useEffect(() => {
     void carregar(busca, data);
   }, [busca, data, carregar]);
+
+  useOnReconnect(() => {
+    void carregar(buscaRef.current, dataRef.current);
+  });
 
   useEffect(() => {
     function onPullRefresh() {

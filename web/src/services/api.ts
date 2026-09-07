@@ -4,8 +4,13 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from 'axios';
 
-import { clearToken, getToken } from './cookie';
+import {
+  marcarApiAlcancavel,
+  marcarApiInalcancavel,
+} from '../lib/conectividade';
+import { isNetworkFailure } from '../lib/network';
 import { limparSessaoOperador } from '../lib/sessaoOperador';
+import { clearToken, getToken } from './cookie';
 import type { ApiErrorBody, ApiResponse } from './types';
 import {
   clearVisitorSession,
@@ -83,8 +88,15 @@ api.interceptors.request.use(async (config) => {
 });
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    marcarApiAlcancavel();
+    return response;
+  },
   (error: AxiosError<ApiErrorBody>) => {
+    if (isNetworkFailure(error)) {
+      marcarApiInalcancavel();
+    }
+
     if (error.response?.status === 401) {
       const hadToken = Boolean(getToken());
 

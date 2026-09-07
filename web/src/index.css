@@ -366,3 +366,24 @@
     stroke-dashoffset: 0;
   }
 }
+
+.loading-logo {
+  display: inline-flex;
+  animation: loading-logo-breathe 1.6s ease-in-out infinite;
+  will-change: transform, opacity, filter;
+}
+
+@keyframes loading-logo-breathe {
+  0%,
+  100% {
+    opacity: 0.28;
+    transform: scale(0.9);
+    filter: drop-shadow(0 0 4px color-mix(in srgb, var(--color-primary) 12%, transparent));
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
+    filter: drop-shadow(0 0 18px color-mix(in srgb, var(--color-primary) 45%, transparent));
+  }
+}

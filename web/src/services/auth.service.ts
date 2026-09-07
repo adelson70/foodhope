@@ -54,7 +54,9 @@ export const authService = {
   },
 
   async me(): Promise<ApiResponse<Operador>> {
-    const response = await request(api.get<ApiResponse<Operador>>('/auth/me'));
+    const response = await request(
+      api.get<ApiResponse<Operador>>('/auth/me', { timeout: 3000 }),
+    );
     if (response.sucesso && response.dados) {
       await salvarSessaoOperador(response.dados);
     }

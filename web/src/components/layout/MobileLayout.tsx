@@ -5,6 +5,7 @@ import { useAppPullToRefresh } from '../../hooks/useAppPullToRefresh';
 import { usePedidoOutboxSync } from '../../hooks/usePedidoOutboxSync';
 import { useScrollFocusedIntoView } from '../../hooks/useScrollFocusedIntoView';
 import { cn } from '../../lib/cn';
+import { isAppOffline } from '../../lib/conectividade';
 import { isNetworkFailure } from '../../lib/network';
 import { markScrollRoot } from '../../lib/scrollLock';
 import {
@@ -56,30 +57,44 @@ export function MobileAppLayout() {
     setVisitorErro(null);
 
     if (getToken()) {
-      authService
-        .me()
-        .then((response) => {
+      void (async () => {
+        const cache = await obterSessaoOperador();
+        if (cancelled) return;
+
+        if (cache?.role === 'TOTEM') {
+          setIsTotem(true);
+        }
+
+        if (isAppOffline()) {
+          await hydrate();
+          if (!cancelled) setVisitorReady(true);
+          return;
+        }
+
+        try {
+          const response = await authService.me();
           if (cancelled) return;
           setIsTotem(response.dados?.role === 'TOTEM');
           if (response.dados) {
             void salvarSessaoOperador(response.dados);
           }
-        })
-        .catch(async (error: unknown) => {
+        } catch (error: unknown) {
           if (cancelled) return;
           if (isNetworkFailure(error)) {
-            const cache = await obterSessaoOperador();
-            if (cache?.role === 'TOTEM' && getToken()) {
+            const sessao = cache ?? (await obterSessaoOperador());
+            if (sessao?.role === 'TOTEM' && getToken()) {
               setIsTotem(true);
-              return;
+            } else {
+              setIsTotem(false);
             }
+          } else {
+            setIsTotem(false);
           }
-          setIsTotem(false);
-        })
-        .finally(async () => {
+        } finally {
           await hydrate();
           if (!cancelled) setVisitorReady(true);
-        });
+        }
+      })();
 
       return () => {
         cancelled = true;

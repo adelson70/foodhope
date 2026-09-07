@@ -121,6 +121,7 @@ const DISPOSITIVO_RE =
   /^(?:\/dev\/(?:usb\/)?lp\d+|\/dev\/tty(?:USB|ACM)\d+|\/dev\/serial\/by-id\/[A-Za-z0-9._+-]+|COM\d+)$/i;
 
 const LINHAS_ANTES_DO_CORTE = 5;
+const LINHAS_DEPOIS_DO_CORTE = 3;
 
 const COMANDO_FORCAR_ESCPOS = Buffer.from([
   0x1d,
@@ -138,6 +139,7 @@ const COMANDO_CORTE = Buffer.from([
   ...Array<number>(LINHAS_ANTES_DO_CORTE).fill(0x0a),
   0x1b,
   0x69,
+  ...Array<number>(LINHAS_DEPOIS_DO_CORTE).fill(0x0a),
 ]);
 type DestinoImpressora =
   | { tipo: 'rede'; ip: string }

@@ -189,7 +189,7 @@ export function PedidoProdutoDrawer({
           {loading ? (
             <Loading
               className="min-h-16 py-0"
-              dotClassName="size-6"
+              markClassName="size-8"
               label="Carregando produtos"
             />
           ) : null}

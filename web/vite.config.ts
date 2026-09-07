@@ -28,8 +28,11 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      injectRegister: false,
       devOptions: {
         enabled: false,
       },
@@ -53,6 +56,9 @@ export default defineConfig({
         lang: 'pt-BR',
         start_url: '/?utm_source=pwa',
         scope: '/',
+        launch_handler: {
+          client_mode: ['navigate-existing', 'auto'],
+        },
         icons: [iconAny, iconMaskable],
         shortcuts: [
           {
@@ -78,11 +84,8 @@ export default defineConfig({
           },
         ],
       },
-      workbox: {
-        navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api/],
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,svg,png,webp,woff2,webmanifest}'],
-        runtimeCaching: [],
       },
     }),
   ],
