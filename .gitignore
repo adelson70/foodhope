@@ -1,6 +1,9 @@
 web/node_modules
 api/node_modules
+.env
 */.env
+deploy/cloudflared/.env
 api/generated
 */dist
 .cursor
+.venv-ssh

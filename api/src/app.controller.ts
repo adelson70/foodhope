@@ -11,7 +11,13 @@ export class AppController {
   @Public()
   redirect(@Res() res: Response) {
     const targetUrl = process.env.APP || 'https://www.google.com';
-    
+
     return res.redirect(targetUrl);
+  }
+
+  @Get('health')
+  @Public()
+  health() {
+    return { status: 'ok' };
   }
 }

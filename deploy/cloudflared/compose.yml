@@ -1,0 +1,25 @@
+name: cloudflared
+
+services:
+  cloudflared-web:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN_WEB:?TUNNEL_TOKEN_WEB is required}
+    networks:
+      - edge
+
+  cloudflared-api:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN_API:?TUNNEL_TOKEN_API is required}
+    networks:
+      - edge
+
+networks:
+  edge:
+    name: foodhope_edge
+    external: true

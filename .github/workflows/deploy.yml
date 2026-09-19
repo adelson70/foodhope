@@ -1,0 +1,392 @@
+name: Deploy
+run-name: ${{ github.event.head_commit.message || 'Deploy manual' }}
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "DEPLOY.md"
+      - "DEPLOY_CHECKLIST.md"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  API_IMAGE_NAME: ${{ github.repository }}/api
+  WEB_IMAGE_NAME: ${{ github.repository }}/web
+  APP_DIR: /home/hope/apps/foodhope
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      web: ${{ steps.filter.outputs.web }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Paths filter
+        id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            api:
+              - 'api/**'
+              - 'docker-bake.hcl'
+              - 'compose.production.yml'
+            web:
+              - 'web/**'
+              - 'docker-bake.hcl'
+              - 'compose.production.yml'
+
+  migrate:
+    name: Migrations (deploy only)
+    needs: [changes]
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.api == 'true' }}
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: foodhope
+          POSTGRES_PASSWORD: foodhope
+          POSTGRES_DB: foodhope
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U foodhope -d foodhope"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: api
+    env:
+      DATABASE_URL: postgresql://foodhope:foodhope@localhost:5432/foodhope
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Guardrail — sem comandos destrutivos
+        run: |
+          set -e
+          if grep -nE \
+            -e 'prisma[[:space:]]+migrate[[:space:]]+reset' \
+            -e 'prisma[[:space:]]+db[[:space:]]+push' \
+            -e 'prisma[[:space:]]+migrate[[:space:]]+dev' \
+            -e 'accept-data-loss' \
+            docker-entrypoint.sh Dockerfile; then
+            echo "Comando Prisma destrutivo ou de desenvolvimento encontrado no boot/imagem." >&2
+            exit 1
+          fi
+          echo "Guardrail OK: apenas migrate deploy permitido no boot."
+
+      - name: Prisma generate
+        run: npx prisma generate
+
+      - name: Prisma migrate deploy
+        run: npx prisma migrate deploy
+
+      - name: Prisma migrate status
+        run: npx prisma migrate status
+
+  ci-api:
+    name: Lint API
+    needs: [changes]
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.api == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install API dependencies
+        working-directory: api
+        run: npm ci
+
+      - name: Generate Prisma client
+        working-directory: api
+        env:
+          DATABASE_URL: postgresql://build:build@127.0.0.1:5432/build
+        run: npx prisma generate
+
+      - name: Lint API
+        working-directory: api
+        run: npm run lint
+
+  ci-web:
+    name: Lint Web
+    needs: [changes]
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.web == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install Web dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Lint Web
+        working-directory: web
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL || 'https://foodhope-api.abjr.dev' }}
+          VITE_SITE_URL: ${{ vars.VITE_SITE_URL || 'https://foodhope.abjr.dev' }}
+        run: npm run lint
+
+  build-api:
+    name: Build API image
+    needs: [changes, migrate]
+    if: ${{ always() && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.api == 'true') && needs.migrate.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Bake and push API
+        uses: docker/bake-action@v6
+        with:
+          files: ./docker-bake.hcl
+          targets: api
+          push: true
+          provenance: false
+        env:
+          SHA: ${{ github.sha }}
+          API_IMAGE: ${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}
+
+  build-web:
+    name: Build Web image
+    needs: [changes]
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.web == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve VITE_API_URL
+        id: vite
+        run: echo "url=${VITE_API_URL_VALUE:-https://foodhope-api.abjr.dev}" >> "$GITHUB_OUTPUT"
+        env:
+          VITE_API_URL_VALUE: ${{ vars.VITE_API_URL }}
+
+      - name: Resolve VITE_SITE_URL
+        id: site
+        run: echo "url=${VITE_SITE_URL_VALUE:-https://foodhope.abjr.dev}" >> "$GITHUB_OUTPUT"
+        env:
+          VITE_SITE_URL_VALUE: ${{ vars.VITE_SITE_URL }}
+
+      - name: Bake and push Web
+        uses: docker/bake-action@v6
+        with:
+          files: ./docker-bake.hcl
+          targets: web
+          push: true
+          provenance: false
+        env:
+          SHA: ${{ github.sha }}
+          WEB_IMAGE: ${{ env.REGISTRY }}/${{ env.WEB_IMAGE_NAME }}
+          VITE_API_URL: ${{ steps.vite.outputs.url }}
+          VITE_SITE_URL: ${{ steps.site.outputs.url }}
+
+  deploy-api:
+    name: Deploy API
+    needs: [ci-api, build-api, migrate]
+    if: ${{ always() && needs.ci-api.result == 'success' && needs.build-api.result == 'success' && needs.migrate.result == 'success' }}
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull, up and verify API
+        env:
+          IMAGE_SHA: ${{ github.sha }}
+          REGISTRY: ${{ env.REGISTRY }}
+          REPOSITORY: ${{ github.repository }}
+          APP_DIR: ${{ env.APP_DIR }}
+          API_URL: ${{ vars.HEALTHCHECK_API_URL || 'https://foodhope-api.abjr.dev/health' }}
+        run: |
+          set -euo pipefail
+          cd "$APP_DIR"
+
+          API_IMAGE="${REGISTRY}/${REPOSITORY}/api:${IMAGE_SHA}"
+
+          touch .env
+          grep -vE '^API_IMAGE=' .env > .env.tmp || true
+          mv .env.tmp .env
+          printf 'API_IMAGE=%s\n' "$API_IMAGE" >> .env
+
+          if [ -f .current-sha-api ]; then
+            cp .current-sha-api .previous-sha-api
+          fi
+          echo "${IMAGE_SHA}" > .current-sha-api
+
+          if [ -f "${GITHUB_WORKSPACE}/compose.production.yml" ]; then
+            cp "${GITHUB_WORKSPACE}/compose.production.yml" ./compose.production.yml
+          fi
+
+          docker compose -f compose.production.yml pull api
+          docker compose -f compose.production.yml up -d --no-deps --remove-orphans api
+
+          echo "Aguardando healthcheck local da API..."
+          for i in $(seq 1 60); do
+            API_OK=$(docker compose -f compose.production.yml ps | grep -E 'api' | grep -ci healthy || true)
+            if [ "${API_OK}" -ge 1 ]; then
+              echo "API saudável."
+              break
+            fi
+            if [ "$i" -eq 60 ]; then
+              echo "Healthcheck local da API falhou."
+              docker compose -f compose.production.yml ps
+              docker compose -f compose.production.yml logs --tail=120 api
+              exit 1
+            fi
+            sleep 2
+          done
+
+          echo "Checando ${API_URL}"
+          for i in $(seq 1 40); do
+            if curl -fsS -o /dev/null "$API_URL"; then
+              echo "API pública OK."
+              exit 0
+            fi
+            if [ "$i" -eq 40 ]; then
+              echo "API healthcheck público falhou"
+              exit 1
+            fi
+            sleep 3
+          done
+
+  deploy-web:
+    name: Deploy Web
+    needs: [ci-web, build-web]
+    if: ${{ always() && needs.ci-web.result == 'success' && needs.build-web.result == 'success' }}
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull, up and verify Web
+        env:
+          IMAGE_SHA: ${{ github.sha }}
+          REGISTRY: ${{ env.REGISTRY }}
+          REPOSITORY: ${{ github.repository }}
+          APP_DIR: ${{ env.APP_DIR }}
+          WEB_URL: ${{ vars.HEALTHCHECK_WEB_URL || 'https://foodhope.abjr.dev/' }}
+        run: |
+          set -euo pipefail
+          cd "$APP_DIR"
+
+          WEB_IMAGE="${REGISTRY}/${REPOSITORY}/web:${IMAGE_SHA}"
+
+          touch .env
+          grep -vE '^WEB_IMAGE=' .env > .env.tmp || true
+          mv .env.tmp .env
+          printf 'WEB_IMAGE=%s\n' "$WEB_IMAGE" >> .env
+
+          if [ -f .current-sha-web ]; then
+            cp .current-sha-web .previous-sha-web
+          fi
+          echo "${IMAGE_SHA}" > .current-sha-web
+
+          if [ -f "${GITHUB_WORKSPACE}/compose.production.yml" ]; then
+            cp "${GITHUB_WORKSPACE}/compose.production.yml" ./compose.production.yml
+          fi
+
+          docker compose -f compose.production.yml pull web
+          docker compose -f compose.production.yml up -d --no-deps --remove-orphans web
+
+          echo "Aguardando healthcheck local do Web..."
+          for i in $(seq 1 60); do
+            WEB_OK=$(docker compose -f compose.production.yml ps | grep -E 'web' | grep -ci healthy || true)
+            if [ "${WEB_OK}" -ge 1 ]; then
+              echo "Web saudável."
+              break
+            fi
+            if [ "$i" -eq 60 ]; then
+              echo "Healthcheck local do Web falhou."
+              docker compose -f compose.production.yml ps
+              docker compose -f compose.production.yml logs --tail=120 web
+              exit 1
+            fi
+            sleep 2
+          done
+
+          echo "Checando ${WEB_URL}"
+          for i in $(seq 1 40); do
+            if curl -fsS -o /dev/null "$WEB_URL"; then
+              echo "Web pública OK."
+              exit 0
+            fi
+            if [ "$i" -eq 40 ]; then
+              echo "Web healthcheck público falhou"
+              exit 1
+            fi
+            sleep 3
+          done

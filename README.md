@@ -27,18 +27,22 @@ Demonstração da plataforma em uso:
 
 - **API** (`api/`): NestJS + Prisma + PostgreSQL, Redis/BullMQ, autenticação JWT, WebSocket (Socket.IO) e impressão térmica ESC/POS.
 - **Web** (`web/`): Vite + React + Tailwind CSS v4, React Query, Zustand e Recharts.
-- **Infra** (`docker/`): Docker Compose (postgres, redis, api, web) e Cloudflare Tunnel para exposição HTTPS.
+- **Infra local** (`docker/`): Docker Compose (postgres, redis, api, web) e Cloudflare Tunnel (`--profile tunnel`).
+- **Produção**: ver [`DEPLOY.md`](DEPLOY.md) — GHCR + self-hosted runner + Cloudflare Tunnel.
 
 ## Estrutura
 
 ```
 foodhope/
-├── api/      # backend NestJS + Prisma
-├── web/      # frontend React (cliente + painel)
-└── docker/   # docker-compose e variáveis de ambiente
+├── api/                      # backend NestJS + Prisma
+├── web/                      # frontend React (cliente + painel)
+├── docker/                   # compose de desenvolvimento
+├── compose.production.yml    # api + web (produção)
+├── deploy/                   # cloudflared + prepare-server
+└── .github/workflows/        # Deploy (bake + self-hosted)
 ```
 
-## Rodando com Docker
+## Rodando com Docker (local)
 
 ```bash
 cd docker
@@ -47,6 +51,8 @@ docker compose up -d
 ```
 
 A API sobe na porta `5000` e o web na porta `80` (configuráveis no `.env`).
+
+Produção e Variables do GitHub: [`DEPLOY.md`](DEPLOY.md) / [`DEPLOY_CHECKLIST.md`](DEPLOY_CHECKLIST.md).
 
 ## Desenvolvimento local
 
