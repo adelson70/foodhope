@@ -144,7 +144,7 @@ export class InfinitePayService {
     const sessao = await this.prismaWrite.checkoutSessao.create({
       data: {
         id: orderNsu,
-        payload: payload,
+        payload: payload as unknown as Prisma.InputJsonValue,
         amountCentavos,
       },
     });

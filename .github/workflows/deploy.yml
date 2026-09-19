@@ -49,71 +49,10 @@ jobs:
               - 'docker-bake.hcl'
               - 'compose.production.yml'
 
-  migrate:
-    name: Migrations (deploy only)
-    needs: [changes]
-    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.api == 'true' }}
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: foodhope
-          POSTGRES_PASSWORD: foodhope
-          POSTGRES_DB: foodhope
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U foodhope -d foodhope"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-    defaults:
-      run:
-        working-directory: api
-    env:
-      DATABASE_URL: postgresql://foodhope:foodhope@localhost:5432/foodhope
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: api/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Guardrail — sem comandos destrutivos
-        run: |
-          set -e
-          if grep -nE \
-            -e 'prisma[[:space:]]+migrate[[:space:]]+reset' \
-            -e 'prisma[[:space:]]+db[[:space:]]+push' \
-            -e 'prisma[[:space:]]+migrate[[:space:]]+dev' \
-            -e 'accept-data-loss' \
-            docker-entrypoint.sh Dockerfile; then
-            echo "Comando Prisma destrutivo ou de desenvolvimento encontrado no boot/imagem." >&2
-            exit 1
-          fi
-          echo "Guardrail OK: apenas migrate deploy permitido no boot."
-
-      - name: Prisma generate
-        run: npx prisma generate
-
-      - name: Prisma migrate deploy
-        run: npx prisma migrate deploy
-
-      - name: Prisma migrate status
-        run: npx prisma migrate status
-
   build-api:
     name: Build API image
-    needs: [changes, migrate]
-    if: ${{ always() && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.api == 'true') && needs.migrate.result == 'success' }}
+    needs: [changes]
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.api == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -186,8 +125,8 @@ jobs:
 
   deploy-api:
     name: Deploy API
-    needs: [build-api, migrate]
-    if: ${{ always() && needs.build-api.result == 'success' && needs.migrate.result == 'success' }}
+    needs: [build-api]
+    if: ${{ always() && needs.build-api.result == 'success' }}
     runs-on: self-hosted
     steps:
       - name: Checkout

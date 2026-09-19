@@ -56,7 +56,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
       // 2. Se o campo FOI ENVIADO, mas quebrou alguma regra de validação (ex: tamanho, formato)
       else if (erro.constraints) {
-        mensagens.push(...Object.values(erro.constraints));
+        mensagens.push(...(Object.values(erro.constraints) as string[]));
       }
 
       // 3. Lida com objetos e listas aninhadas (Sub-DTOs)
