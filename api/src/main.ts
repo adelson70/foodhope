@@ -11,11 +11,10 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true,
   });
-  const log = new Logger()
-  const logger = new Logger("APP");
+  const log = new Logger();
+  const logger = new Logger('APP');
 
   setupSwagger(app);
-
 
   app.enableCors({
     origin: [

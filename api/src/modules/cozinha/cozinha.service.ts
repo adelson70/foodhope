@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 
 import { PrismaReadService } from '../../infra/database/prisma-read.service.js';
 import { PrismaWriteService } from '../../infra/database/prisma-write.service.js';
@@ -82,9 +78,7 @@ export class CozinhaService {
         where: { id: CONFIG_ID },
       });
       if (recriado) return recriado;
-      throw new InternalServerErrorException(
-        'Não foi possível criar a configuração da cozinha.',
-      );
+      throw new InternalServerErrorException('Não foi possível criar a configuração da cozinha.');
     }
   }
 }

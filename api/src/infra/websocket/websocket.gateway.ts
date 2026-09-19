@@ -42,9 +42,7 @@ type SocketUser =
   | { tipo: 'monitor' };
 
 @WebSocketGateway({ cors: { origin: '*' } })
-export class WebsocketGateway
-  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
-{
+export class WebsocketGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
@@ -59,9 +57,7 @@ export class WebsocketGateway
   afterInit(server: Server) {
     server.use(async (socket, next) => {
       try {
-        const monitorHash = socket.handshake.auth?.monitorHash as
-          | string
-          | undefined;
+        const monitorHash = socket.handshake.auth?.monitorHash as string | undefined;
         const tela = socket.handshake.auth?.tela;
 
         if (
@@ -73,10 +69,7 @@ export class WebsocketGateway
             where: { id: 'default' },
           });
 
-          if (
-            !config?.hash ||
-            !hashesTelaPedidosIguais(config.hash, monitorHash.trim())
-          ) {
+          if (!config?.hash || !hashesTelaPedidosIguais(config.hash, monitorHash.trim())) {
             return next(new Error('Acesso negado: Hash do monitor inválido'));
           }
 
@@ -85,8 +78,7 @@ export class WebsocketGateway
         }
 
         const token =
-          socket.handshake.auth?.token ||
-          socket.handshake.headers?.authorization?.split(' ')[1];
+          socket.handshake.auth?.token || socket.handshake.headers?.authorization?.split(' ')[1];
 
         if (token) {
           const payload = await this.jwtService.verifyAsync<{
@@ -115,15 +107,9 @@ export class WebsocketGateway
           return next();
         }
 
-        const visitorId = socket.handshake.auth?.visitorId as
-          | string
-          | undefined;
-        const timestamp = socket.handshake.auth?.timestamp as
-          | string
-          | undefined;
-        const signature = socket.handshake.auth?.signature as
-          | string
-          | undefined;
+        const visitorId = socket.handshake.auth?.visitorId as string | undefined;
+        const timestamp = socket.handshake.auth?.timestamp as string | undefined;
+        const signature = socket.handshake.auth?.signature as string | undefined;
 
         if (!visitorId || !timestamp || !signature) {
           return next(new Error('Acesso negado: Credenciais não fornecidas'));

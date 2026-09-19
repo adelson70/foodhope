@@ -50,10 +50,7 @@ export class CategoriaService {
     } catch (erro) {
       console.error('Erro ao criar categoria:', erro);
 
-      if (
-        erro instanceof Prisma.PrismaClientKnownRequestError &&
-        erro.code === 'P2002'
-      ) {
+      if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2002') {
         throw new BadRequestException('Já existe uma categoria com esse nome.');
       }
 
@@ -89,24 +86,15 @@ export class CategoriaService {
     } catch (erro) {
       console.error('Erro ao editar categoria:', erro);
 
-      if (
-        erro instanceof NotFoundException ||
-        erro instanceof BadRequestException
-      ) {
+      if (erro instanceof NotFoundException || erro instanceof BadRequestException) {
         throw erro;
       }
 
-      if (
-        erro instanceof Prisma.PrismaClientKnownRequestError &&
-        erro.code === 'P2025'
-      ) {
+      if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2025') {
         throw new NotFoundException('Categoria não encontrada.');
       }
 
-      if (
-        erro instanceof Prisma.PrismaClientKnownRequestError &&
-        erro.code === 'P2002'
-      ) {
+      if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2002') {
         throw new BadRequestException('Já existe uma categoria com esse nome.');
       }
 
@@ -116,12 +104,7 @@ export class CategoriaService {
     }
   }
 
-  private async reordenar(
-    id: string,
-    _ordemAtual: number,
-    ordemNova: number,
-    nome?: string,
-  ) {
+  private async reordenar(id: string, _ordemAtual: number, ordemNova: number, nome?: string) {
     const categorias = await this.prismaRead.categoria.findMany({
       orderBy: [{ ordem: 'asc' }, { id: 'asc' }],
     });
@@ -143,9 +126,7 @@ export class CategoriaService {
           where: { id: item.id },
           data: {
             ordem: index,
-            ...(item.id === id && nome !== undefined
-              ? { nome: nome.trim() }
-              : {}),
+            ...(item.id === id && nome !== undefined ? { nome: nome.trim() } : {}),
           },
         }),
       ),
@@ -181,10 +162,7 @@ export class CategoriaService {
     } catch (erro) {
       console.error('Erro ao deletar categoria:', erro);
 
-      if (
-        erro instanceof Prisma.PrismaClientKnownRequestError &&
-        erro.code === 'P2025'
-      ) {
+      if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2025') {
         throw new NotFoundException('Categoria não encontrada.');
       }
 

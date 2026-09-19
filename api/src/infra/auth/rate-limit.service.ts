@@ -6,11 +6,7 @@ import { RedisService } from '../cache/redis.service.js';
 export class RateLimitService {
   constructor(private readonly redis: RedisService) {}
 
-  async consume(
-    key: string,
-    limit: number,
-    windowSeconds: number,
-  ): Promise<void> {
+  async consume(key: string, limit: number, windowSeconds: number): Promise<void> {
     const count = await this.redis.incrWithTtl(key, windowSeconds);
 
     if (count > limit) {

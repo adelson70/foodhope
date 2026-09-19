@@ -68,9 +68,7 @@ export class InfinitePayClient {
 
     if (!url) {
       this.logger.error('Resposta InfinitePay sem URL de checkout', body);
-      throw new InternalServerErrorException(
-        'A InfinitePay não retornou o link de pagamento.',
-      );
+      throw new InternalServerErrorException('A InfinitePay não retornou o link de pagamento.');
     }
 
     return {
@@ -93,9 +91,7 @@ export class InfinitePayClient {
     });
   }
 
-  async verificarPagamento(
-    input: PaymentCheckInput,
-  ): Promise<PaymentCheckResult> {
+  async verificarPagamento(input: PaymentCheckInput): Promise<PaymentCheckResult> {
     const body = await this.postJson('/payment_check', {
       handle: input.handle,
       order_nsu: input.order_nsu,
@@ -151,15 +147,11 @@ export class InfinitePayClient {
       }
 
       if (erro instanceof Error && erro.name === 'AbortError') {
-        throw new InternalServerErrorException(
-          'Tempo esgotado ao falar com a InfinitePay.',
-        );
+        throw new InternalServerErrorException('Tempo esgotado ao falar com a InfinitePay.');
       }
 
       this.logger.error(`Falha ao chamar InfinitePay ${path}`, erro);
-      throw new InternalServerErrorException(
-        'Não foi possível comunicar com a InfinitePay.',
-      );
+      throw new InternalServerErrorException('Não foi possível comunicar com a InfinitePay.');
     } finally {
       clearTimeout(timer);
     }

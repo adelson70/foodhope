@@ -66,8 +66,7 @@ export class EditarProdutoDto {
   ordem?: number;
 
   @ApiProperty({
-    description:
-      'Lista de alterações de adicionais (criar sem id, editar/deletar com id)',
+    description: 'Lista de alterações de adicionais (criar sem id, editar/deletar com id)',
     type: [AdicionalEditarDto],
     required: false,
   })
@@ -87,8 +86,7 @@ export class EditarProdutoDto {
   adicionalGlobalIds?: string[];
 
   @ApiProperty({
-    description:
-      'Lista de alterações de ingredientes (criar sem id, editar/deletar com id)',
+    description: 'Lista de alterações de ingredientes (criar sem id, editar/deletar com id)',
     type: [IngredienteEditarDto],
     required: false,
   })

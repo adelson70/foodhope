@@ -1,10 +1,5 @@
 import { Body, Controller, Get, Post, Put } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiBody,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { ConfigurarImpressoraDto } from './dto/configurar.dto.js';
 import { ImpressoraService } from './impressora.service.js';

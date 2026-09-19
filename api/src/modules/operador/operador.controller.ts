@@ -1,19 +1,5 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Post,
-  Put,
-  Req,
-} from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiBody,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, Param, Post, Put, Req } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { OperadorService } from './operador.service.js';
 import { AtualizarAtivoDto } from './dto/atualizar-ativo.dto.js';
@@ -45,15 +31,8 @@ export class OperadorController {
   @Put(':id')
   @ApiOperation({ summary: 'Edita um usuário (nome, senha e/ou nível)' })
   @ApiBody({ type: EditarOperadorAdminDto })
-  async editar(
-    @Param('id') id: string,
-    @Body() dto: EditarOperadorAdminDto,
-  ) {
-    if (
-      dto.nome === undefined &&
-      dto.senha === undefined &&
-      dto.role === undefined
-    ) {
+  async editar(@Param('id') id: string, @Body() dto: EditarOperadorAdminDto) {
+    if (dto.nome === undefined && dto.senha === undefined && dto.role === undefined) {
       return { mensagem: 'Nada para editar :)' };
     }
 

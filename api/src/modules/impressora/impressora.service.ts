@@ -8,12 +8,7 @@ import {
 } from '@nestjs/common';
 import { readdir, realpath } from 'node:fs/promises';
 import { join } from 'node:path';
-import {
-  BreakLine,
-  CharacterSet,
-  PrinterTypes,
-  ThermalPrinter,
-} from 'node-thermal-printer';
+import { BreakLine, CharacterSet, PrinterTypes, ThermalPrinter } from 'node-thermal-printer';
 
 import { PrismaReadService } from '../../infra/database/prisma-read.service.js';
 import { PrismaWriteService } from '../../infra/database/prisma-write.service.js';
@@ -43,9 +38,7 @@ function escapeRegExp(valor: string) {
 }
 
 function marcaLinha(abre: string, fecha: string) {
-  return new RegExp(
-    `^${escapeRegExp(abre)}(.*)${escapeRegExp(fecha)}$`,
-  );
+  return new RegExp(`^${escapeRegExp(abre)}(.*)${escapeRegExp(fecha)}$`);
 }
 
 const MARCAS_LINHA = [
@@ -123,17 +116,7 @@ const DISPOSITIVO_RE =
 const LINHAS_ANTES_DO_CORTE = 5;
 const LINHAS_DEPOIS_DO_CORTE = 3;
 
-const COMANDO_FORCAR_ESCPOS = Buffer.from([
-  0x1d,
-  0xf9,
-  0x35,
-  0x01,
-  0x1b,
-  0x40,
-  0x1b,
-  0x74,
-  0x02,
-]);
+const COMANDO_FORCAR_ESCPOS = Buffer.from([0x1d, 0xf9, 0x35, 0x01, 0x1b, 0x40, 0x1b, 0x74, 0x02]);
 
 const COMANDO_CORTE = Buffer.from([
   ...Array<number>(LINHAS_ANTES_DO_CORTE).fill(0x0a),
@@ -141,9 +124,7 @@ const COMANDO_CORTE = Buffer.from([
   0x69,
   ...Array<number>(LINHAS_DEPOIS_DO_CORTE).fill(0x0a),
 ]);
-type DestinoImpressora =
-  | { tipo: 'rede'; ip: string }
-  | { tipo: 'local'; dispositivo: string };
+type DestinoImpressora = { tipo: 'rede'; ip: string } | { tipo: 'local'; dispositivo: string };
 
 @Injectable()
 export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
@@ -162,9 +143,7 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
       const destino = await this.resolverDestinoInicial();
 
       if (!destino) {
-        this.logger.warn(
-          'Impressora não configurada. Configure em Configurações > Impressora.',
-        );
+        this.logger.warn('Impressora não configurada. Configure em Configurações > Impressora.');
         return;
       }
 
@@ -281,8 +260,7 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
 
     this.impressora = impressora;
 
-    const alvo =
-      destino.tipo === 'rede' ? destino.ip : destino.dispositivo;
+    const alvo = destino.tipo === 'rede' ? destino.ip : destino.dispositivo;
 
     if (conectada) {
       this.logger.debug(`Impressora conectada com sucesso em: ${alvo}`);
@@ -353,9 +331,7 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
     const dispositivo = dto.dispositivo?.trim() || null;
 
     if (ip && dispositivo) {
-      throw new BadRequestException(
-        'Informe apenas o IP ou o dispositivo local, não os dois.',
-      );
+      throw new BadRequestException('Informe apenas o IP ou o dispositivo local, não os dois.');
     }
 
     if (dispositivo) {
@@ -371,9 +347,7 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
       return { tipo: 'rede', ip };
     }
 
-    throw new BadRequestException(
-      'Informe o IP da impressora ou escolha um dispositivo local.',
-    );
+    throw new BadRequestException('Informe o IP da impressora ou escolha um dispositivo local.');
   }
 
   private async resolverDestinoInicial(): Promise<DestinoImpressora | null> {
@@ -399,18 +373,13 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
       data: { id: CONFIG_ID, ip: envIp, dispositivo: null },
     });
 
-    this.logger.log(
-      `IP da impressora migrado do .env para o banco (${envIp}).`,
-    );
+    this.logger.log(`IP da impressora migrado do .env para o banco (${envIp}).`);
 
     return { tipo: 'rede', ip: envIp };
   }
 
   private criarInstancia(destino: DestinoImpressora) {
-    const iface =
-      destino.tipo === 'local'
-        ? destino.dispositivo
-        : `tcp://${destino.ip}`;
+    const iface = destino.tipo === 'local' ? destino.dispositivo : `tcp://${destino.ip}`;
 
     return new ThermalPrinter({
       type: PrinterTypes.EPSON,
@@ -423,8 +392,7 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async verificarConexao(destino: DestinoImpressora): Promise<boolean> {
-    const alvo =
-      destino.tipo === 'rede' ? destino.ip : destino.dispositivo;
+    const alvo = destino.tipo === 'rede' ? destino.ip : destino.dispositivo;
 
     try {
       const impressora = this.criarInstancia(destino);
@@ -435,9 +403,7 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async descobrirPortasLocais(): Promise<
-    { path: string; label: string }[]
-  > {
+  private async descobrirPortasLocais(): Promise<{ path: string; label: string }[]> {
     const portas: { path: string; label: string }[] = [];
     const resolvidos = new Set<string>();
 
@@ -477,11 +443,7 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
     try {
       const entries = await readdir('/dev');
       for (const nome of entries) {
-        if (
-          !/^lp\d+$/i.test(nome) &&
-          !/^ttyUSB\d+$/i.test(nome) &&
-          !/^ttyACM\d+$/i.test(nome)
-        ) {
+        if (!/^lp\d+$/i.test(nome) && !/^ttyUSB\d+$/i.test(nome) && !/^ttyACM\d+$/i.test(nome)) {
           continue;
         }
         const path = join('/dev', nome);

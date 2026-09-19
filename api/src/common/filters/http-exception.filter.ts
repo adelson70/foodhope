@@ -38,7 +38,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
   }
 
   private formatarErrosDeValidacao(errosValidacao: any[]): string[] {
-    let mensagens: string[] = [];
+    const mensagens: string[] = [];
 
     for (const erro of errosValidacao) {
       // 1. Se o campo NÃO foi enviado ou está vazio (undefined, null ou string vazia)
@@ -56,7 +56,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
       // 2. Se o campo FOI ENVIADO, mas quebrou alguma regra de validação (ex: tamanho, formato)
       else if (erro.constraints) {
-        mensagens.push(...(Object.values(erro.constraints) as string[]));
+        mensagens.push(...Object.values(erro.constraints));
       }
 
       // 3. Lida com objetos e listas aninhadas (Sub-DTOs)

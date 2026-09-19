@@ -1,8 +1,4 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import type { Request } from 'express';
 
@@ -79,9 +75,7 @@ export class RateLimitGuard implements CanActivate {
 
       if (
         method === 'POST' &&
-        (path === '/pedido' ||
-          path === '/checkout' ||
-          path === '/checkout/confirmar')
+        (path === '/pedido' || path === '/checkout' || path === '/checkout/confirmar')
       ) {
         await this.rateLimit.consume(
           `rl:visitor:pedido:${req.user.id}`,

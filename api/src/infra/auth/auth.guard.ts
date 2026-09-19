@@ -1,17 +1,9 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
 
-import {
-  AUTH_MODE_KEY,
-  type AuthMode,
-} from '../../common/decorator/auth-mode.decorator.js';
+import { AUTH_MODE_KEY, type AuthMode } from '../../common/decorator/auth-mode.decorator.js';
 import { IS_PUBLIC_KEY } from '../../common/decorator/public.decorator.js';
 import { PrismaReadService } from '../database/prisma-read.service.js';
 import { RedisService } from '../cache/redis.service.js';
@@ -20,8 +12,7 @@ import { validateVisitorCredentials } from './visitor-auth.js';
 import type { RoleOperador } from '../../../generated/prisma/enums.js';
 
 export type AuthUser =
-  | { tipo: 'operador'; id: string; role: RoleOperador }
-  | { tipo: 'visitor'; id: string };
+  { tipo: 'operador'; id: string; role: RoleOperador } | { tipo: 'visitor'; id: string };
 
 type RequestWithAuth = Request & {
   user?: AuthUser;

@@ -75,9 +75,7 @@ export class OperadorService {
         throw erro;
       }
 
-      throw new InternalServerErrorException(
-        'Não foi possível criar o usuário. Tente novamente.',
-      );
+      throw new InternalServerErrorException('Não foi possível criar o usuário. Tente novamente.');
     }
   }
 
@@ -92,11 +90,7 @@ export class OperadorService {
         throw new NotFoundException('Usuário não encontrado.');
       }
 
-      if (
-        dto.role !== undefined &&
-        operador.role === 'ADMIN' &&
-        dto.role !== 'ADMIN'
-      ) {
+      if (dto.role !== undefined && operador.role === 'ADMIN' && dto.role !== 'ADMIN') {
         await this.garantirNaoUltimoAdmin(id);
       }
 
@@ -142,32 +136,22 @@ export class OperadorService {
     } catch (erro) {
       console.error('Erro ao editar operador:', erro);
 
-      if (
-        erro instanceof NotFoundException ||
-        erro instanceof BadRequestException
-      ) {
+      if (erro instanceof NotFoundException || erro instanceof BadRequestException) {
         throw erro;
       }
 
-      if (
-        erro instanceof Prisma.PrismaClientKnownRequestError &&
-        erro.code === 'P2025'
-      ) {
+      if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2025') {
         throw new NotFoundException('Usuário não encontrado.');
       }
 
-      throw new InternalServerErrorException(
-        'Não foi possível editar o usuário. Tente novamente.',
-      );
+      throw new InternalServerErrorException('Não foi possível editar o usuário. Tente novamente.');
     }
   }
 
   async atualizarAtivo(id: string, ativo: boolean, solicitanteId: string) {
     try {
       if (id === solicitanteId) {
-        throw new BadRequestException(
-          'Você não pode desativar o seu próprio usuário.',
-        );
+        throw new BadRequestException('Você não pode desativar o seu próprio usuário.');
       }
 
       const operador = await this.prismaRead.operador.findUnique({
@@ -180,16 +164,12 @@ export class OperadorService {
       }
 
       if (operador.role === 'ADMIN') {
-        throw new BadRequestException(
-          'Não é possível desativar um administrador.',
-        );
+        throw new BadRequestException('Não é possível desativar um administrador.');
       }
 
       if (operador.ativo === ativo) {
         return {
-          mensagem: ativo
-            ? 'Usuário já está ativo'
-            : 'Usuário já está desativado',
+          mensagem: ativo ? 'Usuário já está ativo' : 'Usuário já está desativado',
           dados: {
             id: operador.id,
             role: operador.role,
@@ -209,25 +189,17 @@ export class OperadorService {
       }
 
       return {
-        mensagem: ativo
-          ? 'Usuário ativado com sucesso'
-          : 'Usuário desativado com sucesso',
+        mensagem: ativo ? 'Usuário ativado com sucesso' : 'Usuário desativado com sucesso',
         dados: atualizado,
       };
     } catch (erro) {
       console.error('Erro ao atualizar ativo do operador:', erro);
 
-      if (
-        erro instanceof NotFoundException ||
-        erro instanceof BadRequestException
-      ) {
+      if (erro instanceof NotFoundException || erro instanceof BadRequestException) {
         throw erro;
       }
 
-      if (
-        erro instanceof Prisma.PrismaClientKnownRequestError &&
-        erro.code === 'P2025'
-      ) {
+      if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2025') {
         throw new NotFoundException('Usuário não encontrado.');
       }
 
@@ -240,9 +212,7 @@ export class OperadorService {
   async deletar(id: string, solicitanteId: string) {
     try {
       if (id === solicitanteId) {
-        throw new BadRequestException(
-          'Você não pode excluir o seu próprio usuário.',
-        );
+        throw new BadRequestException('Você não pode excluir o seu próprio usuário.');
       }
 
       const operador = await this.prismaRead.operador.findUnique({
@@ -264,17 +234,11 @@ export class OperadorService {
     } catch (erro) {
       console.error('Erro ao deletar operador:', erro);
 
-      if (
-        erro instanceof NotFoundException ||
-        erro instanceof BadRequestException
-      ) {
+      if (erro instanceof NotFoundException || erro instanceof BadRequestException) {
         throw erro;
       }
 
-      if (
-        erro instanceof Prisma.PrismaClientKnownRequestError &&
-        erro.code === 'P2025'
-      ) {
+      if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2025') {
         throw new NotFoundException('Usuário não encontrado.');
       }
 
@@ -305,9 +269,7 @@ export class OperadorService {
     });
 
     if (outrosAdmins === 0) {
-      throw new BadRequestException(
-        'Não é possível remover o último administrador.',
-      );
+      throw new BadRequestException('Não é possível remover o último administrador.');
     }
   }
 }

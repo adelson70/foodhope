@@ -12,10 +12,7 @@ import { PrismaWriteService } from '../../infra/database/prisma-write.service.js
 import { CozinhaService } from '../cozinha/cozinha.service.js';
 import { CriarPedidoDto } from '../pedido/dto/criar.dto.js';
 import { PedidoService } from '../pedido/pedido.service.js';
-import {
-  ConfigurarInfinitePayDto,
-  ConfirmarCheckoutDto,
-} from './dto/infinitepay.dto.js';
+import { ConfigurarInfinitePayDto, ConfirmarCheckoutDto } from './dto/infinitepay.dto.js';
 import { InfinitePayClient } from './infinitepay.client.js';
 
 const CONFIG_ID = 'default';
@@ -131,17 +128,14 @@ export class InfinitePayService {
       if (erro instanceof BadRequestException) throw erro;
       if (erro instanceof InternalServerErrorException) throw erro;
       this.logger.error('Erro ao testar InfinitePay', erro);
-      throw new InternalServerErrorException(
-        'Não foi possível conectar à InfinitePay.',
-      );
+      throw new InternalServerErrorException('Não foi possível conectar à InfinitePay.');
     }
   }
 
   async iniciarCheckout(dto: CriarPedidoDto) {
     await this.cozinha.assertAberta();
     const handle = await this.obterHandleObrigatorio();
-    const { items, amountCentavos, payload } =
-      await this.montarItensDoBanco(dto);
+    const { items, amountCentavos, payload } = await this.montarItensDoBanco(dto);
 
     const orderNsu = randomUUID();
     const redirectUrl = this.redirectUrl();
@@ -150,7 +144,7 @@ export class InfinitePayService {
     const sessao = await this.prismaWrite.checkoutSessao.create({
       data: {
         id: orderNsu,
-        payload: payload as object,
+        payload: payload,
         amountCentavos,
       },
     });
@@ -268,10 +262,7 @@ export class InfinitePayService {
     try {
       resultado = await this.executarWebhook(body);
     } catch (erro) {
-      this.logger.error(
-        `Falha inesperada no webhook correlacao=${correlacaoId}`,
-        erro,
-      );
+      this.logger.error(`Falha inesperada no webhook correlacao=${correlacaoId}`, erro);
       resultado = {
         ok: false,
         status: 400,
@@ -287,9 +278,9 @@ export class InfinitePayService {
         orderNsu,
         transactionNsu,
         httpStatus: resultado.status,
-        corpo: (resultado.erro ?? {
+        corpo: resultado.erro ?? {
           message: resultado.message,
-        }) as Prisma.InputJsonValue,
+        },
       });
     }
 
@@ -302,7 +293,7 @@ export class InfinitePayService {
       corpo: {
         success: resultado.ok,
         message: resultado.message,
-      } as Prisma.InputJsonValue,
+      },
     });
 
     return resultado;
@@ -364,8 +355,7 @@ export class InfinitePayService {
         invoiceSlug,
         receiptUrl: this.asNonEmptyString(body.receipt_url),
         captureMethod: this.asNonEmptyString(body.capture_method),
-        installments:
-          typeof body.installments === 'number' ? body.installments : null,
+        installments: typeof body.installments === 'number' ? body.installments : null,
         amount: Number.isFinite(amount) ? amount : sessao.amountCentavos,
       });
       return { ok: true, status: 200, message: null };
@@ -474,9 +464,7 @@ export class InfinitePayService {
       if (porTx?.pedidoId) {
         return this.buscarPedidoFormatado(porTx.pedidoId);
       }
-      throw new BadRequestException(
-        'Pagamento em processamento. Tente novamente.',
-      );
+      throw new BadRequestException('Pagamento em processamento. Tente novamente.');
     }
 
     const sessaoLocked = await this.prismaWrite.checkoutSessao.findUnique({
@@ -525,9 +513,7 @@ export class InfinitePayService {
       });
 
       if (!produto || !produto.ativo) {
-        throw new BadRequestException(
-          `Produto ${itemDto.id} indisponível.`,
-        );
+        throw new BadRequestException(`Produto ${itemDto.id} indisponível.`);
       }
 
       const precoProdutoCentavos = Math.round(Number(produto.preco) * 100);
@@ -536,39 +522,31 @@ export class InfinitePayService {
 
       if (itemDto.adicional?.length) {
         for (const addDto of itemDto.adicional) {
-          const adicionalEspecifico =
-            await this.prismaRead.adicionalProduto.findFirst({
-              where: {
-                id: addDto.id,
-                produto_id: produto.id,
-                ativo: true,
-              },
-            });
+          const adicionalEspecifico = await this.prismaRead.adicionalProduto.findFirst({
+            where: {
+              id: addDto.id,
+              produto_id: produto.id,
+              ativo: true,
+            },
+          });
 
           if (adicionalEspecifico) {
-            const centavos = Math.round(
-              Number(adicionalEspecifico.preco) * 100,
-            );
+            const centavos = Math.round(Number(adicionalEspecifico.preco) * 100);
             linhaCentavos += centavos * addDto.qtd;
-            descricoesAdic.push(
-              `${addDto.qtd}x ${adicionalEspecifico.nome}`,
-            );
+            descricoesAdic.push(`${addDto.qtd}x ${adicionalEspecifico.nome}`);
             continue;
           }
 
-          const adicionalGlobal =
-            await this.prismaRead.adicionalGlobal.findFirst({
-              where: {
-                id: addDto.id,
-                ativo: true,
-                produtos: { some: { produto_id: produto.id } },
-              },
-            });
+          const adicionalGlobal = await this.prismaRead.adicionalGlobal.findFirst({
+            where: {
+              id: addDto.id,
+              ativo: true,
+              produtos: { some: { produto_id: produto.id } },
+            },
+          });
 
           if (!adicionalGlobal) {
-            throw new BadRequestException(
-              `Adicional ${addDto.id} indisponível.`,
-            );
+            throw new BadRequestException(`Adicional ${addDto.id} indisponível.`);
           }
 
           const centavos = Math.round(Number(adicionalGlobal.preco) * 100);
@@ -638,9 +616,7 @@ export class InfinitePayService {
   private redirectUrl() {
     const app = process.env.APP?.replace(/\/$/, '');
     if (!app) {
-      throw new BadRequestException(
-        'APP não configurada para redirecionar após o pagamento.',
-      );
+      throw new BadRequestException('APP não configurada para redirecionar após o pagamento.');
     }
     return `${app}/confirmado`;
   }

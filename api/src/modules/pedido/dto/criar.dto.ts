@@ -103,7 +103,6 @@ export class ItemPedidoDto {
   @IsString()
   @IsOptional()
   observacao: string;
-
 }
 
 export class CriarPedidoDto {

@@ -18,22 +18,8 @@ import { RateLimitService } from './rate-limit.service.js';
     }),
   ],
 
-  providers: [
-    JwtServiceCustom,
-    JwtStrategy,
-    JwtGuard,
-    AuthGuard,
-    RateLimitService,
-    RateLimitGuard,
-  ],
+  providers: [JwtServiceCustom, JwtStrategy, JwtGuard, AuthGuard, RateLimitService, RateLimitGuard],
 
-  exports: [
-    JwtServiceCustom,
-    JwtGuard,
-    AuthGuard,
-    RateLimitService,
-    RateLimitGuard,
-    JwtModule,
-  ],
+  exports: [JwtServiceCustom, JwtGuard, AuthGuard, RateLimitService, RateLimitGuard, JwtModule],
 })
 export class InfraJwtModule {}

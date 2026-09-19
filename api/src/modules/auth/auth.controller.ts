@@ -1,17 +1,5 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  Put,
-  Req,
-} from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiBody,
-} from '@nestjs/swagger';
+import { Body, Controller, Get, Post, Put, Req } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 
 import { AuthService } from './auth.service.js';
 import { Public } from '../../common/decorator/public.decorator.js';

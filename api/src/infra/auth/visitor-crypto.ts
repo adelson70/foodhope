@@ -1,10 +1,4 @@
-import {
-  createHash,
-  createPublicKey,
-  randomBytes,
-  verify,
-  type KeyObject,
-} from 'node:crypto';
+import { createHash, createPublicKey, randomBytes, verify, type KeyObject } from 'node:crypto';
 
 export const VISITOR_TIMESTAMP_SKEW_SECONDS = 60;
 export const VISITOR_CHALLENGE_TTL_SECONDS = 300;

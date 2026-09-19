@@ -23,8 +23,7 @@ export class ConfigurarImpressoraDto {
   @Matches(
     /^(?:\/dev\/(?:usb\/)?lp\d+|\/dev\/tty(?:USB|ACM)\d+|\/dev\/serial\/by-id\/[A-Za-z0-9._+-]+|COM\d+)$/i,
     {
-      message:
-        'Informe um dispositivo válido (/dev/ttyACM0, /dev/serial/by-id/…, COM1, …)',
+      message: 'Informe um dispositivo válido (/dev/ttyACM0, /dev/serial/by-id/…, COM1, …)',
     },
   )
   dispositivo?: string;

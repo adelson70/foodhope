@@ -1,16 +1,9 @@
-import {
-  BadRequestException,
-  Injectable,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 
 import { PrismaReadService } from '../../infra/database/prisma-read.service.js';
-import {
-  formatarRelatorioCompleto,
-  formatarRelatorioDia,
-} from '../impressora/impressao-texto.js';
+import { formatarRelatorioCompleto, formatarRelatorioDia } from '../impressora/impressao-texto.js';
 import { ImpressoraService } from '../impressora/impressora.service.js';
 import type { TipoRelatorioDto } from './dto/relatorio.dto.js';
 
@@ -65,11 +58,7 @@ function resolverDataRelatorio(data?: string): string {
   }
   const [ano, mes, dia] = escolhida.split('-').map(Number);
   const utc = new Date(Date.UTC(ano, mes - 1, dia));
-  if (
-    utc.getUTCFullYear() !== ano ||
-    utc.getUTCMonth() !== mes - 1 ||
-    utc.getUTCDate() !== dia
-  ) {
+  if (utc.getUTCFullYear() !== ano || utc.getUTCMonth() !== mes - 1 || utc.getUTCDate() !== dia) {
     throw new BadRequestException('Data inválida');
   }
   return escolhida;
@@ -189,9 +178,7 @@ export class DashService {
         },
       };
     } catch {
-      throw new InternalServerErrorException(
-        'Não foi possível carregar o resumo do dashboard.',
-      );
+      throw new InternalServerErrorException('Não foi possível carregar o resumo do dashboard.');
     }
   }
 
@@ -372,10 +359,7 @@ export class DashService {
     return { pedidos, faturamento };
   }
 
-  async gerarRelatorio(
-    tipo: TipoRelatorioDto = 'resumido',
-    data?: string,
-  ) {
+  async gerarRelatorio(tipo: TipoRelatorioDto = 'resumido', data?: string) {
     if (!this.impressora.estaConfigurada()) {
       throw new BadRequestException(
         'Impressora não configurada. Configure o IP em Configurações > Impressora.',

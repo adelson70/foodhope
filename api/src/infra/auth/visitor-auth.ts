@@ -26,16 +26,8 @@ export async function validateVisitorCredentials(params: {
   prismaRead: PrismaReadService;
   redis: RedisService;
 }): Promise<VisitorAuthResult> {
-  const {
-    visitorId,
-    timestamp,
-    signature,
-    method,
-    pathWithQuery,
-    bodyHashHex,
-    prismaRead,
-    redis,
-  } = params;
+  const { visitorId, timestamp, signature, method, pathWithQuery, bodyHashHex, prismaRead, redis } =
+    params;
 
   if (!visitorId || !timestamp || !signature) {
     throw new UnauthorizedException('Operação não autorizada');
@@ -61,12 +53,7 @@ export async function validateVisitorCredentials(params: {
     throw new UnauthorizedException('Operação não autorizada');
   }
 
-  const canonical = buildRequestCanonical(
-    method,
-    pathWithQuery,
-    timestamp,
-    bodyHashHex,
-  );
+  const canonical = buildRequestCanonical(method, pathWithQuery, timestamp, bodyHashHex);
 
   const valid = verifyEcdsaP256Sha256(publicKey, canonical, signature);
   if (!valid) {
@@ -74,11 +61,7 @@ export async function validateVisitorCredentials(params: {
   }
 
   const replayKey = `sig:${visitorId}:${timestamp}:${sha256Hex(signature)}`;
-  const stored = await redis.setNx(
-    replayKey,
-    '1',
-    VISITOR_REPLAY_TTL_SECONDS,
-  );
+  const stored = await redis.setNx(replayKey, '1', VISITOR_REPLAY_TTL_SECONDS);
 
   if (!stored) {
     throw new UnauthorizedException('Operação não autorizada');

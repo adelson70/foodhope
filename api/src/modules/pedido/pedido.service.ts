@@ -105,9 +105,7 @@ export class PedidoService {
         nextCursor = Buffer.from(cursorPayload).toString('base64');
       }
 
-      const pedidosFormatados = pedidos.map((pedido) =>
-        this.formatarPedido(pedido),
-      );
+      const pedidosFormatados = pedidos.map((pedido) => this.formatarPedido(pedido));
 
       return {
         pedidos: pedidosFormatados,
@@ -190,18 +188,13 @@ export class PedidoService {
         return { mensagem: 'Nenhum pedido encontrado', dados: { pedidos: [] } };
       }
 
-      const pedidosFormatados = pedidos.map((pedido) =>
-        this.formatarPedido(pedido),
-      );
+      const pedidosFormatados = pedidos.map((pedido) => this.formatarPedido(pedido));
 
       return { dados: { pedidos: pedidosFormatados } };
     } catch (erro) {
       console.error('Erro ao buscar pedido:', erro);
 
-      if (
-        erro instanceof Prisma.PrismaClientKnownRequestError &&
-        erro.code === 'P2025'
-      ) {
+      if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2025') {
         throw new NotFoundException('Pedido não encontrado.');
       }
 
@@ -213,9 +206,7 @@ export class PedidoService {
 
   async criarPedido(dto: CriarPedidoDto, user: AuthUser) {
     if (user.tipo === 'visitor') {
-      throw new BadRequestException(
-        'Para fazer o pedido, finalize o pagamento pelo checkout.',
-      );
+      throw new BadRequestException('Para fazer o pedido, finalize o pagamento pelo checkout.');
     }
 
     let status_pagamento: 'PAGO' | 'NAO_PAGO' | 'GRATUITO';
@@ -229,9 +220,7 @@ export class PedidoService {
         dto.status_pagamento !== 'NAO_PAGO' &&
         dto.status_pagamento !== 'GRATUITO'
       ) {
-        throw new BadRequestException(
-          'Informe o status de pagamento do pedido.',
-        );
+        throw new BadRequestException('Informe o status de pagamento do pedido.');
       }
       status_pagamento = dto.status_pagamento;
     } else {
@@ -241,10 +230,7 @@ export class PedidoService {
     return this.criarPedidoPago(dto, status_pagamento);
   }
 
-  async criarPedidoPago(
-    dto: CriarPedidoDto,
-    status_pagamento: 'PAGO' | 'NAO_PAGO' | 'GRATUITO',
-  ) {
+  async criarPedidoPago(dto: CriarPedidoDto, status_pagamento: 'PAGO' | 'NAO_PAGO' | 'GRATUITO') {
     try {
       const clientRequestId = dto.client_request_id?.trim() || undefined;
 
@@ -313,9 +299,7 @@ export class PedidoService {
           }
         }
 
-        const nome_completo = [dto.cliente.primeiro_nome, sobrenome]
-          .filter(Boolean)
-          .join(' ');
+        const nome_completo = [dto.cliente.primeiro_nome, sobrenome].filter(Boolean).join(' ');
 
         const itensParaCriar: any[] = [];
 
@@ -443,16 +427,11 @@ export class PedidoService {
 
       if (pedidoCompleto.criadoAgora) {
         await this.enfileirarImpressao(pedidoCompleto.pedido, dto.cliente);
-        this.websocket.emitirParaOperadores(
-          'novo-pedido',
-          pedidoCompleto.pedido,
-        );
+        this.websocket.emitirParaOperadores('novo-pedido', pedidoCompleto.pedido);
       }
 
       return {
-        mensagem: pedidoCompleto.criadoAgora
-          ? 'Pedido criado com sucesso'
-          : 'Pedido já registrado',
+        mensagem: pedidoCompleto.criadoAgora ? 'Pedido criado com sucesso' : 'Pedido já registrado',
         dados: {
           pedido: pedidoCompleto.pedido,
         },
@@ -576,9 +555,7 @@ export class PedidoService {
       }
 
       if (pedido.status_pagamento === 'GRATUITO') {
-        throw new BadRequestException(
-          'Pedido gratuito não pode ser marcado como pago.',
-        );
+        throw new BadRequestException('Pedido gratuito não pode ser marcado como pago.');
       }
 
       const atualizado = await this.prismaWrite.pedido.update({
@@ -597,10 +574,7 @@ export class PedidoService {
         dados: { pedido: pedidoCompleto },
       };
     } catch (erro) {
-      if (
-        erro instanceof NotFoundException ||
-        erro instanceof BadRequestException
-      ) {
+      if (erro instanceof NotFoundException || erro instanceof BadRequestException) {
         throw erro;
       }
 
@@ -652,10 +626,7 @@ export class PedidoService {
     return `${this.rotuloConsumo(pedido.tipo_consumo)} - ${this.rotuloStatusPagamento(pedido.status_pagamento)}`;
   }
 
-  private temObservacao(item: {
-    observacao?: string | null;
-    retirada_venda?: unknown;
-  }) {
+  private temObservacao(item: { observacao?: string | null; retirada_venda?: unknown }) {
     return Boolean(montarTextoObservacaoCupom(item));
   }
 
@@ -684,8 +655,7 @@ export class PedidoService {
   }
 
   private chaveGrupoImpressao(item: any): string {
-    const produtoId =
-      item.produto_id ?? item.produto?.id ?? item.produto?.nome ?? '';
+    const produtoId = item.produto_id ?? item.produto?.id ?? item.produto?.nome ?? '';
     const obs = (item.observacao ?? '').trim().toLowerCase();
     return `${produtoId}|${this.chaveAdicionaisImpressao(item.adicional_venda)}|${this.chaveRetiradaImpressao(item.retirada_venda)}|${obs}`;
   }
@@ -712,18 +682,14 @@ export class PedidoService {
 
       existente.quantidade += item.quantidade;
 
-      if (
-        !Array.isArray(item.adicional_venda) ||
-        !Array.isArray(existente.adicional_venda)
-      ) {
+      if (!Array.isArray(item.adicional_venda) || !Array.isArray(existente.adicional_venda)) {
         continue;
       }
 
       for (const add of item.adicional_venda) {
         const chaveAdd = add.id ?? add.nome;
         const encontrado = existente.adicional_venda.find(
-          (atual: { id?: string; nome?: string }) =>
-            (atual.id ?? atual.nome) === chaveAdd,
+          (atual: { id?: string; nome?: string }) => (atual.id ?? atual.nome) === chaveAdd,
         );
         if (encontrado) {
           encontrado.qtd = Number(encontrado.qtd) + Number(add.qtd);
@@ -737,14 +703,11 @@ export class PedidoService {
   }
 
   private async enfileirarImpressao(pedidoCompleto: any, cliente: ClientePedido) {
-    const itens = Array.isArray(pedidoCompleto.itens)
-      ? pedidoCompleto.itens
-      : [];
+    const itens = Array.isArray(pedidoCompleto.itens) ? pedidoCompleto.itens : [];
     const soIgnoraveis =
       itens.length > 0 &&
-      itens.every(
-        (item: { produto?: { ignorarImpressaoSozinho?: boolean } }) =>
-          Boolean(item.produto?.ignorarImpressaoSozinho),
+      itens.every((item: { produto?: { ignorarImpressaoSozinho?: boolean } }) =>
+        Boolean(item.produto?.ignorarImpressaoSozinho),
       );
 
     if (soIgnoraveis) {
@@ -760,31 +723,21 @@ export class PedidoService {
         !item.produto?.ignorarImpressaoSozinho,
     );
 
-    const itensSeparadoFlag = demais.filter(
-      (item: { produto?: { imprimirSeparado?: boolean } }) =>
-        Boolean(item.produto?.imprimirSeparado),
+    const itensSeparadoFlag = demais.filter((item: { produto?: { imprimirSeparado?: boolean } }) =>
+      Boolean(item.produto?.imprimirSeparado),
     );
     const itensNormais = demais.filter(
-      (item: { produto?: { imprimirSeparado?: boolean } }) =>
-        !item.produto?.imprimirSeparado,
+      (item: { produto?: { imprimirSeparado?: boolean } }) => !item.produto?.imprimirSeparado,
     );
-    const itensNormaisComObs = itensNormais.filter((item) =>
-      this.temObservacao(item),
-    );
-    const itensNormaisSemObs = itensNormais.filter(
-      (item) => !this.temObservacao(item),
-    );
-    const separarPorObservacao =
-      this.consolidarItensImpressao(itensNormaisComObs).length > 1;
+    const itensNormaisComObs = itensNormais.filter((item) => this.temObservacao(item));
+    const itensNormaisSemObs = itensNormais.filter((item) => !this.temObservacao(item));
+    const separarPorObservacao = this.consolidarItensImpressao(itensNormaisComObs).length > 1;
 
-    const itensPrincipais = separarPorObservacao
-      ? itensNormaisSemObs
-      : itensNormais;
+    const itensPrincipais = separarPorObservacao ? itensNormaisSemObs : itensNormais;
     const itensParaSeparar = separarPorObservacao
       ? [...itensSeparadoFlag, ...itensNormaisComObs]
       : itensSeparadoFlag;
-    const resumoImprimirSeparado =
-      this.consolidarItensImpressao(itensSeparadoFlag);
+    const resumoImprimirSeparado = this.consolidarItensImpressao(itensSeparadoFlag);
     const gruposSeparados = this.consolidarItensImpressao(itensParaSeparar);
     const totalCuponsSeparados = gruposSeparados.length;
     const temPrincipal = itensPrincipais.length > 0;
@@ -806,28 +759,17 @@ export class PedidoService {
       const extrasPrimeiro = ehPrimeiroSemPrincipal
         ? [
             ...resumoImprimirSeparado.filter(
-              (item) =>
-                this.chaveGrupoImpressao(item) !==
-                this.chaveGrupoImpressao(grupoAtual),
+              (item) => this.chaveGrupoImpressao(item) !== this.chaveGrupoImpressao(grupoAtual),
             ),
             ...acompanhamentos,
           ]
         : [];
-      const itensCupom = ehPrimeiroSemPrincipal
-        ? [grupoAtual, ...extrasPrimeiro]
-        : [grupoAtual];
-      const textoSeparado = this.formatarCupom(
-        pedidoCompleto,
-        itensCupom,
-        cliente,
-        {
-          banner: 'A PARTE',
-          metaExtra:
-            totalCuponsSeparados > 1
-              ? `CUPOM ${indice + 1} DE ${totalCuponsSeparados}`
-              : undefined,
-        },
-      );
+      const itensCupom = ehPrimeiroSemPrincipal ? [grupoAtual, ...extrasPrimeiro] : [grupoAtual];
+      const textoSeparado = this.formatarCupom(pedidoCompleto, itensCupom, cliente, {
+        banner: 'A PARTE',
+        metaExtra:
+          totalCuponsSeparados > 1 ? `CUPOM ${indice + 1} DE ${totalCuponsSeparados}` : undefined,
+      });
       await this.filaImpressao.add('imprimir-pedido', {
         texto: textoSeparado,
       });
@@ -843,9 +785,7 @@ export class PedidoService {
       [cliente.primeiro_nome, cliente.sobrenome].filter(Boolean).join(' '),
     );
     const status = this.rotuloStatusCupom(pedido);
-    const horario = pedido.createdAt
-      ? formatarHorarioCupom(pedido.createdAt)
-      : '';
+    const horario = pedido.createdAt ? formatarHorarioCupom(pedido.createdAt) : '';
 
     let impressao = '\n\n\n\n\n';
     if (opcoes?.banner) {
@@ -964,16 +904,11 @@ export class PedidoService {
       return { mensagem: 'Pedido deletado com sucesso', dados: {} };
     } catch (erro) {
       console.log('erro', erro);
-      if (
-        erro instanceof Prisma.PrismaClientKnownRequestError &&
-        erro.code === 'P2025'
-      ) {
+      if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2025') {
         throw new NotFoundException('Pedido não encontrado.');
       }
 
-      throw new InternalServerErrorException(
-        'Não foi possível deletar o pedido. Tente novamente.',
-      );
+      throw new InternalServerErrorException('Não foi possível deletar o pedido. Tente novamente.');
     }
   }
 }

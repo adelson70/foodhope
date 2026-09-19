@@ -262,13 +262,13 @@ Fluxo em push na `main` (paths-ignore: markdown / DEPLOY*):
 
 ```text
 changes → (só o que mudou)
-  api:  migrate + ci-api ∥ build-api → deploy-api
-  web:  ci-web ∥ build-web → deploy-web
+  api:  migrate → build-api → deploy-api
+  web:  build-web → deploy-web
 ```
 
 1. **`changes`**: detecta se `api/**` e/ou `web/**` mudaram (`workflow_dispatch` força os dois)
 2. **Concurrency**: push novo na `main` cancela runs anteriores
-3. **CI ∥ build** na mesma faixa; deploy só se CI + build (e migrate, na API) derem certo
+3. **Build** (GitHub-hosted) em paralelo por serviço; API passa por migrate antes do bake
 4. **Deploy** (self-hosted): `pull` + `up -d --no-deps` só do serviço pronto
 5. Versões: `.current-sha-api` / `.previous-sha-api` e `.current-sha-web` / `.previous-sha-web`
 

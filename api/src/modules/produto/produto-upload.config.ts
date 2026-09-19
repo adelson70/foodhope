@@ -33,9 +33,7 @@ export const produtoImagemUploadOptions = {
     if (MIME_TIPOS_PERMITIDOS.has(mime)) {
       if (mime === 'application/octet-stream' && !EXT_IMAGEM.test(nome)) {
         return callback(
-          new BadRequestException(
-            'Formato de imagem inválido. Use JPEG, PNG, WebP, GIF ou HEIC.',
-          ),
+          new BadRequestException('Formato de imagem inválido. Use JPEG, PNG, WebP, GIF ou HEIC.'),
           false,
         );
       }
@@ -47,9 +45,7 @@ export const produtoImagemUploadOptions = {
     }
 
     return callback(
-      new BadRequestException(
-        'Formato de imagem inválido. Use JPEG, PNG, WebP, GIF ou HEIC.',
-      ),
+      new BadRequestException('Formato de imagem inválido. Use JPEG, PNG, WebP, GIF ou HEIC.'),
       false,
     );
   },

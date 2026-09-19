@@ -42,10 +42,7 @@ export class PedidoController {
   @Post()
   @Auth('jwt-or-visitor')
   @ApiOperation({ summary: 'Criação de Pedido' })
-  async criar(
-    @Body() dto: CriarPedidoDto,
-    @Req() req: { user?: AuthUser },
-  ) {
+  async criar(@Body() dto: CriarPedidoDto, @Req() req: { user?: AuthUser }) {
     if (!req.user) {
       throw new BadRequestException('Operação não autorizada');
     }

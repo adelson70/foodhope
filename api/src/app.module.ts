@@ -36,7 +36,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
         host: process.env.REDIS_HOST || 'localhost',
         port: Number(process.env.REDIS_PORT) || 6379,
         password: process.env.REDIS_PASSWORD || '',
-      }
+      },
     }),
     BullModule.registerQueue({
       name: 'fila-impressao',

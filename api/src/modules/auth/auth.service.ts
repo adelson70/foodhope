@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 
 import * as bcrypt from 'bcrypt';
 
@@ -37,9 +33,7 @@ export class AuthService {
     }
 
     if (!operador.ativo) {
-      throw new UnauthorizedException(
-        'Usuário desativado. Contate o administrador.',
-      );
+      throw new UnauthorizedException('Usuário desativado. Contate o administrador.');
     }
 
     const senhaValida = await bcrypt.compare(dto.senha, operador.senha);

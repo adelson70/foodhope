@@ -16,10 +16,7 @@ export const MARCA_TOTAL_ABRE = '[[TOTAL]]';
 export const MARCA_TOTAL_FECHA = '[[/TOTAL]]';
 
 export function paraCupom(texto: string): string {
-  return texto
-    .normalize('NFD')
-    .replace(/\p{M}/gu, '')
-    .toUpperCase();
+  return texto.normalize('NFD').replace(/\p{M}/gu, '').toUpperCase();
 }
 
 export function linhaNumeroPedido(numero: string | number | bigint): string {
@@ -38,21 +35,13 @@ export function linhaBanner(texto: string): string {
   return `${MARCA_BANNER_ABRE}${paraCupom(texto)}${MARCA_BANNER_FECHA}`;
 }
 
-export function linhaItemCupom(
-  quantidade: number,
-  nome: string,
-  valor: number | string,
-): string {
+export function linhaItemCupom(quantidade: number, nome: string, valor: number | string): string {
   const esq = `${quantidade}X ${paraCupom(nome)}`;
   const dir = ` ${formatarMoeda(valor)}`;
   return `${MARCA_ITEM_ABRE}${alinharLinha(esq, dir, ' ')}${MARCA_ITEM_FECHA}`;
 }
 
-export function linhaAdicionalCupom(
-  nome: string,
-  valor: number | string,
-  qtd = 1,
-): string {
+export function linhaAdicionalCupom(nome: string, valor: number | string, qtd = 1): string {
   const qtdLabel = qtd > 1 ? `${qtd}X ` : '';
   const esq = `  + ${qtdLabel}${paraCupom(nome)}`;
   const dir = ` ${formatarMoeda(valor)}`;
@@ -70,9 +59,7 @@ export function montarTextoObservacaoCupom(item: {
   const partes: string[] = [];
   const retiradas = Array.isArray(item.retirada_venda)
     ? item.retirada_venda
-        .map((r: { nome?: string }) =>
-          typeof r?.nome === 'string' ? r.nome.trim() : '',
-        )
+        .map((r: { nome?: string }) => (typeof r?.nome === 'string' ? r.nome.trim() : ''))
         .filter((nome) => nome.length > 0)
     : [];
 
@@ -122,16 +109,13 @@ export function alinharLinha(
   tamanhoTotal = LARGURA_CUPOM,
 ): string {
   const dir =
-    textoDir.length > tamanhoTotal
-      ? textoDir.slice(textoDir.length - tamanhoTotal)
-      : textoDir;
+    textoDir.length > tamanhoTotal ? textoDir.slice(textoDir.length - tamanhoTotal) : textoDir;
   const maxEsq = Math.max(0, tamanhoTotal - dir.length);
   let textoLimitado = textoEsq;
 
   if (textoLimitado.length > maxEsq) {
     const corte = Math.max(0, maxEsq - 1);
-    textoLimitado =
-      corte > 0 ? textoLimitado.slice(0, corte) + preenchimento : '';
+    textoLimitado = corte > 0 ? textoLimitado.slice(0, corte) + preenchimento : '';
     if (textoLimitado.length > maxEsq) {
       textoLimitado = textoLimitado.slice(0, maxEsq);
     }
@@ -205,22 +189,11 @@ export function formatarRelatorioDia(input: RelatorioDiaInput): string {
   impressao += `Data: ${formatarDataSp(input.data)}\n`;
   impressao += `Gerado: ${formatarHorarioSp(input.geradoEm)}\n`;
   impressao += `${linhaSeparadora('=')}\n`;
+  impressao += alinharLinha('TOTAL DE VENDAS ', ` ${formatarMoeda(input.faturamento)}`, '.') + '\n';
+  impressao += alinharLinha('PEDIDOS ', ` ${input.pedidos}`, '.') + '\n';
+  impressao += alinharLinha('GRATUITOS ', ` ${input.pedidosGratuitos}`, '.') + '\n';
   impressao +=
-    alinharLinha(
-      'TOTAL DE VENDAS ',
-      ` ${formatarMoeda(input.faturamento)}`,
-      '.',
-    ) + '\n';
-  impressao +=
-    alinharLinha('PEDIDOS ', ` ${input.pedidos}`, '.') + '\n';
-  impressao +=
-    alinharLinha('GRATUITOS ', ` ${input.pedidosGratuitos}`, '.') + '\n';
-  impressao +=
-    alinharLinha(
-      'VALOR GRATUITO ',
-      ` ${formatarMoeda(input.valorGratuito)}`,
-      '.',
-    ) + '\n';
+    alinharLinha('VALOR GRATUITO ', ` ${formatarMoeda(input.valorGratuito)}`, '.') + '\n';
   impressao += `${linhaSeparadora('-')}\n`;
   impressao += 'PRODUTOS\n';
   impressao += formatarRanking(input.topProdutos);
@@ -259,9 +232,7 @@ function formatarListaPedidos(itens: PedidoRelatorio[]): string {
   return texto;
 }
 
-export function formatarRelatorioCompleto(
-  input: RelatorioCompletoInput,
-): string {
+export function formatarRelatorioCompleto(input: RelatorioCompletoInput): string {
   let impressao = '';
 
   impressao += `${linhaSeparadora('=')}\n`;
@@ -272,14 +243,8 @@ export function formatarRelatorioCompleto(
   impressao += 'PEDIDOS\n';
   impressao += formatarListaPedidos(input.pedidos);
   impressao += `${linhaSeparadora('-')}\n`;
-  impressao +=
-    alinharLinha(
-      'TOTAL ',
-      ` ${formatarMoeda(input.faturamento)}`,
-      '.',
-    ) + '\n';
-  impressao +=
-    alinharLinha('QTD PEDIDOS ', ` ${input.pedidos.length}`, '.') + '\n';
+  impressao += alinharLinha('TOTAL ', ` ${formatarMoeda(input.faturamento)}`, '.') + '\n';
+  impressao += alinharLinha('QTD PEDIDOS ', ` ${input.pedidos.length}`, '.') + '\n';
   impressao += `${linhaSeparadora('=')}\n`;
   impressao += '\n\n\n';
 

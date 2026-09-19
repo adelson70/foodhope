@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { mkdir, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import convert from 'heic-convert';
@@ -52,23 +48,15 @@ export class ProdutoImagemService {
 
     if (EXT_IMAGEM.test(nome)) return;
 
-    throw new BadRequestException(
-      'Formato de imagem inválido. Use JPEG, PNG, WebP, GIF ou HEIC.',
-    );
+    throw new BadRequestException('Formato de imagem inválido. Use JPEG, PNG, WebP, GIF ou HEIC.');
   }
 
   private ehHeic(file: Express.Multer.File) {
     const mime = (file.mimetype || '').toLowerCase();
-    return (
-      mime.includes('heic') ||
-      mime.includes('heif') ||
-      EXT_HEIC.test(file.originalname || '')
-    );
+    return mime.includes('heic') || mime.includes('heif') || EXT_HEIC.test(file.originalname || '');
   }
 
-  private async bufferParaProcessar(
-    file: Express.Multer.File,
-  ): Promise<Buffer> {
+  private async bufferParaProcessar(file: Express.Multer.File): Promise<Buffer> {
     if (!this.ehHeic(file)) {
       return file.buffer;
     }
@@ -110,9 +98,7 @@ export class ProdutoImagemService {
       }
 
       console.error('Erro ao processar imagem do produto:', erro);
-      throw new InternalServerErrorException(
-        'Não foi possível processar a imagem do produto.',
-      );
+      throw new InternalServerErrorException('Não foi possível processar a imagem do produto.');
     }
   }
 

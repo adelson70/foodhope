@@ -12,13 +12,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiConsumes,
-  ApiBody,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 
 import { ProdutoService } from './produto.service.js';
 import { Auth } from '../../common/decorator/auth-mode.decorator.js';
@@ -70,10 +64,7 @@ export class ProdutoController {
   })
   @ApiOperation({ summary: 'Upload/substituição da imagem do produto' })
   @UseInterceptors(FileInterceptor('imagem', produtoImagemUploadOptions))
-  async editarImagem(
-    @Param('id') id: string,
-    @UploadedFile() file?: Express.Multer.File,
-  ) {
+  async editarImagem(@Param('id') id: string, @UploadedFile() file?: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Envie uma imagem no campo "imagem".');
     }

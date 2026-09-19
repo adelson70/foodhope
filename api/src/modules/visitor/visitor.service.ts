@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 
 import { PrismaReadService } from '../../infra/database/prisma-read.service.js';
 import { PrismaWriteService } from '../../infra/database/prisma-write.service.js';
@@ -30,9 +26,7 @@ export class VisitorService {
     }
 
     const challenge = generateChallenge();
-    const challengeExpiresAt = new Date(
-      Date.now() + VISITOR_CHALLENGE_TTL_SECONDS * 1000,
-    );
+    const challengeExpiresAt = new Date(Date.now() + VISITOR_CHALLENGE_TTL_SECONDS * 1000);
 
     const visitor = await this.prismaWrite.visitor.create({
       data: {
@@ -75,11 +69,7 @@ export class VisitorService {
       throw new UnauthorizedException('Operação não autorizada');
     }
 
-    const valid = verifyEcdsaP256Sha256(
-      publicKey,
-      visitor.challenge,
-      dto.signature,
-    );
+    const valid = verifyEcdsaP256Sha256(publicKey, visitor.challenge, dto.signature);
 
     if (!valid) {
       throw new UnauthorizedException('Operação não autorizada');

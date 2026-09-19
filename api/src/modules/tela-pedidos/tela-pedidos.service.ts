@@ -9,10 +9,7 @@ import { PrismaReadService } from '../../infra/database/prisma-read.service.js';
 import { PrismaWriteService } from '../../infra/database/prisma-write.service.js';
 import { WebsocketGateway } from '../../infra/websocket/websocket.gateway.js';
 import type { VisualizacaoTelaPedidos } from '../../../generated/prisma/enums.js';
-import {
-  gerarHashTelaPedidos,
-  hashesTelaPedidosIguais,
-} from './tela-pedidos-hash.js';
+import { gerarHashTelaPedidos, hashesTelaPedidosIguais } from './tela-pedidos-hash.js';
 
 const CONFIG_ID = 'default';
 const LISTAR_LIMIT = 24;
@@ -109,9 +106,7 @@ export class TelaPedidosService {
       };
     } catch (erro) {
       console.error('Erro ao forçar refresh da tela de pedidos:', erro);
-      throw new InternalServerErrorException(
-        'Não foi possível atualizar a tela de pedidos.',
-      );
+      throw new InternalServerErrorException('Não foi possível atualizar a tela de pedidos.');
     }
   }
 
@@ -162,9 +157,7 @@ export class TelaPedidosService {
           numero: pedido.numero.toString(),
           nome_completo: pedido.nome_completo,
           createdAt:
-            pedido.createdAt instanceof Date
-              ? pedido.createdAt.toISOString()
-              : pedido.createdAt,
+            pedido.createdAt instanceof Date ? pedido.createdAt.toISOString() : pedido.createdAt,
           prontoAt: pedido.prontoAt ? pedido.prontoAt.toISOString() : null,
           pronto: Boolean(pedido.prontoAt),
           status_pagamento: pedido.status_pagamento,
@@ -174,9 +167,7 @@ export class TelaPedidosService {
     } catch (erro) {
       if (erro instanceof NotFoundException) throw erro;
       console.error('Erro ao listar pedidos da tela pública:', erro);
-      throw new InternalServerErrorException(
-        'Não foi possível carregar os pedidos prontos.',
-      );
+      throw new InternalServerErrorException('Não foi possível carregar os pedidos prontos.');
     }
   }
 

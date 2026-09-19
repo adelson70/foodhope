@@ -6,7 +6,7 @@ import { WebsocketGateway } from './websocket.gateway.js';
 @Module({
   imports: [
     JwtModule.register({
-      secret: process.env.JWT_SECRET || '', 
+      secret: process.env.JWT_SECRET || '',
     }),
   ],
   providers: [WebsocketGateway],

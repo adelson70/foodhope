@@ -104,9 +104,7 @@ function montarRespostaProduto(produto: ProdutoComAdicionais) {
     ativo: a.ativo,
   }));
 
-  const adicionalGlobalIds = produto.adicionaisGlobais.map(
-    (v) => v.adicional_global_id,
-  );
+  const adicionalGlobalIds = produto.adicionaisGlobais.map((v) => v.adicional_global_id);
 
   const especificos = adicionaisEspecificos.map((a) => ({
     id: a.id,
@@ -177,9 +175,7 @@ export class ProdutoService {
     });
 
     if (globais.length !== ids.length) {
-      throw new BadRequestException(
-        'Um ou mais adicionais globais informados não existem.',
-      );
+      throw new BadRequestException('Um ou mais adicionais globais informados não existem.');
     }
 
     const nomesEspecificosSet = new Set(
@@ -236,29 +232,17 @@ export class ProdutoService {
     return categoriaId;
   }
 
-  private async proximaOrdemNoGrupo(
-    tx: Prisma.TransactionClient,
-    categoriaId: string | null,
-  ) {
+  private async proximaOrdemNoGrupo(tx: Prisma.TransactionClient, categoriaId: string | null) {
     const agregacao = await tx.produto.aggregate({
-      where:
-        categoriaId === null
-          ? { categoria_id: null }
-          : { categoria_id: categoriaId },
+      where: categoriaId === null ? { categoria_id: null } : { categoria_id: categoriaId },
       _max: { ordem: true },
     });
     return (agregacao._max.ordem ?? -1) + 1;
   }
 
-  private async compactarGrupo(
-    tx: Prisma.TransactionClient,
-    categoriaId: string | null,
-  ) {
+  private async compactarGrupo(tx: Prisma.TransactionClient, categoriaId: string | null) {
     const doGrupo = await tx.produto.findMany({
-      where:
-        categoriaId === null
-          ? { categoria_id: null }
-          : { categoria_id: categoriaId },
+      where: categoriaId === null ? { categoria_id: null } : { categoria_id: categoriaId },
       orderBy: [{ ordem: 'asc' }, { id: 'asc' }],
       select: { id: true },
     });
@@ -278,10 +262,7 @@ export class ProdutoService {
     ordemNova: number,
   ) {
     const doGrupo = await tx.produto.findMany({
-      where:
-        categoriaId === null
-          ? { categoria_id: null }
-          : { categoria_id: categoriaId },
+      where: categoriaId === null ? { categoria_id: null } : { categoria_id: categoriaId },
       orderBy: [{ ordem: 'asc' }, { id: 'asc' }],
       select: { id: true },
     });
@@ -291,11 +272,7 @@ export class ProdutoService {
     }
 
     const semAtual = doGrupo.filter((p) => p.id !== id);
-    const reordenados = [
-      ...semAtual.slice(0, ordemNova),
-      { id },
-      ...semAtual.slice(ordemNova),
-    ];
+    const reordenados = [...semAtual.slice(0, ordemNova), { id }, ...semAtual.slice(ordemNova)];
 
     for (let index = 0; index < reordenados.length; index += 1) {
       await tx.produto.update({
@@ -357,9 +334,7 @@ export class ProdutoService {
       }
 
       return {
-        data: produtos.map((p) =>
-          montarRespostaProduto(p as ProdutoComAdicionais),
-        ),
+        data: produtos.map((p) => montarRespostaProduto(p as ProdutoComAdicionais)),
         meta: {
           hasNextPage,
           nextCursor,
@@ -417,9 +392,7 @@ export class ProdutoService {
 
       return {
         dados: {
-          produtos: produtos.map((p) =>
-            montarRespostaProduto(p as ProdutoComAdicionais),
-          ),
+          produtos: produtos.map((p) => montarRespostaProduto(p as ProdutoComAdicionais)),
         },
       };
     } catch (erro) {
@@ -460,9 +433,7 @@ export class ProdutoService {
             imprimirSeparado: dto.imprimirSeparado ?? false,
             ignorarImpressaoSozinho: dto.ignorarImpressaoSozinho ?? false,
             ordem,
-            ...(categoriaId
-              ? { categoria: { connect: { id: categoriaId } } }
-              : {}),
+            ...(categoriaId ? { categoria: { connect: { id: categoriaId } } } : {}),
           },
         });
 
@@ -543,12 +514,7 @@ export class ProdutoService {
           dto.ordem !== existente.ordem &&
           dto.categoriaId === undefined
         ) {
-          await this.reordenarNoGrupo(
-            tx,
-            id,
-            existente.categoria_id,
-            dto.ordem,
-          );
+          await this.reordenarNoGrupo(tx, id, existente.categoria_id, dto.ordem);
         }
 
         const dadosUpdate: Prisma.ProdutoUpdateInput = {};
@@ -573,13 +539,8 @@ export class ProdutoService {
           if (categoriaAnterior !== categoriaNova) {
             mudouCategoria = true;
             dadosUpdate.categoria =
-              categoriaNova === null
-                ? { disconnect: true }
-                : { connect: { id: categoriaNova } };
-            dadosUpdate.ordem = await this.proximaOrdemNoGrupo(
-              tx,
-              categoriaNova,
-            );
+              categoriaNova === null ? { disconnect: true } : { connect: { id: categoriaNova } };
+            dadosUpdate.ordem = await this.proximaOrdemNoGrupo(tx, categoriaNova);
           }
         }
 
@@ -593,8 +554,7 @@ export class ProdutoService {
           );
           const novos = dto.adicionais.filter((a) => !a.foiDeletado && !a.id);
 
-          const adicionaisNested: Prisma.AdicionalProdutoUpdateManyWithoutProdutoNestedInput =
-            {};
+          const adicionaisNested: Prisma.AdicionalProdutoUpdateManyWithoutProdutoNestedInput = {};
 
           if (deletados.length > 0) {
             adicionaisNested.delete = deletados.map((a) => ({ id: a.id! }));
@@ -682,20 +642,14 @@ export class ProdutoService {
             },
           });
 
-          const nomesEspecificos = aposUpdate.adicionais
-            .filter((a) => a.ativo)
-            .map((a) => a.nome);
+          const nomesEspecificos = aposUpdate.adicionais.filter((a) => a.ativo).map((a) => a.nome);
 
           const idsParaValidar =
             dto.adicionalGlobalIds !== undefined
               ? dto.adicionalGlobalIds
               : aposUpdate.adicionaisGlobais.map((v) => v.adicional_global_id);
 
-          const globalIds = await this.validarGlobaisEColisao(
-            tx,
-            idsParaValidar,
-            nomesEspecificos,
-          );
+          const globalIds = await this.validarGlobaisEColisao(tx, idsParaValidar, nomesEspecificos);
 
           if (dto.adicionalGlobalIds !== undefined) {
             await this.sincronizarGlobais(tx, id, globalIds);
@@ -708,11 +662,7 @@ export class ProdutoService {
         });
       });
 
-      if (
-        dto.ativo !== undefined &&
-        ativoAnterior !== undefined &&
-        dto.ativo !== ativoAnterior
-      ) {
+      if (dto.ativo !== undefined && ativoAnterior !== undefined && dto.ativo !== ativoAnterior) {
         this.websocket.emitirProdutoAtivo({
           id,
           ativo: dto.ativo,
@@ -740,7 +690,7 @@ export class ProdutoService {
 
       return {
         mensagem: 'Produto editado com sucesso',
-        dados: montarRespostaProduto(produtoEditado as ProdutoComAdicionais),
+        dados: montarRespostaProduto(produtoEditado),
       };
     } catch (erro) {
       console.error('Erro na transação de produto:', erro);
@@ -773,7 +723,7 @@ export class ProdutoService {
 
       return {
         mensagem: 'Imagem do produto atualizada com sucesso',
-        dados: montarRespostaProduto(produto as ProdutoComAdicionais),
+        dados: montarRespostaProduto(produto),
       };
     } catch (erro) {
       console.error('Erro ao editar imagem do produto:', erro);
@@ -806,7 +756,7 @@ export class ProdutoService {
 
       return {
         mensagem: 'Imagem do produto removida com sucesso',
-        dados: montarRespostaProduto(produto as ProdutoComAdicionais),
+        dados: montarRespostaProduto(produto),
       };
     } catch (erro) {
       console.error('Erro ao remover imagem do produto:', erro);

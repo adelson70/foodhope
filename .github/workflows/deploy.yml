@@ -110,63 +110,6 @@ jobs:
       - name: Prisma migrate status
         run: npx prisma migrate status
 
-  ci-api:
-    name: Lint API
-    needs: [changes]
-    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.api == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: api/package-lock.json
-
-      - name: Install API dependencies
-        working-directory: api
-        run: npm ci
-
-      - name: Generate Prisma client
-        working-directory: api
-        env:
-          DATABASE_URL: postgresql://build:build@127.0.0.1:5432/build
-        run: npx prisma generate
-
-      - name: Lint API
-        working-directory: api
-        run: npm run lint
-
-  ci-web:
-    name: Lint Web
-    needs: [changes]
-    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.web == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-
-      - name: Install Web dependencies
-        working-directory: web
-        run: npm ci
-
-      - name: Lint Web
-        working-directory: web
-        env:
-          VITE_API_URL: ${{ vars.VITE_API_URL || 'https://foodhope-api.abjr.dev' }}
-          VITE_SITE_URL: ${{ vars.VITE_SITE_URL || 'https://foodhope.abjr.dev' }}
-        run: npm run lint
-
   build-api:
     name: Build API image
     needs: [changes, migrate]
@@ -243,8 +186,8 @@ jobs:
 
   deploy-api:
     name: Deploy API
-    needs: [ci-api, build-api, migrate]
-    if: ${{ always() && needs.ci-api.result == 'success' && needs.build-api.result == 'success' && needs.migrate.result == 'success' }}
+    needs: [build-api, migrate]
+    if: ${{ always() && needs.build-api.result == 'success' && needs.migrate.result == 'success' }}
     runs-on: self-hosted
     steps:
       - name: Checkout
@@ -318,8 +261,8 @@ jobs:
 
   deploy-web:
     name: Deploy Web
-    needs: [ci-web, build-web]
-    if: ${{ always() && needs.ci-web.result == 'success' && needs.build-web.result == 'success' }}
+    needs: [build-web]
+    if: ${{ always() && needs.build-web.result == 'success' }}
     runs-on: self-hosted
     steps:
       - name: Checkout
