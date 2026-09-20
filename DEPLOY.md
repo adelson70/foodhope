@@ -261,16 +261,12 @@ docker exec -it postgres psql -U foodhope -c '\l'
 Fluxo em push na `main` (paths-ignore: markdown / DEPLOY*):
 
 ```text
-changes → (só o que mudou)
   api:  build-api → deploy-api
   web:  build-web → deploy-web
 ```
 
-1. **`changes`**: detecta se `api/**` e/ou `web/**` mudaram (`workflow_dispatch` força os dois)
-2. **Concurrency**: push novo na `main` cancela runs anteriores
-3. **Build** (GitHub-hosted) em paralelo; migration de produção roda no boot da API (`docker-entrypoint.sh`)
-4. **Deploy** (self-hosted): `pull` + `up -d --no-deps` só do serviço pronto
-5. Versões: `.current-sha-api` / `.previous-sha-api` e `.current-sha-web` / `.previous-sha-web`
+Sempre os dois em paralelo em todo push na `main` (e em `workflow_dispatch`).
+Migration de produção no boot da API (`docker-entrypoint.sh`).
 
 ## 14. Logs
 

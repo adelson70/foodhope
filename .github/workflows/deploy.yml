@@ -25,34 +25,8 @@ env:
   APP_DIR: /home/hope/apps/foodhope
 
 jobs:
-  changes:
-    name: Detect changes
-    runs-on: ubuntu-latest
-    outputs:
-      api: ${{ steps.filter.outputs.api }}
-      web: ${{ steps.filter.outputs.web }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Paths filter
-        id: filter
-        uses: dorny/paths-filter@v4
-        with:
-          filters: |
-            api:
-              - 'api/**'
-              - 'docker-bake.hcl'
-              - 'compose.production.yml'
-            web:
-              - 'web/**'
-              - 'docker-bake.hcl'
-              - 'compose.production.yml'
-
   build-api:
     name: Build API image
-    needs: [changes]
-    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.api == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -81,8 +55,6 @@ jobs:
 
   build-web:
     name: Build Web image
-    needs: [changes]
-    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.web == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -126,7 +98,6 @@ jobs:
   deploy-api:
     name: Deploy API
     needs: [build-api]
-    if: ${{ always() && needs.build-api.result == 'success' }}
     runs-on: self-hosted
     steps:
       - name: Checkout
@@ -201,7 +172,6 @@ jobs:
   deploy-web:
     name: Deploy Web
     needs: [build-web]
-    if: ${{ always() && needs.build-web.result == 'success' }}
     runs-on: self-hosted
     steps:
       - name: Checkout
