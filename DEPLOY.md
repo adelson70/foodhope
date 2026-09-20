@@ -261,12 +261,15 @@ docker exec -it postgres psql -U foodhope -c '\l'
 Fluxo em push na `main` (paths-ignore: markdown / DEPLOY*):
 
 ```text
+changes → (só o que mudou)
   api:  build-api → deploy-api
   web:  build-web → deploy-web
 ```
 
-Sempre os dois em paralelo em todo push na `main` (e em `workflow_dispatch`).
-Migration de produção no boot da API (`docker-entrypoint.sh`).
+- Push na `main`: sobe **só** o lado alterado (`api/**` ou `web/**`; também `docker-bake.hcl` / `compose.production.yml`).
+- `workflow_dispatch`: força **api e web**.
+- Cache Docker: GHA (`scope=api|web`) + registry `:latest` no bake.
+- Migration de produção no boot da API (`docker-entrypoint.sh`).
 
 ## 14. Logs
 
