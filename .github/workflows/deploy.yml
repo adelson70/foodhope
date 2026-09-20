@@ -94,6 +94,8 @@ jobs:
           WEB_IMAGE: ${{ env.REGISTRY }}/${{ env.WEB_IMAGE_NAME }}
           VITE_API_URL: ${{ steps.vite.outputs.url }}
           VITE_SITE_URL: ${{ steps.site.outputs.url }}
+          VITE_APP_VERSION: "1.0.0"
+          VITE_GIT_SHA: ${{ github.sha }}
 
   deploy-api:
     name: Deploy API

@@ -18,6 +18,14 @@ variable "VITE_SITE_URL" {
   default = "https://foodhope.abjr.dev"
 }
 
+variable "VITE_APP_VERSION" {
+  default = "1.0.0"
+}
+
+variable "VITE_GIT_SHA" {
+  default = "dev"
+}
+
 group "default" {
   targets = ["api", "web"]
 }
@@ -44,8 +52,10 @@ target "web" {
     "${WEB_IMAGE}:latest",
   ]
   args = {
-    VITE_API_URL  = VITE_API_URL
-    VITE_SITE_URL = VITE_SITE_URL
+    VITE_API_URL     = VITE_API_URL
+    VITE_SITE_URL    = VITE_SITE_URL
+    VITE_APP_VERSION = VITE_APP_VERSION
+    VITE_GIT_SHA     = VITE_GIT_SHA
   }
   cache-from = [
     "type=gha,scope=web",
