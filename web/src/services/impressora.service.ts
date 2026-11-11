@@ -37,6 +37,24 @@ export const impressoraService = {
     );
   },
 
+  async imprimirTeste(
+    input: ConfigurarImpressoraInput,
+  ): Promise<ApiResponse<TestarImpressoraDados>> {
+    return withMutationToast(
+      () =>
+        request(
+          api.post<ApiResponse<TestarImpressoraDados>>(
+            '/impressora/imprimir-teste',
+            input,
+          ),
+        ),
+      {
+        success: 'Página de teste enviada para a impressora',
+        error: 'Não foi possível imprimir a página de teste',
+      },
+    );
+  },
+
   async salvar(
     input: ConfigurarImpressoraInput,
   ): Promise<ApiResponse<ConfigImpressora>> {

@@ -14,6 +14,7 @@ import { PrismaReadService } from '../../infra/database/prisma-read.service.js';
 import { PrismaWriteService } from '../../infra/database/prisma-write.service.js';
 import { ConfigurarImpressoraDto } from './dto/configurar.dto.js';
 import {
+  formatarCupomTeste,
   LARGURA_CUPOM,
   MARCA_BANNER_ABRE,
   MARCA_BANNER_FECHA,
@@ -280,24 +281,67 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
     this.logger.log('Enviando dados para a impressora...');
 
     try {
-      this.impressora.clear();
-      this.impressora.add(COMANDO_FORCAR_ESCPOS);
-      this.renderizarTexto(textoFormatado);
-      this.impressora.add(COMANDO_CORTE);
-      await this.impressora.execute();
-      this.impressora.clear();
+      await this.enviar(this.impressora, textoFormatado);
       this.logger.log('Impressão concluída com sucesso!');
     } catch (error) {
       this.logger.error('Erro durante a impressão do cupom:', error);
-      this.impressora.clear();
       throw error;
     }
   }
 
-  private renderizarTexto(texto: string) {
-    const impressora = this.impressora;
-    if (!impressora) return;
+  async imprimirTeste(dto: ConfigurarImpressoraDto) {
+    const destino = this.resolverDestinoDto(dto);
+    const alvo = destino.tipo === 'rede' ? destino.ip : destino.dispositivo;
+    const impressora = this.criarInstancia(destino);
 
+    let conectada = false;
+    try {
+      conectada = await impressora.isPrinterConnected();
+    } catch (error) {
+      this.logger.error(`Falha ao testar impressora em ${alvo}`, error);
+    }
+
+    if (!conectada) {
+      throw new BadRequestException(
+        destino.tipo === 'rede'
+          ? 'A impressora não está respondendo. Verifique o IP, se ela está ligada e na mesma rede.'
+          : 'A impressora não está respondendo neste dispositivo. Verifique se está ligada e conectada.',
+      );
+    }
+
+    try {
+      await this.enviar(impressora, formatarCupomTeste(alvo));
+      this.logger.log(`Página de teste enviada para ${alvo}`);
+    } catch (error) {
+      this.logger.error(`Erro ao imprimir página de teste em ${alvo}`, error);
+      throw new InternalServerErrorException(
+        'A impressora respondeu, mas a página de teste não pôde ser impressa.',
+      );
+    }
+
+    return {
+      mensagem: 'Página de teste enviada para a impressora',
+      dados: {
+        conectada: true,
+        ip: destino.tipo === 'rede' ? destino.ip : null,
+        dispositivo: destino.tipo === 'local' ? destino.dispositivo : null,
+      },
+    };
+  }
+
+  private async enviar(impressora: ThermalPrinter, texto: string) {
+    try {
+      impressora.clear();
+      impressora.add(COMANDO_FORCAR_ESCPOS);
+      this.renderizarTexto(impressora, texto);
+      impressora.add(COMANDO_CORTE);
+      await impressora.execute();
+    } finally {
+      impressora.clear();
+    }
+  }
+
+  private renderizarTexto(impressora: ThermalPrinter, texto: string) {
     for (const linha of texto.split('\n')) {
       let renderizada = false;
 

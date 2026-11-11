@@ -250,3 +250,21 @@ export function formatarRelatorioCompleto(input: RelatorioCompletoInput): string
 
   return impressao;
 }
+
+export function formatarCupomTeste(destino: string, geradoEm = new Date()): string {
+  return [
+    linhaBanner('Teste de impressao'),
+    linhaSeparadora(),
+    linhaCentralizada('Food Hope'),
+    linhaMetaCupom(formatarHorarioSp(geradoEm)),
+    linhaSeparadora('-'),
+    alinharLinha('DESTINO', ` ${paraCupom(destino)}`),
+    alinharLinha('LARGURA', ` ${LARGURA_CUPOM} COLUNAS`),
+    linhaSeparadora('-'),
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789',
+    linhaItemCupom(1, 'Item de exemplo', 10),
+    linhaTotalCupom('Total', 10),
+    linhaSeparadora(),
+    linhaCentralizada('Se voce leu isto, a impressora esta OK'),
+  ].join('\n');
+}

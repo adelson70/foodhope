@@ -31,6 +31,13 @@ export class ImpressoraController {
     return this.impressora.testar(dto);
   }
 
+  @Post('imprimir-teste')
+  @ApiOperation({ summary: 'Imprime uma página de teste na impressora informada' })
+  @ApiBody({ type: ConfigurarImpressoraDto })
+  async imprimirTeste(@Body() dto: ConfigurarImpressoraDto) {
+    return this.impressora.imprimirTeste(dto);
+  }
+
   @Put()
   @ApiOperation({
     summary: 'Salva a impressora (IP ou dispositivo) após validar a conexão',

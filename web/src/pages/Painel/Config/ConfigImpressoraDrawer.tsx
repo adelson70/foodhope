@@ -1,7 +1,7 @@
 import { useEffect, useState, type ChangeEvent } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Check, Printer } from 'lucide-react';
+import { Check, Printer, ReceiptText } from 'lucide-react';
 
 import {
   Button,
@@ -42,6 +42,7 @@ export function ConfigImpressoraDrawer({
   const [erro, setErro] = useState<string | null>(null);
   const [testadoOk, setTestadoOk] = useState(false);
   const [testando, setTestando] = useState(false);
+  const [imprimindo, setImprimindo] = useState(false);
   const [portas, setPortas] = useState<PortaImpressora[]>([]);
 
   const {
@@ -138,6 +139,26 @@ export function ConfigImpressoraDrawer({
     }
   }
 
+  async function onImprimirTeste() {
+    const valido = await trigger();
+    if (!valido) return;
+
+    setImprimindo(true);
+
+    try {
+      const response = await impressoraService.imprimirTeste(
+        payloadFromValues(getValues()),
+      );
+      if (response.sucesso && response.dados?.conectada) {
+        setTestadoOk(true);
+      }
+    } catch {
+      return;
+    } finally {
+      setImprimindo(false);
+    }
+  }
+
   async function onSubmit(values: ImpressoraFormValues) {
     if (!testadoOk) return;
 
@@ -167,7 +188,7 @@ export function ConfigImpressoraDrawer({
               type="button"
               fullWidth
               variant={testadoOk ? 'success' : 'info'}
-              disabled={testando || isSubmitting}
+              disabled={testando || imprimindo || isSubmitting}
               onClick={() => void onTestar()}
             >
               {testando ? (
@@ -182,10 +203,26 @@ export function ConfigImpressoraDrawer({
               )}
             </Button>
             <Button
+              type="button"
+              fullWidth
+              variant="secondary"
+              disabled={testando || imprimindo || isSubmitting}
+              onClick={() => void onImprimirTeste()}
+            >
+              {imprimindo ? (
+                'Imprimindo…'
+              ) : (
+                <>
+                  <ReceiptText size={15} strokeWidth={2.25} />
+                  Imprimir teste
+                </>
+              )}
+            </Button>
+            <Button
               type="submit"
               form={FORM_ID}
               fullWidth
-              disabled={!testadoOk || isSubmitting || testando}
+              disabled={!testadoOk || isSubmitting || testando || imprimindo}
             >
               {isSubmitting ? 'Salvando…' : 'Salvar'}
             </Button>
@@ -216,7 +253,7 @@ export function ConfigImpressoraDrawer({
               placeholder="192.168.1.50:9100"
               error={Boolean(errors.ip)}
               leftIcon={<Printer size={17} strokeWidth={1.75} />}
-              disabled={isSubmitting || testando}
+              disabled={isSubmitting || testando || imprimindo}
               {...ipField}
               onChange={(event: ChangeEvent<HTMLInputElement>) => {
                 void ipField.onChange(event);
@@ -256,7 +293,7 @@ export function ConfigImpressoraDrawer({
                     searchPlaceholder="Buscar porta…"
                     emptyMessage="Nenhuma porta"
                     error={Boolean(errors.dispositivo)}
-                    disabled={isSubmitting || testando}
+                    disabled={isSubmitting || testando || imprimindo}
                   />
                 )}
               />
