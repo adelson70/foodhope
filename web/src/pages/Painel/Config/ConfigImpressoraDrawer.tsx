@@ -1,7 +1,7 @@
 import { useEffect, useState, type ChangeEvent } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Check, Printer, ReceiptText } from 'lucide-react';
+import { Check, Printer, ReceiptText, Search } from 'lucide-react';
 
 import {
   Button,
@@ -17,7 +17,10 @@ import {
 } from '../../../schemas/impressora.schema';
 import { isOfflineNow } from '../../../lib/network';
 import { getApiErrorMensagens, impressoraService } from '../../../services';
-import type { PortaImpressora } from '../../../services/types';
+import type {
+  DescobrirImpressorasDados,
+  PortaImpressora,
+} from '../../../services/types';
 
 type ConfigImpressoraDrawerProps = {
   open: boolean;
@@ -25,6 +28,11 @@ type ConfigImpressoraDrawerProps = {
 };
 
 const FORM_ID = 'config-impressora-form';
+
+function redeDoIp(valor: string | null | undefined) {
+  const match = valor?.trim().match(/^(\d{1,3}\.\d{1,3}\.\d{1,3})\.\d{1,3}(?::\d+)?$/);
+  return match ? `${match[1]}.0/24` : '';
+}
 
 function payloadFromValues(values: ImpressoraFormValues) {
   const dispositivo = values.dispositivo?.trim() || null;
@@ -43,6 +51,11 @@ export function ConfigImpressoraDrawer({
   const [testadoOk, setTestadoOk] = useState(false);
   const [testando, setTestando] = useState(false);
   const [imprimindo, setImprimindo] = useState(false);
+  const [procurando, setProcurando] = useState(false);
+  const [descoberta, setDescoberta] =
+    useState<DescobrirImpressorasDados | null>(null);
+  const [erroDescoberta, setErroDescoberta] = useState<string | null>(null);
+  const [rede, setRede] = useState('');
   const [portas, setPortas] = useState<PortaImpressora[]>([]);
 
   const {
@@ -74,6 +87,8 @@ export function ConfigImpressoraDrawer({
     setErro(null);
     setTestadoOk(false);
     setPortas([]);
+    setDescoberta(null);
+    setErroDescoberta(null);
 
     if (isOfflineNow()) {
       setLoading(false);
@@ -92,6 +107,7 @@ export function ConfigImpressoraDrawer({
           return;
         }
 
+        setRede(redeDoIp(configResponse.dados?.ip));
         reset({
           ip: configResponse.dados?.ip ?? '',
           dispositivo: configResponse.dados?.dispositivo ?? null,
@@ -137,6 +153,35 @@ export function ConfigImpressoraDrawer({
     } finally {
       setTestando(false);
     }
+  }
+
+  async function onProcurarNaRede() {
+    setProcurando(true);
+    setDescoberta(null);
+    setErroDescoberta(null);
+
+    try {
+      const response = await impressoraService.descobrir(
+        rede.trim() || undefined,
+      );
+      if (response.sucesso && response.dados) {
+        setDescoberta(response.dados);
+      } else {
+        setErroDescoberta('Não foi possível procurar impressoras na rede.');
+      }
+    } catch (error: unknown) {
+      setErroDescoberta(
+        getApiErrorMensagens(error)[0] ??
+          'Não foi possível procurar impressoras na rede.',
+      );
+    } finally {
+      setProcurando(false);
+    }
+  }
+
+  function usarImpressoraEncontrada(endereco: string) {
+    setValue('dispositivo', null);
+    setValue('ip', endereco, { shouldValidate: true });
   }
 
   async function onImprimirTeste() {
@@ -304,6 +349,69 @@ export function ConfigImpressoraDrawer({
               ) : null}
             </div>
           ) : null}
+
+          <div className="space-y-2">
+            <Label htmlFor="impressora-rede">Procurar impressoras na rede</Label>
+            <Input
+              id="impressora-rede"
+              autoComplete="off"
+              placeholder="192.168.1.0/24"
+              value={rede}
+              onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                setRede(event.target.value)
+              }
+              disabled={procurando || isSubmitting || testando || imprimindo}
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              fullWidth
+              disabled={procurando || isSubmitting || testando || imprimindo}
+              onClick={() => void onProcurarNaRede()}
+            >
+              {procurando ? (
+                'Procurando na rede…'
+              ) : (
+                <>
+                  <Search size={15} strokeWidth={2.25} />
+                  Procurar na rede
+                </>
+              )}
+            </Button>
+
+            {erroDescoberta ? (
+              <p className="px-1 text-caption text-danger">{erroDescoberta}</p>
+            ) : null}
+
+            {descoberta ? (
+              <div className="space-y-2">
+                <p className="px-1 text-caption text-on-surface-variant">
+                  {descoberta.impressoras.length > 0
+                    ? `${descoberta.impressoras.length} encontrada(s) em ${descoberta.redes.join(', ')}. Toque para usar.`
+                    : `Nenhuma impressora encontrada em ${descoberta.redes.join(', ')}.`}
+                </p>
+                {descoberta.impressoras.map((impressora) => (
+                  <Button
+                    key={impressora.endereco}
+                    type="button"
+                    variant={
+                      ipAtual.trim() === impressora.endereco
+                        ? 'success'
+                        : 'secondary'
+                    }
+                    fullWidth
+                    disabled={isSubmitting || testando || imprimindo}
+                    onClick={() =>
+                      usarImpressoraEncontrada(impressora.endereco)
+                    }
+                  >
+                    <Printer size={15} strokeWidth={2.25} />
+                    {impressora.endereco}
+                  </Button>
+                ))}
+              </div>
+            ) : null}
+          </div>
 
           <p className="px-1 text-caption text-on-surface-variant">
             {mostrarPortas

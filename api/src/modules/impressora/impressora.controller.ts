@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Post, Put } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Post, Put, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
 import { ConfigurarImpressoraDto } from './dto/configurar.dto.js';
 import { ImpressoraService } from './impressora.service.js';
@@ -22,6 +22,20 @@ export class ImpressoraController {
   @ApiOperation({ summary: 'Lista dispositivos locais de impressora disponíveis' })
   async listarPortas() {
     return this.impressora.listarPortas();
+  }
+
+  @Get('descobrir')
+  @ApiOperation({
+    summary: 'Procura impressoras de rede (porta 9100) nas redes locais',
+  })
+  @ApiQuery({
+    name: 'rede',
+    required: false,
+    description: 'Rede a varrer (CIDR até /22 ou um IP, que vira o /24 dele)',
+    example: '192.168.1.0/24',
+  })
+  async descobrir(@Query('rede') rede?: string) {
+    return this.impressora.descobrirNaRede(rede);
   }
 
   @Post('testar')

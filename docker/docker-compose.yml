@@ -50,6 +50,7 @@ services:
       SWAGGER_USER: ${SWAGGER_USER}
       SWAGGER_PASSWORD: ${SWAGGER_PASSWORD}
       IP_IMPRESSORA: ${IP_IMPRESSORA:-}
+      IMPRESSORA_REDES: ${IMPRESSORA_REDES:-}
     group_add:
       - "${DIALOUT_GID:-18}"
       - "${LP_GID:-7}"

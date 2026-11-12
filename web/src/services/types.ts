@@ -330,6 +330,16 @@ export type PortaImpressora = {
   label: string;
 };
 
+export type ImpressoraEncontrada = {
+  host: string;
+  endereco: string;
+};
+
+export type DescobrirImpressorasDados = {
+  redes: string[];
+  impressoras: ImpressoraEncontrada[];
+};
+
 export type TestarImpressoraDados = {
   conectada: boolean;
   ip: string | null;

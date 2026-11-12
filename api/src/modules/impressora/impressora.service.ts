@@ -14,6 +14,16 @@ import { PrismaReadService } from '../../infra/database/prisma-read.service.js';
 import { PrismaWriteService } from '../../infra/database/prisma-write.service.js';
 import { ConfigurarImpressoraDto } from './dto/configurar.dto.js';
 import {
+  ehMaquinaDaApi,
+  ehRedeInternaDoServidor,
+  ipsLocais,
+  parseCidr,
+  PORTA_IMPRESSORA_REDE,
+  redesDasInterfaces,
+  varrerRedes,
+  type RedeIpv4,
+} from './descoberta-rede.js';
+import {
   formatarCupomTeste,
   LARGURA_CUPOM,
   MARCA_BANNER_ABRE,
@@ -187,6 +197,71 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
       this.logger.error('Erro ao listar portas da impressora', erro);
       return { dados: { portas: [] as { path: string; label: string }[] } };
     }
+  }
+
+  async descobrirNaRede(redeInformada?: string) {
+    let redes: RedeIpv4[];
+
+    if (redeInformada?.trim()) {
+      const rede = parseCidr(redeInformada);
+      if (!rede) {
+        throw new BadRequestException(
+          'Informe uma rede válida, ex.: 192.168.1.0/24 (no máximo /22).',
+        );
+      }
+      redes = [rede];
+    } else {
+      redes = this.redesParaDescoberta();
+    }
+
+    if (redes.length === 0) {
+      throw new BadRequestException('Informe a rede onde procurar, ex.: 192.168.1.0/24.');
+    }
+
+    this.logger.log(`Procurando impressoras na rede: ${redes.map((r) => r.cidr).join(', ')}`);
+
+    try {
+      const locais = ipsLocais();
+      const abertos = (await varrerRedes(redes)).filter(
+        (host) => !locais.has(host) && !ehRedeInternaDoServidor(host),
+      );
+      const ehServidor = await Promise.all(abertos.map((host) => ehMaquinaDaApi(host)));
+      const hosts = abertos.filter((_, indice) => !ehServidor[indice]);
+      return {
+        dados: {
+          redes: redes.map((rede) => rede.cidr),
+          impressoras: hosts.map((host) => ({
+            host,
+            endereco: `${host}:${PORTA_IMPRESSORA_REDE}`,
+          })),
+        },
+      };
+    } catch (erro) {
+      this.logger.error('Erro ao procurar impressoras na rede', erro);
+      throw new InternalServerErrorException('Não foi possível procurar impressoras na rede.');
+    }
+  }
+
+  private redesParaDescoberta(): RedeIpv4[] {
+    const configuradas = (process.env.IMPRESSORA_REDES ?? '')
+      .split(',')
+      .map((cidr) => cidr.trim())
+      .filter(Boolean);
+
+    if (configuradas.length === 0) {
+      return redesDasInterfaces();
+    }
+
+    const redes: RedeIpv4[] = [];
+    for (const cidr of configuradas) {
+      const rede = parseCidr(cidr);
+      if (rede) {
+        redes.push(rede);
+      } else {
+        this.logger.warn(`IMPRESSORA_REDES: rede inválida ou grande demais ignorada (${cidr}).`);
+      }
+    }
+    return redes;
   }
 
   async testar(dto: ConfigurarImpressoraDto) {

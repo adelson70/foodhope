@@ -91,6 +91,15 @@ export function usePullToRefresh(
       const touch = event.touches[0];
       if (!touch) return;
 
+      // Drawers/modais ficam dentro do scroll root: o gesto pertence a eles
+      if (
+        event.target instanceof Element &&
+        event.target.closest('[aria-modal="true"]')
+      ) {
+        modeRef.current = 'idle';
+        return;
+      }
+
       if (el.scrollTop > 1) {
         modeRef.current = 'scrolling';
         return;

@@ -787,7 +787,7 @@ export class PedidoService {
     const status = this.rotuloStatusCupom(pedido);
     const horario = pedido.createdAt ? formatarHorarioCupom(pedido.createdAt) : '';
 
-    let impressao = '\n\n\n\n\n';
+    let impressao = '\n\n';
     if (opcoes?.banner) {
       impressao += `${linhaBanner(opcoes.banner)}\n`;
     }

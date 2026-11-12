@@ -4,6 +4,7 @@ import type {
   ApiResponse,
   ConfigImpressora,
   ConfigurarImpressoraInput,
+  DescobrirImpressorasDados,
   PortaImpressora,
   TestarImpressoraDados,
 } from './types';
@@ -16,6 +17,16 @@ export const impressoraService = {
   async listarPortas(): Promise<ApiResponse<{ portas: PortaImpressora[] }>> {
     return request(
       api.get<ApiResponse<{ portas: PortaImpressora[] }>>('/impressora/portas'),
+    );
+  },
+
+  async descobrir(
+    rede?: string,
+  ): Promise<ApiResponse<DescobrirImpressorasDados>> {
+    return request(
+      api.get<ApiResponse<DescobrirImpressorasDados>>('/impressora/descobrir', {
+        params: rede ? { rede } : undefined,
+      }),
     );
   },
 

@@ -2,6 +2,7 @@ import { Controller, Get, Res } from '@nestjs/common';
 import { AppService } from './app.service.js';
 import type { Response } from 'express';
 import { Public } from './common/decorator/public.decorator.js';
+import { HEADER_INSTANCIA, INSTANCIA_API } from './modules/impressora/descoberta-rede.js';
 
 @Controller()
 export class AppController {
@@ -17,7 +18,8 @@ export class AppController {
 
   @Get('health')
   @Public()
-  health() {
+  health(@Res({ passthrough: true }) res: Response) {
+    res.setHeader(HEADER_INSTANCIA, INSTANCIA_API);
     return { status: 'ok' };
   }
 }
