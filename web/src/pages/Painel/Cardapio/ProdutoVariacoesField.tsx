@@ -131,6 +131,19 @@ export function ProdutoVariacoesField<
     onAdicionar();
   }
 
+  /** Fecha o painel; variação nova deixada sem nome é descartada. */
+  function handleFechar() {
+    if (
+      indiceAberto !== null &&
+      !watch(`variacoes.${indiceAberto}.id`) &&
+      !watch(`variacoes.${indiceAberto}.nome`)?.trim()
+    ) {
+      handleRemover(indiceAberto);
+      return;
+    }
+    setEditando(null);
+  }
+
   function handleRemover(index: number) {
     setEditando(null);
     onRemover(index);
@@ -234,7 +247,7 @@ export function ProdutoVariacoesField<
         <Drawer
           open={campoAberto !== null}
           title="Variação"
-          onClose={() => setEditando(null)}
+          onClose={handleFechar}
           footer={
             <div className="flex gap-2">
               <Button
@@ -253,7 +266,7 @@ export function ProdutoVariacoesField<
                 type="button"
                 fullWidth
                 disabled={disabled}
-                onClick={() => setEditando(null)}
+                onClick={handleFechar}
               >
                 Concluir
               </Button>
