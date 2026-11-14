@@ -16,9 +16,14 @@ import {
   PEDIDO_OUTBOX_SYNCED_EVENT,
   removerPedidoOutbox,
 } from '../../../lib/pedidoOutbox';
+import {
+  obterPedidosOperador,
+  salvarPedidosOperador,
+} from '../../../lib/pedidosOperador';
 import { pedidoPendentePagamento } from '../../../lib/statusPagamento';
 import {
   getApiErrorMensagens,
+  notifyError,
   pedidoService,
   socket,
 } from '../../../services';
@@ -32,6 +37,12 @@ import { PedidosSearch } from './PedidosSearch';
 import { pedidoEstaPronto } from './pedidoTotais';
 
 const LISTAR_LIMIT = 20;
+
+function avisarSeOffline(): boolean {
+  if (!isOfflineNow()) return false;
+  notifyError(null, 'Sem conexão: essa ação precisa de internet.');
+  return true;
+}
 
 export function Pedidos() {
   const [buscaInput, setBuscaInput] = useState('');
@@ -72,12 +83,20 @@ export function Pedidos() {
     return [...locais, ...pedidos];
   }, [busca, pedidos, pedidosLocais]);
 
+  const carregarDoCache = useCallback(async (dia: string) => {
+    const cache = await obterPedidosOperador(dia).catch(() => undefined);
+    if (cache && dataRef.current === dia && !buscaRef.current) {
+      setPedidos(cache.pedidos);
+    }
+  }, []);
+
   const carregar = useCallback(async (termo: string, dia: string) => {
     if (isOfflineNow()) {
-      setLoading(false);
-      setErro(null);
+      setErro(termo ? 'Busca indisponível offline.' : null);
       setHasNextPage(false);
       nextCursorRef.current = null;
+      if (!termo) await carregarDoCache(dia);
+      setLoading(false);
       return;
     }
 
@@ -107,14 +126,17 @@ export function Pedidos() {
         setPedidos([]);
         return;
       }
-      setPedidos(response.dados.pedidos ?? []);
+      const lista = response.dados.pedidos ?? [];
+      setPedidos(lista);
+      void salvarPedidosOperador(dia, lista).catch(() => undefined);
       setHasNextPage(response.dados.meta.hasNextPage);
       nextCursorRef.current = response.dados.meta.nextCursor;
     } catch (error: unknown) {
       if (isNetworkFailure(error)) {
-        setErro(null);
+        setErro(termo ? 'Busca indisponível offline.' : null);
         setHasNextPage(false);
         nextCursorRef.current = null;
+        if (!termo) await carregarDoCache(dia);
         return;
       }
       const mensagens = getApiErrorMensagens(error);
@@ -125,7 +147,7 @@ export function Pedidos() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [carregarDoCache]);
 
   const carregarMais = useCallback(async () => {
     if (buscaRef.current || !nextCursorRef.current) return;
@@ -287,6 +309,7 @@ export function Pedidos() {
   async function handlePronto(pedido: Pedido) {
     if (pedido.pendingSync || pedido.syncFailed) return;
     if (pedidoEstaPronto(pedido) || prontoLoadingId) return;
+    if (avisarSeOffline()) return;
     setProntoLoadingId(pedido.id);
     try {
       const response = await pedidoService.marcarPronto(pedido.id);
@@ -313,6 +336,7 @@ export function Pedidos() {
     ) {
       return;
     }
+    if (avisarSeOffline()) return;
     setPagoLoadingId(pedido.id);
     try {
       const response = await pedidoService.marcarPago(pedido.id);
@@ -343,6 +367,7 @@ export function Pedidos() {
         );
         return;
       }
+      if (avisarSeOffline()) return;
       await pedidoService.deletar(pedidoExcluir.id);
       setPedidos((atual) =>
         atual.filter((p) => p.id !== pedidoExcluir.id),

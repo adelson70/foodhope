@@ -3,19 +3,17 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
-const iconAny = {
-  src: 'logo.svg',
-  sizes: 'any',
-  type: 'image/svg+xml',
-  purpose: 'any' as const,
-}
-
-const iconMaskable = {
-  src: 'favicon.svg',
-  sizes: 'any',
-  type: 'image/svg+xml',
-  purpose: 'any maskable' as const,
-}
+const icons = [
+  { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+  { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+  {
+    src: 'icon-maskable-512.png',
+    sizes: '512x512',
+    type: 'image/png',
+    purpose: 'maskable',
+  },
+  { src: 'favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+]
 
 const shortcutIcon = {
   src: 'favicon.svg',
@@ -42,6 +40,10 @@ export default defineConfig({
         'icons.svg',
         'og.png',
         'og-share.png',
+        'apple-touch-icon.png',
+        'icon-192.png',
+        'icon-512.png',
+        'icon-maskable-512.png',
       ],
       manifest: {
         id: '/',
@@ -58,7 +60,7 @@ export default defineConfig({
         launch_handler: {
           client_mode: ['navigate-existing', 'auto'],
         },
-        icons: [iconAny, iconMaskable],
+        icons,
         shortcuts: [
           {
             name: 'Cardápio',
