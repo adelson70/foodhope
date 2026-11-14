@@ -1,0 +1,32 @@
+# Réplica do Postgres de produção no notebook (hot standby, somente leitura, via Tailscale).
+# Uso (na pasta docker/replica/, com .env copiado de .env.example):
+#   docker compose up -d
+# No primeiro boot faz pg_basebackup do servidor; depois segue em streaming.
+# Failover (só se o servidor morrer): ver "Réplica e failover" no DEPLOY.md.
+name: foodhope-replica
+
+services:
+  postgres-replica:
+    image: postgres:16-alpine
+    container_name: foodhope-postgres-replica
+    restart: unless-stopped
+    environment:
+      PRIMARIO_HOST: ${PRIMARIO_HOST:-100.69.188.116}
+      PRIMARIO_PORTA: ${PRIMARIO_PORTA:-5433}
+      PG_REPLICA_PASSWORD: ${PG_REPLICA_PASSWORD:?defina PG_REPLICA_PASSWORD no .env}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    entrypoint: ["/bin/sh", "/iniciar-replica.sh"]
+    volumes:
+      - replica-data:/var/lib/postgresql/data
+      - ./iniciar-replica.sh:/iniciar-replica.sh:ro
+    ports:
+      - "127.0.0.1:${REPLICA_PORTA:-5434}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U foodhope -d foodhope"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  replica-data:
+    name: foodhope-replica-data

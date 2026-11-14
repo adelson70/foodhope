@@ -1,0 +1,24 @@
+# Só no servidor de produção (claude-server). Ative no docker/.env do servidor:
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.servidor.yml
+# Publica o Postgres para a réplica do notebook (pg_hba aceita só o role "replicador" vindo do
+# IP Tailscale do notebook) e limita o WAL retido pelo slot para o disco não lotar.
+services:
+  postgres:
+    command:
+      - postgres
+      - -c
+      - hba_file=/etc/postgresql/pg_hba.conf
+      - -c
+      - wal_level=replica
+      - -c
+      - max_wal_senders=5
+      - -c
+      - max_replication_slots=5
+      - -c
+      - max_slot_wal_keep_size=2GB
+      - -c
+      - password_encryption=scram-sha-256
+    volumes:
+      - ./postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+    ports:
+      - "${PG_REPLICACAO_PORTA:-5433}:5432"
