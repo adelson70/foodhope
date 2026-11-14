@@ -1,8 +1,8 @@
 # Deploy — Food Hope
 
 Hospedagem atual: **Docker no servidor de casa** (`claude-server`, `~/apps/foodhope`, Tailscale
-`100.69.188.116`), sem runner. O site e a API saem para a internet por Cloudflare Tunnel;
-`git push` só envia código para o GitHub, **não publica**. O **notebook** guarda uma réplica do
+`100.69.188.116`). O site e a API saem para a internet por Cloudflare Tunnel. **Todo push na
+`main` publica**: o runner self-hosted do servidor faz o build e o deploy (ver "GitHub Actions"). O **notebook** guarda uma réplica do
 Postgres (streaming via Tailscale) para failover manual — ver "Réplica e failover".
 
 A impressora fica no restaurante e é alcançada pela **ponte ESP32** (a API não está na rede dela).
@@ -37,7 +37,8 @@ Tudo vem de **um único projeto compose, `foodhope`**, definido em `docker/docke
 
 ## Publicar uma versão nova
 
-No servidor (`ssh claude-server-ts`), em `~/apps/foodhope`. O `docker/.env` de lá já define
+Normalmente basta `git push` na `main`. Para publicar à mão (ou com o runner fora do ar),
+no servidor (`ssh claude-server-ts`), em `~/apps/foodhope`. O `docker/.env` de lá já define
 `COMPOSE_FILE` (inclui `docker-compose.servidor.yml`) e `COMPOSE_PROFILES=tunnel`:
 
 ```bash
@@ -175,8 +176,17 @@ impressora na porta 9100.
 
 ## GitHub Actions
 
-`.github/workflows/deploy.yml` está só com `workflow_dispatch` (não roda no push), porque não há
-runner. Só volte a usá-lo quando existir um servidor com runner registrado — ver o guia desativado.
+`.github/workflows/deploy.yml` roda em todo push na `main` (e por `workflow_dispatch`) no runner
+self-hosted **`foodhope-server`** (label `foodhope`), no próprio servidor:
+`git merge --ff-only` em `~/apps/foodhope` → `docker compose build api web` → `up -d` → confere
+`localhost:5000/health` e as URLs públicas. Um deploy por vez; o seguinte espera.
+
+- Runner: `~/actions-runner-foodhope`, serviço systemd do usuário `actions-runner-foodhope`
+  (`systemctl --user status actions-runner-foodhope`; linger ativo, sobe no boot).
+- Se o `git merge --ff-only` falhar, alguém mexeu no código em `~/apps/foodhope`: resolva lá
+  (sem commits locais no servidor).
+- **Repositório público + runner self-hosted:** PRs de fork podem trazer workflows. Mantenha em
+  Settings → Actions → General "Require approval for all outside collaborators".
 
 ## Troubleshooting
 

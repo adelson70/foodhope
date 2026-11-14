@@ -1,272 +1,73 @@
 name: Deploy
 run-name: ${{ github.event.head_commit.message || 'Deploy manual' }}
 
-# Por enquanto a hospedagem é Docker local (make deploy), sem runner.
-# Push não dispara mais; rodar manualmente só quando houver runner.
+# Build e deploy no servidor de casa (runner self-hosted "foodhope-server", label "foodhope").
+# O runner atualiza ~/apps/foodhope (onde estão o docker/.env e os volumes de produção),
+# gera as imagens lá mesmo e recria só os containers cuja imagem mudou.
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
+# Um deploy por vez; o seguinte espera (não cancela um deploy no meio).
 concurrency:
-  group: deploy-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: deploy-producao
+  cancel-in-progress: false
 
 permissions:
   contents: read
-  packages: write
-
-env:
-  REGISTRY: ghcr.io
-  API_IMAGE_NAME: ${{ github.repository }}/api
-  WEB_IMAGE_NAME: ${{ github.repository }}/web
-  APP_DIR: /home/hope/apps/foodhope
 
 jobs:
-  changes:
-    name: Detect changes
-    runs-on: ubuntu-latest
-    outputs:
-      api: ${{ steps.filter.outputs.api }}
-      web: ${{ steps.filter.outputs.web }}
+  deploy:
+    name: Build e deploy
+    runs-on: [self-hosted, foodhope]
+    timeout-minutes: 30
+    env:
+      APP_DIR: /home/dev/apps/foodhope
+      SHA: ${{ github.sha }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Paths filter
-        id: filter
-        uses: dorny/paths-filter@v4
-        with:
-          filters: |
-            api:
-              - 'api/**'
-              - 'docker-bake.hcl'
-              - 'compose.production.yml'
-            web:
-              - 'web/**'
-              - 'docker-bake.hcl'
-              - 'compose.production.yml'
-
-  build-api:
-    name: Build API image
-    needs: [changes]
-    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.api == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Bake and push API
-        uses: docker/bake-action@v6
-        with:
-          files: ./docker-bake.hcl
-          targets: api
-          push: true
-          provenance: false
-        env:
-          SHA: ${{ github.sha }}
-          API_IMAGE: ${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}
-
-  build-web:
-    name: Build Web image
-    needs: [changes]
-    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.web == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Resolve VITE_API_URL
-        id: vite
-        run: echo "url=${VITE_API_URL_VALUE:-https://foodhope-api.abjr.dev}" >> "$GITHUB_OUTPUT"
-        env:
-          VITE_API_URL_VALUE: ${{ vars.VITE_API_URL }}
-
-      - name: Resolve VITE_SITE_URL
-        id: site
-        run: echo "url=${VITE_SITE_URL_VALUE:-https://foodhope.abjr.dev}" >> "$GITHUB_OUTPUT"
-        env:
-          VITE_SITE_URL_VALUE: ${{ vars.VITE_SITE_URL }}
-
-      - name: Bake and push Web
-        uses: docker/bake-action@v6
-        with:
-          files: ./docker-bake.hcl
-          targets: web
-          push: true
-          provenance: false
-        env:
-          SHA: ${{ github.sha }}
-          WEB_IMAGE: ${{ env.REGISTRY }}/${{ env.WEB_IMAGE_NAME }}
-          VITE_API_URL: ${{ steps.vite.outputs.url }}
-          VITE_SITE_URL: ${{ steps.site.outputs.url }}
-          VITE_APP_VERSION: "1.0.0"
-          VITE_GIT_SHA: ${{ github.sha }}
-
-  deploy-api:
-    name: Deploy API
-    needs: [build-api]
-    if: ${{ always() && needs.build-api.result == 'success' }}
-    runs-on: self-hosted
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Pull, up and verify API
-        env:
-          IMAGE_SHA: ${{ github.sha }}
-          REGISTRY: ${{ env.REGISTRY }}
-          REPOSITORY: ${{ github.repository }}
-          APP_DIR: ${{ env.APP_DIR }}
-          API_URL: ${{ vars.HEALTHCHECK_API_URL || 'https://foodhope-api.abjr.dev/health' }}
+      - name: Atualizar código em ~/apps/foodhope
         run: |
           set -euo pipefail
           cd "$APP_DIR"
+          git fetch --quiet origin main
+          git merge --ff-only "$SHA"
+          git log --oneline -1
 
-          API_IMAGE="${REGISTRY}/${REPOSITORY}/api:${IMAGE_SHA}"
+      - name: Build das imagens
+        working-directory: /home/dev/apps/foodhope/docker
+        run: |
+          set -euo pipefail
+          VITE_GIT_SHA="${SHA::7}" docker compose build api web
 
-          touch .env
-          grep -vE '^API_IMAGE=' .env > .env.tmp || true
-          mv .env.tmp .env
-          printf 'API_IMAGE=%s\n' "$API_IMAGE" >> .env
+      - name: Subir
+        working-directory: /home/dev/apps/foodhope/docker
+        run: |
+          set -euo pipefail
+          docker compose up -d --remove-orphans
+          docker compose ps
 
-          if [ -f .current-sha-api ]; then
-            cp .current-sha-api .previous-sha-api
-          fi
-          echo "${IMAGE_SHA}" > .current-sha-api
-
-          if [ -f "${GITHUB_WORKSPACE}/compose.production.yml" ]; then
-            cp "${GITHUB_WORKSPACE}/compose.production.yml" ./compose.production.yml
-          fi
-
-          docker compose -f compose.production.yml pull api
-          docker compose -f compose.production.yml up -d --no-deps --remove-orphans api
-
-          echo "Aguardando healthcheck local da API..."
+      - name: Verificar
+        working-directory: /home/dev/apps/foodhope/docker
+        run: |
+          set -euo pipefail
           for i in $(seq 1 60); do
-            API_OK=$(docker compose -f compose.production.yml ps | grep -E 'api' | grep -ci healthy || true)
-            if [ "${API_OK}" -ge 1 ]; then
-              echo "API saudável."
-              break
-            fi
+            curl -fsS -o /dev/null http://localhost:5000/health && break
             if [ "$i" -eq 60 ]; then
-              echo "Healthcheck local da API falhou."
-              docker compose -f compose.production.yml ps
-              docker compose -f compose.production.yml logs --tail=120 api
+              docker compose logs --tail=120 api
               exit 1
             fi
             sleep 2
           done
-
-          echo "Checando ${API_URL}"
-          for i in $(seq 1 40); do
-            if curl -fsS -o /dev/null "$API_URL"; then
-              echo "API pública OK."
-              exit 0
-            fi
-            if [ "$i" -eq 40 ]; then
-              echo "API healthcheck público falhou"
-              exit 1
-            fi
-            sleep 3
+          echo "API local OK"
+          for url in https://foodhope-api.abjr.dev/health https://foodhope.abjr.dev/; do
+            for i in $(seq 1 30); do
+              curl -fsS -o /dev/null "$url" && { echo "$url OK"; break; }
+              [ "$i" -eq 30 ] && { echo "$url falhou"; exit 1; }
+              sleep 3
+            done
           done
 
-  deploy-web:
-    name: Deploy Web
-    needs: [build-web]
-    if: ${{ always() && needs.build-web.result == 'success' }}
-    runs-on: self-hosted
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Pull, up and verify Web
-        env:
-          IMAGE_SHA: ${{ github.sha }}
-          REGISTRY: ${{ env.REGISTRY }}
-          REPOSITORY: ${{ github.repository }}
-          APP_DIR: ${{ env.APP_DIR }}
-          WEB_URL: ${{ vars.HEALTHCHECK_WEB_URL || 'https://foodhope.abjr.dev/' }}
-        run: |
-          set -euo pipefail
-          cd "$APP_DIR"
-
-          WEB_IMAGE="${REGISTRY}/${REPOSITORY}/web:${IMAGE_SHA}"
-
-          touch .env
-          grep -vE '^WEB_IMAGE=' .env > .env.tmp || true
-          mv .env.tmp .env
-          printf 'WEB_IMAGE=%s\n' "$WEB_IMAGE" >> .env
-
-          if [ -f .current-sha-web ]; then
-            cp .current-sha-web .previous-sha-web
-          fi
-          echo "${IMAGE_SHA}" > .current-sha-web
-
-          if [ -f "${GITHUB_WORKSPACE}/compose.production.yml" ]; then
-            cp "${GITHUB_WORKSPACE}/compose.production.yml" ./compose.production.yml
-          fi
-
-          docker compose -f compose.production.yml pull web
-          docker compose -f compose.production.yml up -d --no-deps --remove-orphans web
-
-          echo "Aguardando healthcheck local do Web..."
-          for i in $(seq 1 60); do
-            WEB_OK=$(docker compose -f compose.production.yml ps | grep -E 'web' | grep -ci healthy || true)
-            if [ "${WEB_OK}" -ge 1 ]; then
-              echo "Web saudável."
-              break
-            fi
-            if [ "$i" -eq 60 ]; then
-              echo "Healthcheck local do Web falhou."
-              docker compose -f compose.production.yml ps
-              docker compose -f compose.production.yml logs --tail=120 web
-              exit 1
-            fi
-            sleep 2
-          done
-
-          echo "Checando ${WEB_URL}"
-          for i in $(seq 1 40); do
-            if curl -fsS -o /dev/null "$WEB_URL"; then
-              echo "Web pública OK."
-              exit 0
-            fi
-            if [ "$i" -eq 40 ]; then
-              echo "Web healthcheck público falhou"
-              exit 1
-            fi
-            sleep 3
-          done
+      - name: Limpar imagens antigas
+        if: success()
+        run: docker image prune -f --filter "label=com.docker.compose.project=foodhope" >/dev/null || true
