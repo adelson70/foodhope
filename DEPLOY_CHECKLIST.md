@@ -1,51 +1,30 @@
-# Checklist de deploy — Food Hope
+# Checklist de deploy — Food Hope (Docker local, sem runner)
 
-## Servidor (`hope@192.168.10.133`)
+Detalhes em [`DEPLOY.md`](DEPLOY.md).
 
-- [ ] Docker Engine instalado
-- [ ] Docker Compose plugin funcionando (`docker compose version`)
-- [ ] Usuário `hope` no grupo `docker`
-- [ ] Diretório `/home/hope/apps/foodhope` criado
-- [ ] Diretório `/home/hope/infra/foodhope-cloudflared` criado
-- [ ] Network `foodhope_edge` criada
-- [ ] Network `stack_default` com Postgres/Redis
-- [ ] Database `foodhope` criado no Postgres
-- [ ] `compose.production.yml` no diretório da app
-- [ ] `.env` de produção configurado (secrets fortes; não commitado)
-- [ ] `docker login ghcr.io` feito (se pacotes privados)
+## Antes de publicar
 
-## GitHub (Variables / Runner)
+- [ ] Código desejado no diretório de trabalho (`git status`, branch `main`)
+- [ ] Notebook com internet e na rede da impressora (Wi-Fi "Food Hope", `10.0.0.0/24`)
+- [ ] Backup do banco feito (`~/backups/foodhope/*.sql.gz`) se houver migration nova
 
-- [ ] Variable `VITE_API_URL` = `https://foodhope-api.abjr.dev`
-- [ ] Variable `VITE_SITE_URL` = `https://foodhope.abjr.dev`
-- [ ] Variable `HEALTHCHECK_API_URL` = `https://foodhope-api.abjr.dev/health`
-- [ ] Variable `HEALTHCHECK_WEB_URL` = `https://foodhope.abjr.dev/`
-- [x] Self-hosted runner instalado em `/home/hope/actions-runner` (`foodhope-server`)
-- [ ] Runner **Idle/Online** em Settings → Actions → Runners (confirmar na UI)
-- [ ] Sem secrets `DEPLOY_*` (não são usados)
+## Publicar
 
-## GHCR
+- [ ] `make up` (ou `make deploy`); só front: rebuild/up `--no-deps web` em `docker/`
 
-- [ ] Workflow publicou `ghcr.io/adelson70/foodhope/api`
-- [ ] Workflow publicou `ghcr.io/adelson70/foodhope/web`
-- [ ] Pull das imagens funciona no servidor
+## Conferir
 
-## Cloudflare
+- [ ] `docker compose ls` mostra **só** `foodhope` (nenhum projeto `docker`)
+- [ ] `docker ps --filter name=foodhope` com web, api, postgres, redis e os 2 tunnels `Up`
+- [ ] `https://foodhope.abjr.dev/` responde 200
+- [ ] `https://foodhope-api.abjr.dev/health` responde
+- [ ] `docker logs --tail 50 foodhope-api` sem erro de migration
+- [ ] Login do painel funciona
+- [ ] Impressora: página de teste em Configurações → Impressora
 
-- [ ] Hostnames `foodhope.abjr.dev` e `foodhope-api.abjr.dev` na Cloudflare
-- [ ] Tunnels / connectors criados (remotamente gerenciados)
-- [ ] `TUNNEL_TOKEN_WEB` e `TUNNEL_TOKEN_API` em `/home/hope/infra/foodhope-cloudflared/.env`
-- [ ] Containers cloudflared up na network `foodhope_edge`
-- [ ] Hostname `foodhope.abjr.dev` → `http://web:80`
-- [ ] Hostname `foodhope-api.abjr.dev` → `http://api:5000`
-- [ ] SSL/TLS adequado (Full)
+## Configuração (uma vez)
 
-## Validação
-
-- [ ] `docker compose -f compose.production.yml ps` mostra api/web healthy
-- [ ] `curl https://foodhope-api.abjr.dev/health` ok
-- [ ] `curl https://foodhope.abjr.dev/` ok
-- [ ] Login do painel funciona (CORS/cookies)
-- [ ] `.current-sha-api` / `.current-sha-web` existem após deploy
-- [ ] Rollback para `.previous-sha-*` testado (opcional)
-- [ ] Push na `main` dispara o workflow completo com sucesso
+- [x] `docker/.env` com `WEB_PUBLISH_PORT=8088` (porta 80 é de outro projeto)
+- [x] `docker/.env` com `IMPRESSORA_REDES=10.0.0.0/24`
+- [x] Tokens dos tunnels (`CLOUDFLARE_TUNNEL_TOKEN_WEB/API`) no `docker/.env`
+- [x] Workflow do GitHub só manual (sem runner)
