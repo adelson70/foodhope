@@ -23,7 +23,7 @@ function normalizar(texto: string) {
 }
 
 /**
- * Campo de categoria: mostra a escolhida e abre um painel lateral com busca e
+ * Campo de categoria: mostra a escolhida e abre um drawer de baixo com busca e
  * lista carregada aos poucos conforme a rolagem. "Outros" = sem categoria.
  */
 export function CategoriaPickerField({
@@ -58,6 +58,7 @@ export function CategoriaPickerField({
           open={aberto}
           title="Categoria"
           onClose={() => setAberto(false)}
+          variant="sheet"
         >
           <CategoriaLista
             value={value}

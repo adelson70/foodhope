@@ -12,6 +12,11 @@ type DrawerProps = {
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
+  /**
+   * `full` (padrão): tela toda no celular, à direita no desktop.
+   * `sheet`: sobe de baixo com a altura do conteúdo (até 90% da tela).
+   */
+  variant?: 'full' | 'sheet';
 };
 
 // Drawers abertos, do mais antigo ao mais recente: o Esc fecha só o de cima.
@@ -23,6 +28,7 @@ export function Drawer({
   onClose,
   children,
   footer,
+  variant = 'full',
 }: DrawerProps) {
   const { mounted, exiting, onExitAnimationEnd } = useAnimatedPresence(open);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -58,8 +64,15 @@ export function Drawer({
 
   if (!mounted) return null;
 
+  const sheet = variant === 'sheet';
+
   return (
-    <div className="fixed inset-0 z-50 flex justify-center overflow-hidden lg:justify-end">
+    <div
+      className={cn(
+        'fixed inset-0 z-50 flex justify-center overflow-hidden',
+        sheet ? 'items-end' : 'lg:justify-end',
+      )}
+    >
       <button
         type="button"
         aria-label="Fechar drawer"
@@ -75,14 +88,27 @@ export function Drawer({
         aria-modal="true"
         aria-labelledby={titleId}
         className={cn(
-          'relative z-10 flex h-dvh w-full max-w-md flex-col',
+          'relative z-10 flex w-full max-w-md flex-col',
           'bg-operator-surface border-x border-operator-border shadow-card',
-          'pt-[env(safe-area-inset-top)]',
+          sheet
+            ? 'max-h-[90dvh] rounded-t-2xl border-t'
+            : 'h-dvh pt-[env(safe-area-inset-top)]',
           exiting ? 'drawer-exit' : 'drawer-enter',
         )}
         onAnimationEnd={onExitAnimationEnd}
       >
-        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-operator-border px-4 py-4">
+        {sheet ? (
+          <div
+            aria-hidden
+            className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-outline-variant"
+          />
+        ) : null}
+        <header
+          className={cn(
+            'flex shrink-0 items-center justify-between gap-3 border-b border-operator-border px-4',
+            sheet ? 'py-2' : 'py-4',
+          )}
+        >
           <h2
             id={titleId}
             className="text-title-md font-semibold text-on-surface"
@@ -101,7 +127,10 @@ export function Drawer({
         </header>
         <div
           ref={bodyRef}
-          className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-4"
+          className={cn(
+            'min-h-0 overflow-y-auto overscroll-y-contain px-4 py-4',
+            sheet ? 'shrink' : 'flex-1',
+          )}
         >
           {children}
         </div>

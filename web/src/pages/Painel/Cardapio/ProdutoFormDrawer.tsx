@@ -209,7 +209,7 @@ export function ProdutoFormDrawer({
   const [especificosAbertos, setEspecificosAbertos] = useState(false);
   const [ingredientesAbertos, setIngredientesAbertos] = useState(false);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
-  // Item aberto no painel lateral: id do field ou NOVO (o recém-adicionado, índice 0).
+  // Item aberto no drawer: id do field ou NOVO (o recém-adicionado, índice 0).
   const [adicionalEditando, setAdicionalEditando] = useState<string | null>(
     null,
   );

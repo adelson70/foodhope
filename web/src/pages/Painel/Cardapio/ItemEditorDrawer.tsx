@@ -16,7 +16,7 @@ type ItemEditorDrawerProps = {
 };
 
 /**
- * Painel lateral para editar um item de lista do formulário do produto
+ * Drawer de baixo (meia tela) para editar um item de lista do formulário do produto
  * (variação, adicional, ingrediente). Fica num portal no body porque o drawer
  * do produto tem transform, o que quebraria o `position: fixed` aninhado.
  */
@@ -34,6 +34,7 @@ export function ItemEditorDrawer({
       open={open}
       title={titulo}
       onClose={onClose}
+      variant="sheet"
       footer={
         <div className="flex gap-2">
           {onRemover ? (

@@ -91,7 +91,7 @@ function VariacaoMiniatura({
 
 /**
  * Lista compacta de variações (foto, nome, preço). Tocar numa linha abre um
- * painel lateral com o formulário completo da variação.
+ * drawer de baixo com o formulário completo da variação.
  */
 export function ProdutoVariacoesField<
   TContext,
@@ -235,6 +235,7 @@ export function ProdutoVariacoesField<
           open={campoAberto !== null}
           title="Variação"
           onClose={() => setEditando(null)}
+          variant="sheet"
           footer={
             <div className="flex gap-2">
               <Button
