@@ -1,7 +1,11 @@
 # Deploy — Food Hope
 
-Hospedagem atual: **Docker nesta máquina (notebook), sem runner**. O site e a API saem para a
-internet por Cloudflare Tunnel; `git push` só envia código para o GitHub, **não publica**.
+Hospedagem atual: **Docker no servidor de casa** (`claude-server`, `~/apps/foodhope`, Tailscale
+`100.69.188.116`), sem runner. O site e a API saem para a internet por Cloudflare Tunnel;
+`git push` só envia código para o GitHub, **não publica**. O **notebook** guarda uma réplica do
+Postgres (streaming via Tailscale) para failover manual — ver "Réplica e failover".
+
+A impressora fica no restaurante e é alcançada pela **ponte ESP32** (a API não está na rede dela).
 
 O guia antigo (servidor dedicado + GitHub Actions + self-hosted runner + GHCR) está em
 [`docs/deploy-servidor-runner-desativado.md`](docs/deploy-servidor-runner-desativado.md).
@@ -33,7 +37,16 @@ Tudo vem de **um único projeto compose, `foodhope`**, definido em `docker/docke
 
 ## Publicar uma versão nova
 
-Na raiz do repositório, com o código desejado no diretório de trabalho:
+No servidor (`ssh claude-server-ts`), em `~/apps/foodhope`. O `docker/.env` de lá já define
+`COMPOSE_FILE` (inclui `docker-compose.servidor.yml`) e `COMPOSE_PROFILES=tunnel`:
+
+```bash
+cd ~/apps/foodhope && git pull --ff-only
+cd docker && docker compose build api web && docker compose up -d
+```
+
+Os alvos do `Makefile` abaixo usam `sudo` e o perfil `tunnel`; servem para rodar a stack inteira
+numa máquina só (ex.: o notebook em failover). Na raiz do repositório:
 
 ```bash
 make deploy   # build de web e api + up -d do projeto foodhope + segue os logs
@@ -96,7 +109,8 @@ Imagens dos produtos ficam no volume `docker_produto-imagens`.
 
 - A API procura impressoras (porta 9100) nas redes de `IMPRESSORA_REDES` (`docker/.env`, CIDR,
   no máximo `/22`), além do IP salvo na configuração do painel.
-- **Esta máquina precisa estar na mesma rede da impressora.** Hoje a impressora está em
+- Só vale no modo "Impressora de rede"; no servidor de casa use a **Ponte ESP32**.
+- **A máquina da API precisa estar na mesma rede da impressora.** Hoje a impressora está em
   `10.0.0.0/24` (gateway `10.0.0.1`). Se o notebook estiver em outro Wi-Fi (ex.: "Hope Parking",
   gateway `10.0.23.1`), a impressora não é encontrada, mesmo com a faixa `10.0.x.x` parecida.
 - Teste rápido no host: `timeout 3 bash -c '</dev/tcp/<ip-da-impressora>/9100' && echo ok`.
@@ -133,6 +147,31 @@ impressora na porta 9100.
 - **Carga:** `api/scripts/carga-ponte.mjs <A|B|C|D|E|real> --confirmo` (use o emulador
   `docker compose --profile dev up -d escpos`). Os cenários partem do pico real de 05/09/2026:
   6 pedidos/min, 44/h.
+
+## Réplica e failover (notebook)
+
+- **Servidor:** `docker-compose.servidor.yml` publica o Postgres na porta `5433` com
+  `docker/postgres/pg_hba.conf`: fora da rede do compose, só o role `replicador` vindo do IP
+  Tailscale do notebook (`100.64.8.84`). O slot físico `notebook` segura no máximo 2 GB de WAL
+  (`max_slot_wal_keep_size`), então o notebook desligado não lota o disco do servidor.
+  Role e slot: `sh postgres/replicacao.sh` (idempotente; senha em `PG_REPLICA_PASSWORD` do `.env`).
+- **Notebook:** `docker/replica/` (projeto `foodhope-replica`, volume `foodhope-replica-data`,
+  porta `127.0.0.1:5434`). `.env` com a mesma `PG_REPLICA_PASSWORD` (modelo em `.env.example`).
+  ```bash
+  cd docker/replica && docker compose up -d   # 1º boot: pg_basebackup; depois streaming
+  ```
+- **Conferir:** no servidor `docker exec foodhope-postgres psql -U foodhope -c "select client_addr,state,replay_lag from pg_stat_replication"`;
+  no notebook `docker exec foodhope-postgres-replica psql -U foodhope -d foodhope -c "select pg_is_in_recovery(), now()-pg_last_xact_replay_timestamp()"`.
+- **Failover manual (só com o servidor fora do ar e sem previsão de volta):**
+  1. Garanta que a stack do servidor está parada (senão os dois tunnels dividem o tráfego e os
+     bancos divergem).
+  2. `docker exec foodhope-postgres-replica psql -U foodhope -d foodhope -c "select pg_promote()"`.
+  3. No notebook, suba `redis`, `api`, `web` e os tunnels com `DATABASE_URL` apontando para a
+     réplica (`host.docker.internal:5434` ou a rede do projeto `foodhope-replica`).
+  4. Quando o servidor voltar, ele é que vira o desatualizado: refaça o servidor a partir de um
+     dump do notebook e recrie a réplica (`docker compose down -v` em `docker/replica` + `up -d`).
+- **Stack antiga do notebook:** containers `foodhope-*` parados (não removidos) e volumes
+  `docker_*` preservados como cópia do dia da migração. Não suba os tunnels dela junto com o servidor.
 
 ## GitHub Actions
 
