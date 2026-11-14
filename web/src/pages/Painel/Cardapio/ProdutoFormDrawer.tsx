@@ -32,6 +32,7 @@ import type {
   VariacaoImagemAcao,
 } from '../../../services/types';
 import { ProdutoImagemField } from './ProdutoImagemField';
+import { SecaoRecolhivel } from './SecaoRecolhivel';
 import {
   ProdutoVariacoesField,
   type VariacaoImagemDraft,
@@ -196,6 +197,8 @@ export function ProdutoFormDrawer({
     () => new Set(),
   );
   const [globais, setGlobais] = useState<AdicionalGlobal[]>([]);
+  const [globaisAbertos, setGlobaisAbertos] = useState(false);
+  const [especificosAbertos, setEspecificosAbertos] = useState(false);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [variacaoImagens, setVariacaoImagens] = useState<
     Record<string, VariacaoImagemDraft>
@@ -249,6 +252,8 @@ export function ProdutoFormDrawer({
     setVariacaoImagens({});
     setAnimarPrimeiroAdicional(false);
     setAdicionaisSaindo(new Set());
+    setGlobaisAbertos(false);
+    setEspecificosAbertos(false);
     setAnimarPrimeiroIngrediente(false);
     setIngredientesSaindo(new Set());
 
@@ -290,6 +295,7 @@ export function ProdutoFormDrawer({
 
   function handleAdicionarAdicional() {
     prepend({ nome: '', preco: 0, ativo: true });
+    setEspecificosAbertos(true);
     setAnimarPrimeiroAdicional(true);
   }
 
@@ -806,8 +812,16 @@ export function ProdutoFormDrawer({
           </button>
         </div>
 
-        <div className="space-y-3">
-          <Label>Adicionais globais</Label>
+        <SecaoRecolhivel
+          titulo="Adicionais globais"
+          resumo={
+            globais.length > 0
+              ? `${(adicionalGlobalIds ?? []).length} de ${globais.length} marcados`
+              : undefined
+          }
+          aberto={globaisAbertos}
+          onToggle={() => setGlobaisAbertos((atual) => !atual)}
+        >
           {globais.length === 0 ? (
             <p className="text-caption text-on-surface-variant">
               Nenhum adicional global. Cadastre em Configurações → Cozinha →
@@ -850,11 +864,14 @@ export function ProdutoFormDrawer({
               })}
             </ul>
           )}
-        </div>
+        </SecaoRecolhivel>
 
-        <div className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <Label>Adicionais deste produto</Label>
+        <SecaoRecolhivel
+          titulo="Adicionais deste produto"
+          resumo={fields.length > 0 ? String(fields.length) : undefined}
+          aberto={especificosAbertos || Boolean(errors.adicionais)}
+          onToggle={() => setEspecificosAbertos((atual) => !atual)}
+          acao={
             <Button
               type="button"
               variant="ghost"
@@ -865,7 +882,8 @@ export function ProdutoFormDrawer({
               <Plus size={14} strokeWidth={1.75} />
               Adicionar
             </Button>
-          </div>
+          }
+        >
 
           {fields.length === 0 ? (
             <p className="text-caption text-on-surface-variant">
@@ -989,7 +1007,7 @@ export function ProdutoFormDrawer({
               })}
             </ul>
           )}
-        </div>
+        </SecaoRecolhivel>
 
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-3">
