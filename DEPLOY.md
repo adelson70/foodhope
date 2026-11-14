@@ -118,10 +118,14 @@ impressora na porta 9100.
   arduino-cli compile --fqbn esp32:esp32:esp32 firmware/ponte-impressora
   arduino-cli upload  --fqbn esp32:esp32:esp32 -p /dev/ttyUSB0 firmware/ponte-impressora
   ```
-- **Plug and play:** o ESP32 tenta o Wi-Fi salvo, depois `WIFI_SSID` e depois `WIFI_SSID_2`. Se
-  nenhum funcionar, abre a rede **FoodHope-Ponte** (senha `PORTAL_SENHA`). Pelo celular, abra
-  http://192.168.4.1 e escolha o Wi-Fi. A impressora é achada sozinha: primeiro testa o IP salvo,
-  senão varre o /24 na porta 9100.
+- **Plug and play:** o ESP32 tenta o Wi-Fi salvo, depois `WIFI_SSID` e depois `WIFI_SSID_2`. A
+  impressora é achada sozinha: primeiro testa o IP salvo, senão varre o /24 na porta 9100.
+- **Trocar o Wi-Fi (recomendado):** ligue o ESP32 na USB de um computador e, no painel (Chrome/Edge),
+  Ponte ESP32 → **Conectar ESP32 pela USB** → escolha a rede → senha → Gravar. Ele reinicia e
+  confirma o IP em ~5 s. Pela serial (115200): `scan`, `wifi<TAB>ssid<TAB>senha`, `portal`.
+- **Portal (reserva):** sem Wi-Fi, ou segurando BOOT 2 s ao ligar, abre a rede aberta
+  **FoodHope-Ponte** (http://192.168.77.1). Nesta placa os celulares veem a rede mas não associam
+  (o ESP32 recebe os probes, nenhum aparelho conecta), por isso a USB é o caminho principal.
 - **LED:** pisca rápido = sem Wi-Fi; médio = sem API; lento = sem impressora; aceso = pronto.
 - **Sem perder comanda:** a fila (`fila-impressao`) tenta 10 vezes com backoff exponencial a partir
   de 5 s (~40 min). Com a ponte fora do ar, cada job ainda espera até 30 s pela reconexão. O ESP32

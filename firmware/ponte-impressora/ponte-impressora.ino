@@ -17,6 +17,7 @@
 #include <DNSServer.h>
 #include <esp_task_wdt.h>
 #include <esp_mac.h>
+#include <esp_wifi.h>
 #include <lwip/sockets.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -25,6 +26,8 @@
 #include "ca_roots.h"
 
 #define FW_VERSAO "1.0.0"
+
+#define BOOT_PIN 0  // botão BOOT do DevKit: segurar ao ligar abre o portal para trocar o Wi-Fi
 
 #ifndef LED_PIN
 #define LED_PIN 2
@@ -318,6 +321,60 @@ void onWs(WStype_t tipo, uint8_t* payload, size_t len) {
   }
 }
 
+RTC_NOINIT_ATTR uint32_t pedidoPortal;  // sobrevive ao ESP.restart(): abre o portal com o Wi-Fi zerado
+const uint32_t MAGICO_PORTAL = 0x504F5254;
+
+void abrirPortalLimpo() {
+  pedidoPortal = MAGICO_PORTAL;
+  Serial.println("reiniciando direto no portal");
+  Serial.flush();
+  ESP.restart();
+}
+
+// Comandos pela USB (115200), aceitos em qualquer estado (conectando, portal ou online).
+// Respostas para máquina começam com "@" (usadas pelo painel via Web Serial):
+//   scan                 -> "@rede\t<ssid>\t<rssi>" por rede e "@fim"
+//   wifi\t<ssid>\t<senha> -> grava na NVS, "@salvo" e reinicia; no boot sai "@wifi-ok <ip>" ou "@wifi-falhou"
+//   portal               -> reinicia direto no portal
+void comandoSerial() {
+  static char linha[200];
+  static uint8_t n = 0;
+  while (Serial.available()) {
+    char c = Serial.read();
+    if (c != '\n' && c != '\r') {
+      if (n < sizeof linha - 1) linha[n++] = c;
+      continue;
+    }
+    linha[n] = 0;
+    n = 0;
+    if (!strcmp(linha, "portal")) {
+      abrirPortalLimpo();
+    } else if (!strcmp(linha, "scan")) {
+      if (WiFi.getMode() == WIFI_AP) WiFi.mode(WIFI_AP_STA);
+      else if (WiFi.status() != WL_CONNECTED) WiFi.disconnect(false, false);  // scan não roda conectando
+      int q = WiFi.scanNetworks();
+      for (int i = 0; i < q; i++)
+        if (WiFi.SSID(i).length()) Serial.printf("@rede\t%s\t%d\n", WiFi.SSID(i).c_str(), WiFi.RSSI(i));
+      WiFi.scanDelete();
+      Serial.println("@fim");
+    } else if (!strncmp(linha, "wifi\t", 5)) {
+      char* ssid = linha + 5;
+      char* senha = strchr(ssid, '\t');
+      if (senha) *senha++ = 0;
+      if (!*ssid) {
+        Serial.println("@erro ssid vazio");
+        continue;
+      }
+      nvs.putString("ssid", ssid);
+      nvs.putString("pass", senha ? senha : "");
+      Serial.println("@salvo");
+      Serial.flush();
+      delay(200);
+      ESP.restart();
+    }
+  }
+}
+
 // ---------- Wi-Fi + portal ----------
 volatile uint8_t motivoQueda = 0;
 
@@ -330,10 +387,12 @@ bool tentarWifi(const char* ssid, const char* senha) {
   while (WiFi.status() != WL_CONNECTED && millis() - ini < WIFI_TENTATIVA_MS) {
     digitalWrite(LED_PIN, (millis() / 100) % 2);
     esp_task_wdt_reset();
+    comandoSerial();
     delay(50);
   }
   if (WiFi.status() == WL_CONNECTED) return true;
   Serial.printf("Wi-Fi: falhou (status %d, motivo %u)\n", WiFi.status(), motivoQueda);
+  Serial.printf("@wifi-falhou\t%s\t%u\n", ssid, motivoQueda);
   WiFi.disconnect(false, false);
   delay(100);
   return false;
@@ -355,21 +414,27 @@ void portal() {
   }
   WiFi.scanDelete();
 
-  WiFi.mode(WIFI_AP);
+  // AP limpo: sem gravar na flash, HT20 (alguns celulares não associam em HT40), IP fixo antes de subir.
+  WiFi.persistent(false);
+  WiFi.mode(WIFI_OFF);
   delay(100);
+  WiFi.mode(WIFI_AP);
+  esp_wifi_set_bandwidth(WIFI_IF_AP, WIFI_BW_HT20);
+  esp_wifi_set_protocol(WIFI_IF_AP, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N);
+  esp_wifi_set_event_mask(WIFI_EVENT_MASK_NONE);  // libera o evento de probe request (diagnóstico)
+  static uint32_t probes = 0;
   WiFi.onEvent([](WiFiEvent_t e, WiFiEventInfo_t info) {
+    if (e == ARDUINO_EVENT_WIFI_AP_PROBEREQRECVED) { probes++; return; }
     if (e == ARDUINO_EVENT_WIFI_AP_STACONNECTED) Serial.println("portal: aparelho conectou no AP");
     if (e == ARDUINO_EVENT_WIFI_AP_STAIPASSIGNED)
       Serial.printf("portal: IP entregue %s\n", IPAddress(info.wifi_ap_staipassigned.ip.addr).toString().c_str());
-    if (e == ARDUINO_EVENT_WIFI_AP_STADISCONNECTED) Serial.println("portal: aparelho saiu do AP");
+    if (e == ARDUINO_EVENT_WIFI_AP_STADISCONNECTED)
+      Serial.printf("portal: aparelho saiu do AP (motivo %u)\n", info.wifi_ap_stadisconnected.reason);
   });
-  bool apOk = WiFi.softAP("FoodHope-Ponte", nullptr, 6, 0, 4);
-  delay(200);
-  // Placas com antena mal casada: o celular vê a rede mas não associa em potência máxima.
-  WiFi.setTxPower(WIFI_POWER_8_5dBm);
-  // IP aplicado DEPOIS do softAP (ordem que funciona no core 3.x)
   WiFi.softAPConfig(IP_PORTAL, IP_PORTAL, IPAddress(255, 255, 255, 0));
-  delay(100);
+  bool apOk = WiFi.softAP("FoodHope-Ponte", nullptr, 6, 0, 4);
+  delay(500);
+  if (WiFi.softAPIP() != IP_PORTAL) WiFi.softAPConfig(IP_PORTAL, IP_PORTAL, IPAddress(255, 255, 255, 0));
   WiFi.setSleep(false);
   Serial.printf("portal: AP %s em %s canal 6, tx %d, %d redes na lista\n", apOk ? "no ar" : "FALHOU",
                 WiFi.softAPIP().toString().c_str(), (int)WiFi.getTxPower(), n);
@@ -423,8 +488,14 @@ void portal() {
     dns.processNextRequest();
     srv.handleClient();
     if (WiFi.softAPgetStationNum() > 0) ultimoUso = millis();  // não fecha com alguém conectado
+    static uint32_t ultimoLog = 0;
+    if (millis() - ultimoLog > 10000) {
+      ultimoLog = millis();
+      Serial.printf("portal: %u aparelho(s) no AP, %u probes recebidos\n", WiFi.softAPgetStationNum(), probes);
+    }
     digitalWrite(LED_PIN, (millis() / 1000) % 2 ? HIGH : (millis() / 100) % 2);
     esp_task_wdt_reset();
+    comandoSerial();
     delay(2);
   }
   Serial.println("portal: 5 min sem uso, reiniciando para tentar as redes de novo");
@@ -468,10 +539,20 @@ void setup() {
 
   uint8_t mac[6];
   esp_read_mac(mac, ESP_MAC_WIFI_STA);
+  pinMode(BOOT_PIN, INPUT_PULLUP);
   Serial.printf("\nFood Hope ponte %s  MAC %02X:%02X:%02X:%02X:%02X:%02X\n", FW_VERSAO, mac[0], mac[1],
                 mac[2], mac[3], mac[4], mac[5]);
+  uint32_t segurando = millis();
+  while (digitalRead(BOOT_PIN) == LOW && millis() - segurando < 2000) delay(10);
+  bool pedido = pedidoPortal == MAGICO_PORTAL;
+  pedidoPortal = 0;
+  if (pedido || digitalRead(BOOT_PIN) == LOW) {
+    Serial.println(pedido ? "portal pedido pela USB" : "BOOT pressionado: abrindo portal para trocar o Wi-Fi");
+    portal();
+  }
   conectarWifi();
   Serial.printf("Wi-Fi ok: %s  RSSI %d\n", WiFi.localIP().toString().c_str(), WiFi.RSSI());
+  Serial.printf("@wifi-ok\t%s\t%s\n", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
 
   atualizarImpressora(true);
 
@@ -490,6 +571,7 @@ void setup() {
 
 void loop() {
   esp_task_wdt_reset();
+  comandoSerial();
   ws.loop();
   led();
   uint32_t agora = millis();
