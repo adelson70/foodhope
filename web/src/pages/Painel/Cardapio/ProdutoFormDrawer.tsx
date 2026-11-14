@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Controller, useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 import {
   Button,
@@ -9,7 +9,6 @@ import {
   Drawer,
   Input,
   Label,
-  Select,
   Textarea,
 } from '../../../components/ui';
 import { cn } from '../../../lib/cn';
@@ -31,6 +30,8 @@ import type {
   Produto,
   VariacaoImagemAcao,
 } from '../../../services/types';
+import { CategoriaPickerField } from './CategoriaPickerField';
+import { ItemEditorDrawer, ItemLinha } from './ItemEditorDrawer';
 import { ProdutoImagemField } from './ProdutoImagemField';
 import { SecaoRecolhivel } from './SecaoRecolhivel';
 import {
@@ -46,7 +47,14 @@ type ProdutoFormDrawerProps = {
 };
 
 const FORM_ID = 'produto-form';
-const SEM_CATEGORIA = '';
+const NOVO = '__novo__';
+
+function indiceEditando(campos: { id: string }[], editando: string | null) {
+  if (editando === null) return null;
+  if (editando === NOVO) return campos.length > 0 ? 0 : null;
+  const index = campos.findIndex((item) => item.id === editando);
+  return index >= 0 ? index : null;
+}
 
 function valoresIniciais(produto: Produto | null): ProdutoFormValues {
   if (!produto) {
@@ -199,7 +207,15 @@ export function ProdutoFormDrawer({
   const [globais, setGlobais] = useState<AdicionalGlobal[]>([]);
   const [globaisAbertos, setGlobaisAbertos] = useState(false);
   const [especificosAbertos, setEspecificosAbertos] = useState(false);
+  const [ingredientesAbertos, setIngredientesAbertos] = useState(false);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
+  // Item aberto no painel lateral: id do field ou NOVO (o recém-adicionado, índice 0).
+  const [adicionalEditando, setAdicionalEditando] = useState<string | null>(
+    null,
+  );
+  const [ingredienteEditando, setIngredienteEditando] = useState<
+    string | null
+  >(null);
   const [variacaoImagens, setVariacaoImagens] = useState<
     Record<string, VariacaoImagemDraft>
   >({});
@@ -254,6 +270,9 @@ export function ProdutoFormDrawer({
     setAdicionaisSaindo(new Set());
     setGlobaisAbertos(false);
     setEspecificosAbertos(false);
+    setIngredientesAbertos(false);
+    setAdicionalEditando(null);
+    setIngredienteEditando(null);
     setAnimarPrimeiroIngrediente(false);
     setIngredientesSaindo(new Set());
 
@@ -297,6 +316,7 @@ export function ProdutoFormDrawer({
     prepend({ nome: '', preco: 0, ativo: true });
     setEspecificosAbertos(true);
     setAnimarPrimeiroAdicional(true);
+    setAdicionalEditando(NOVO);
   }
 
   function handleRemoverAdicional(fieldId: string) {
@@ -316,7 +336,9 @@ export function ProdutoFormDrawer({
 
   function handleAdicionarIngrediente() {
     prependIngrediente({ nome: '' });
+    setIngredientesAbertos(true);
     setAnimarPrimeiroIngrediente(true);
+    setIngredienteEditando(NOVO);
   }
 
   function handleRemoverIngrediente(fieldId: string) {
@@ -332,6 +354,37 @@ export function ProdutoFormDrawer({
       return proximo;
     });
     if (index >= 0) removeIngrediente(index);
+  }
+
+  const adicionalIndex = indiceEditando(fields, adicionalEditando);
+  const ingredienteIndex = indiceEditando(
+    ingredientesFields,
+    ingredienteEditando,
+  );
+
+  /** Fecha o painel; item novo deixado sem nome é descartado. */
+  function fecharAdicional() {
+    if (
+      adicionalIndex !== null &&
+      !watch(`adicionais.${adicionalIndex}.id`) &&
+      !watch(`adicionais.${adicionalIndex}.nome`)?.trim()
+    ) {
+      remove(adicionalIndex);
+      setAnimarPrimeiroAdicional(false);
+    }
+    setAdicionalEditando(null);
+  }
+
+  function fecharIngrediente() {
+    if (
+      ingredienteIndex !== null &&
+      !watch(`ingredientes.${ingredienteIndex}.id`) &&
+      !watch(`ingredientes.${ingredienteIndex}.nome`)?.trim()
+    ) {
+      removeIngrediente(ingredienteIndex);
+      setAnimarPrimeiroIngrediente(false);
+    }
+    setIngredienteEditando(null);
   }
 
   function handleAdicionarVariacao() {
@@ -685,24 +738,12 @@ export function ProdutoFormDrawer({
             name="categoriaId"
             control={control}
             render={({ field }) => (
-              <Select
+              <CategoriaPickerField
                 id="produto-categoria"
-                value={field.value ?? SEM_CATEGORIA}
-                onChange={(value) =>
-                  field.onChange(value === SEM_CATEGORIA ? null : value)
-                }
-                options={[
-                  { value: SEM_CATEGORIA, label: 'Outros' },
-                  ...categorias.map((item) => ({
-                    value: item.id,
-                    label: item.nome,
-                  })),
-                ]}
-                placeholder="Outros"
-                searchPlaceholder="Buscar categoria…"
-                emptyMessage="Nenhuma categoria"
+                value={field.value ?? null}
+                categorias={categorias}
+                onChange={field.onChange}
                 disabled={isSubmitting}
-                clearable={false}
               />
             )}
           />
@@ -890,18 +931,18 @@ export function ProdutoFormDrawer({
               Nenhum adicional específico. Use “Adicionar” para incluir.
             </p>
           ) : (
-            <ul className="flex flex-col gap-3">
+            <ul className="flex flex-col gap-2">
               {fields.map((field, index) => {
                 const saindo = adicionaisSaindo.has(field.id);
                 const entrando =
                   index === 0 && animarPrimeiroAdicional && !saindo;
+                const preco = Number(watch(`adicionais.${index}.preco`)) || 0;
                 const ativo = watch(`adicionais.${index}.ativo`);
 
                 return (
                   <li
                     key={field.id}
                     className={cn(
-                      'overflow-hidden rounded-xl border border-operator-border bg-operator-bg p-3',
                       entrando && 'list-item-enter',
                       saindo && 'list-item-exit',
                     )}
@@ -914,94 +955,13 @@ export function ProdutoFormDrawer({
                       if (entrando) setAnimarPrimeiroAdicional(false);
                     }}
                   >
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <Label htmlFor={`adicional-ativo-${index}`}>
-                          Disponível neste produto
-                        </Label>
-                        <button
-                          type="button"
-                          id={`adicional-ativo-${index}`}
-                          role="switch"
-                          aria-checked={ativo}
-                          disabled={isSubmitting || saindo}
-                          onClick={() =>
-                            setValue(
-                              `adicionais.${index}.ativo`,
-                              !ativo,
-                              { shouldDirty: true },
-                            )
-                          }
-                          className={cn(
-                            'relative h-5 w-9 shrink-0 rounded-full transition-colors',
-                            ativo ? 'bg-primary' : 'bg-outline-variant',
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              'absolute top-0.5 left-0.5 size-4 rounded-full bg-surface shadow-card transition-transform',
-                              ativo && 'translate-x-4',
-                            )}
-                          />
-                        </button>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor={`adicional-nome-${index}`}>Nome</Label>
-                        <Input
-                          id={`adicional-nome-${index}`}
-                          placeholder="Ex.: Ovo"
-                          error={Boolean(errors.adicionais?.[index]?.nome)}
-                          disabled={isSubmitting || saindo}
-                          {...register(`adicionais.${index}.nome`)}
-                        />
-                        {errors.adicionais?.[index]?.nome ? (
-                          <p className="text-caption text-danger">
-                            {errors.adicionais[index]?.nome?.message}
-                          </p>
-                        ) : null}
-                      </div>
-                      <div className="flex items-end gap-2">
-                        <div className="min-w-0 flex-1 space-y-2">
-                          <Label htmlFor={`adicional-preco-${index}`}>
-                            Preço
-                          </Label>
-                          <Controller
-                            name={`adicionais.${index}.preco`}
-                            control={control}
-                            render={({ field: precoField }) => (
-                              <CurrencyInput
-                                id={`adicional-preco-${index}`}
-                                name={precoField.name}
-                                ref={precoField.ref}
-                                value={precoField.value}
-                                onBlur={precoField.onBlur}
-                                onChange={precoField.onChange}
-                                error={Boolean(
-                                  errors.adicionais?.[index]?.preco,
-                                )}
-                                disabled={isSubmitting || saindo}
-                                aria-label={`Preço do adicional ${index + 1}`}
-                              />
-                            )}
-                          />
-                          {errors.adicionais?.[index]?.preco ? (
-                            <p className="text-caption text-danger">
-                              {errors.adicionais[index]?.preco?.message}
-                            </p>
-                          ) : null}
-                        </div>
-                        <Button
-                          type="button"
-                          variant="dangerGhost"
-                          aria-label="Remover adicional"
-                          className="size-12 shrink-0 px-0 py-0"
-                          disabled={isSubmitting || saindo}
-                          onClick={() => handleRemoverAdicional(field.id)}
-                        >
-                          <Trash2 size={17} strokeWidth={1.75} />
-                        </Button>
-                      </div>
-                    </div>
+                    <ItemLinha
+                      titulo={watch(`adicionais.${index}.nome`)}
+                      detalhe={`${formatarMoeda(preco)}${ativo ? '' : ' · Indisponível'}`}
+                      erro={Boolean(errors.adicionais?.[index])}
+                      disabled={isSubmitting || saindo}
+                      onClick={() => setAdicionalEditando(field.id)}
+                    />
                   </li>
                 );
               })}
@@ -1009,14 +969,16 @@ export function ProdutoFormDrawer({
           )}
         </SecaoRecolhivel>
 
-        <div className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <Label>Ingredientes (retirar)</Label>
-              <p className="text-caption text-on-surface-variant">
-                Aparecem como opções de retirada no pedido
-              </p>
-            </div>
+        <SecaoRecolhivel
+          titulo="Ingredientes (retirar)"
+          resumo={
+            ingredientesFields.length > 0
+              ? String(ingredientesFields.length)
+              : undefined
+          }
+          aberto={ingredientesAbertos || Boolean(errors.ingredientes)}
+          onToggle={() => setIngredientesAbertos((atual) => !atual)}
+          acao={
             <Button
               type="button"
               variant="ghost"
@@ -1027,14 +989,18 @@ export function ProdutoFormDrawer({
               <Plus size={14} strokeWidth={1.75} />
               Adicionar
             </Button>
-          </div>
+          }
+        >
+          <p className="mb-3 text-caption text-on-surface-variant">
+            Aparecem como opções de retirada no pedido
+          </p>
 
           {ingredientesFields.length === 0 ? (
             <p className="text-caption text-on-surface-variant">
               Nenhum ingrediente. Use “Adicionar” para mapear o lanche.
             </p>
           ) : (
-            <ul className="flex flex-col gap-3">
+            <ul className="flex flex-col gap-2">
               {ingredientesFields.map((field, index) => {
                 const saindo = ingredientesSaindo.has(field.id);
                 const entrando =
@@ -1044,7 +1010,6 @@ export function ProdutoFormDrawer({
                   <li
                     key={field.id}
                     className={cn(
-                      'overflow-hidden rounded-xl border border-operator-border bg-operator-bg p-3',
                       entrando && 'list-item-enter',
                       saindo && 'list-item-exit',
                     )}
@@ -1057,40 +1022,146 @@ export function ProdutoFormDrawer({
                       if (entrando) setAnimarPrimeiroIngrediente(false);
                     }}
                   >
-                    <div className="flex items-end gap-2">
-                      <div className="min-w-0 flex-1 space-y-2">
-                        <Label htmlFor={`ingrediente-nome-${index}`}>Nome</Label>
-                        <Input
-                          id={`ingrediente-nome-${index}`}
-                          placeholder="Ex.: Cebola"
-                          error={Boolean(errors.ingredientes?.[index]?.nome)}
-                          disabled={isSubmitting || saindo}
-                          {...register(`ingredientes.${index}.nome`)}
-                        />
-                        {errors.ingredientes?.[index]?.nome ? (
-                          <p className="text-caption text-danger">
-                            {errors.ingredientes[index]?.nome?.message}
-                          </p>
-                        ) : null}
-                      </div>
-                      <Button
-                        type="button"
-                        variant="dangerGhost"
-                        aria-label="Remover ingrediente"
-                        className="size-12 shrink-0 px-0 py-0"
-                        disabled={isSubmitting || saindo}
-                        onClick={() => handleRemoverIngrediente(field.id)}
-                      >
-                        <Trash2 size={17} strokeWidth={1.75} />
-                      </Button>
-                    </div>
+                    <ItemLinha
+                      titulo={watch(`ingredientes.${index}.nome`)}
+                      erro={Boolean(errors.ingredientes?.[index])}
+                      disabled={isSubmitting || saindo}
+                      onClick={() => setIngredienteEditando(field.id)}
+                    />
                   </li>
                 );
               })}
             </ul>
           )}
-        </div>
+        </SecaoRecolhivel>
       </form>
+
+      <ItemEditorDrawer
+        open={adicionalIndex !== null}
+        titulo="Adicional"
+        onClose={fecharAdicional}
+        removerLabel="Remover adicional"
+        onRemover={() => {
+          if (adicionalIndex === null) return;
+          const fieldId = fields[adicionalIndex]?.id;
+          setAdicionalEditando(null);
+          if (fieldId) handleRemoverAdicional(fieldId);
+        }}
+        disabled={isSubmitting}
+      >
+        {adicionalIndex !== null ? (
+          <div key={fields[adicionalIndex]?.id} className="flex flex-col gap-4">
+            <div className="space-y-2">
+              <Label htmlFor={`adicional-nome-${adicionalIndex}`}>Nome</Label>
+              <Input
+                id={`adicional-nome-${adicionalIndex}`}
+                placeholder="Ex.: Ovo"
+                error={Boolean(errors.adicionais?.[adicionalIndex]?.nome)}
+                disabled={isSubmitting}
+                {...register(`adicionais.${adicionalIndex}.nome`)}
+              />
+              {errors.adicionais?.[adicionalIndex]?.nome ? (
+                <p className="text-caption text-danger">
+                  {errors.adicionais[adicionalIndex]?.nome?.message}
+                </p>
+              ) : null}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor={`adicional-preco-${adicionalIndex}`}>Preço</Label>
+              <Controller
+                name={`adicionais.${adicionalIndex}.preco`}
+                control={control}
+                render={({ field: precoField }) => (
+                  <CurrencyInput
+                    id={`adicional-preco-${adicionalIndex}`}
+                    name={precoField.name}
+                    ref={precoField.ref}
+                    value={precoField.value}
+                    onBlur={precoField.onBlur}
+                    onChange={precoField.onChange}
+                    error={Boolean(errors.adicionais?.[adicionalIndex]?.preco)}
+                    disabled={isSubmitting}
+                    aria-label="Preço do adicional"
+                  />
+                )}
+              />
+              {errors.adicionais?.[adicionalIndex]?.preco ? (
+                <p className="text-caption text-danger">
+                  {errors.adicionais[adicionalIndex]?.preco?.message}
+                </p>
+              ) : null}
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor={`adicional-ativo-${adicionalIndex}`}>
+                Disponível neste produto
+              </Label>
+              <button
+                type="button"
+                id={`adicional-ativo-${adicionalIndex}`}
+                role="switch"
+                aria-checked={watch(`adicionais.${adicionalIndex}.ativo`)}
+                disabled={isSubmitting}
+                onClick={() =>
+                  setValue(
+                    `adicionais.${adicionalIndex}.ativo`,
+                    !watch(`adicionais.${adicionalIndex}.ativo`),
+                    { shouldDirty: true },
+                  )
+                }
+                className={cn(
+                  'relative h-5 w-9 shrink-0 rounded-full transition-colors',
+                  watch(`adicionais.${adicionalIndex}.ativo`)
+                    ? 'bg-primary'
+                    : 'bg-outline-variant',
+                )}
+              >
+                <span
+                  className={cn(
+                    'absolute top-0.5 left-0.5 size-4 rounded-full bg-surface shadow-card transition-transform',
+                    watch(`adicionais.${adicionalIndex}.ativo`) &&
+                      'translate-x-4',
+                  )}
+                />
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </ItemEditorDrawer>
+
+      <ItemEditorDrawer
+        open={ingredienteIndex !== null}
+        titulo="Ingrediente"
+        onClose={fecharIngrediente}
+        removerLabel="Remover ingrediente"
+        onRemover={() => {
+          if (ingredienteIndex === null) return;
+          const fieldId = ingredientesFields[ingredienteIndex]?.id;
+          setIngredienteEditando(null);
+          if (fieldId) handleRemoverIngrediente(fieldId);
+        }}
+        disabled={isSubmitting}
+      >
+        {ingredienteIndex !== null ? (
+          <div key={ingredientesFields[ingredienteIndex]?.id} className="space-y-2">
+            <Label htmlFor={`ingrediente-nome-${ingredienteIndex}`}>Nome</Label>
+            <Input
+              id={`ingrediente-nome-${ingredienteIndex}`}
+              placeholder="Ex.: Cebola"
+              error={Boolean(errors.ingredientes?.[ingredienteIndex]?.nome)}
+              disabled={isSubmitting}
+              {...register(`ingredientes.${ingredienteIndex}.nome`)}
+            />
+            {errors.ingredientes?.[ingredienteIndex]?.nome ? (
+              <p className="text-caption text-danger">
+                {errors.ingredientes[ingredienteIndex]?.nome?.message}
+              </p>
+            ) : null}
+            <p className="text-caption text-on-surface-variant">
+              Aparece como opção de retirada no pedido.
+            </p>
+          </div>
+        ) : null}
+      </ItemEditorDrawer>
     </Drawer>
   );
 }
