@@ -11,6 +11,7 @@ import { infinitepayService } from '../../services';
 import type { Pedido, TipoConsumo } from '../../services/types';
 import { useCarrinhoStore } from '../../stores/carrinho.store';
 import { PedidoConfirmadoCheck } from './PedidoConfirmadoCheck';
+import { nomeItemPedido } from '../../lib/produtoVariacao';
 
 type ConfirmadoLocationState = {
   numero?: string;
@@ -283,7 +284,7 @@ async function persistirPedidoLocal(
     prontoAt: pedido.prontoAt ?? null,
     createdAt: pedido.createdAt ?? new Date().toISOString(),
     itens: (pedido.itens ?? []).map((item) => ({
-      nome: item.produto?.nome ?? 'Item',
+      nome: nomeItemPedido(item),
       qtd: item.quantidade,
       preco: Number(item.preco_produto),
       adicionais: (item.adicional_venda ?? []).map((adic) => ({

@@ -13,6 +13,8 @@ export type CarrinhoRetirada = {
 export type CarrinhoItem = {
   id: string;
   produtoId: string;
+  variacaoId?: string;
+  /** Nome exibido; para produto variável já vem como "Produto - Variação". */
   nome: string;
   preco: number;
   qtd: number;

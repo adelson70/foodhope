@@ -79,6 +79,40 @@ export class ProdutoController {
     return this.produto.removerImagemProduto(id);
   }
 
+  @Put(':id/variacao/:variacaoId/imagem')
+  @ApiBearerAuth()
+  @Roles('ADMIN')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['imagem'],
+      properties: {
+        imagem: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @ApiOperation({ summary: 'Upload/substituição da imagem de uma variação do produto' })
+  @UseInterceptors(FileInterceptor('imagem', produtoImagemUploadOptions))
+  async editarImagemVariacao(
+    @Param('id') id: string,
+    @Param('variacaoId') variacaoId: string,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Envie uma imagem no campo "imagem".');
+    }
+    return this.produto.editarImagemVariacao(id, variacaoId, file);
+  }
+
+  @Delete(':id/variacao/:variacaoId/imagem')
+  @ApiBearerAuth()
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Remoção da imagem de uma variação do produto' })
+  async removerImagemVariacao(@Param('id') id: string, @Param('variacaoId') variacaoId: string) {
+    return this.produto.removerImagemVariacao(id, variacaoId);
+  }
+
   @Put(':id')
   @ApiBearerAuth()
   @Roles('ADMIN')
@@ -96,7 +130,9 @@ export class ProdutoController {
       dto.adicionalGlobalIds === undefined &&
       (!dto.ingredientes || dto.ingredientes.length === 0) &&
       dto.imprimirSeparado === undefined &&
-      dto.ignorarImpressaoSozinho === undefined
+      dto.ignorarImpressaoSozinho === undefined &&
+      dto.tipo === undefined &&
+      (!dto.variacoes || dto.variacoes.length === 0)
     ) {
       return { mensagem: 'Nada para editar :)' };
     }

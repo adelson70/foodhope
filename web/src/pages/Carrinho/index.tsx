@@ -107,6 +107,7 @@ export function Carrinho() {
   function montarItens() {
     return itens.map((item) => ({
       id: item.produtoId,
+      ...(item.variacaoId ? { variacaoId: item.variacaoId } : {}),
       qtd: item.qtd,
       adicional:
         item.adicionais.length > 0

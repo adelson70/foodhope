@@ -29,8 +29,13 @@ import type {
   Categoria,
   IngredienteEditarInput,
   Produto,
+  VariacaoImagemAcao,
 } from '../../../services/types';
 import { ProdutoImagemField } from './ProdutoImagemField';
+import {
+  ProdutoVariacoesField,
+  type VariacaoImagemDraft,
+} from './ProdutoVariacoesField';
 
 type ProdutoFormDrawerProps = {
   open: boolean;
@@ -55,6 +60,8 @@ function valoresIniciais(produto: Produto | null): ProdutoFormValues {
       adicionais: [],
       adicionalGlobalIds: [],
       ingredientes: [],
+      tipo: 'SIMPLES',
+      variacoes: [],
     };
   }
 
@@ -76,6 +83,13 @@ function valoresIniciais(produto: Produto | null): ProdutoFormValues {
     ingredientes: (produto.ingredientes ?? []).map((item) => ({
       id: item.id,
       nome: item.nome,
+    })),
+    tipo: produto.tipo ?? 'SIMPLES',
+    variacoes: (produto.variacoes ?? []).map((item) => ({
+      id: item.id,
+      nome: item.nome,
+      preco: Number(item.preco),
+      ativo: item.ativo ?? true,
     })),
   };
 }
@@ -183,6 +197,9 @@ export function ProdutoFormDrawer({
   );
   const [globais, setGlobais] = useState<AdicionalGlobal[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [variacaoImagens, setVariacaoImagens] = useState<
+    Record<string, VariacaoImagemDraft>
+  >({});
 
   const {
     register,
@@ -211,7 +228,17 @@ export function ProdutoFormDrawer({
     name: 'ingredientes',
   });
 
+  const {
+    fields: variacoesFields,
+    append: appendVariacao,
+    remove: removeVariacao,
+  } = useFieldArray({
+    control,
+    name: 'variacoes',
+  });
+
   const adicionalGlobalIds = watch('adicionalGlobalIds');
+  const tipo = watch('tipo');
 
   useEffect(() => {
     if (!open) return;
@@ -219,6 +246,7 @@ export function ProdutoFormDrawer({
     setImagemFile(null);
     setImagemSessao((sessao) => sessao + 1);
     setRemoverImagem(false);
+    setVariacaoImagens({});
     setAnimarPrimeiroAdicional(false);
     setAdicionaisSaindo(new Set());
     setAnimarPrimeiroIngrediente(false);
@@ -300,6 +328,39 @@ export function ProdutoFormDrawer({
     if (index >= 0) removeIngrediente(index);
   }
 
+  function handleAdicionarVariacao() {
+    appendVariacao({ nome: '', preco: watch('preco') ?? 0, ativo: true });
+  }
+
+  function handleRemoverVariacao(index: number) {
+    const fieldKey = variacoesFields[index]?.id;
+    if (fieldKey) {
+      setVariacaoImagens((atual) => {
+        const proximo = { ...atual };
+        delete proximo[fieldKey];
+        return proximo;
+      });
+    }
+    removeVariacao(index);
+  }
+
+  function montarAcoesImagemVariacoes(
+    variacoes: ProdutoFormValues['variacoes'],
+  ): VariacaoImagemAcao[] {
+    const acoes: VariacaoImagemAcao[] = [];
+    variacoes.forEach((variacao, index) => {
+      const fieldKey = variacoesFields[index]?.id;
+      const draft = fieldKey ? variacaoImagens[fieldKey] : undefined;
+      if (!draft) return;
+      if (draft.file) {
+        acoes.push({ id: variacao.id, nome: variacao.nome.trim(), imagem: draft.file });
+      } else if (draft.remover && variacao.id) {
+        acoes.push({ id: variacao.id, nome: variacao.nome.trim(), removerImagem: true });
+      }
+    });
+    return acoes;
+  }
+
   function toggleGlobal(id: string) {
     const atual = adicionalGlobalIds ?? [];
     if (atual.includes(id)) {
@@ -327,12 +388,32 @@ export function ProdutoFormDrawer({
       return !fieldId || !ingredientesSaindo.has(fieldId);
     });
 
+    const variavel = values.tipo === 'VARIAVEL';
+    const variacoesValidas = variavel ? values.variacoes : [];
+    // Produto variável: o preço do produto é o menor preço das variações (o backend recalcula).
+    const preco =
+      variavel && variacoesValidas.length > 0
+        ? Math.min(...variacoesValidas.map((item) => item.preco))
+        : values.preco;
+    const variacaoImagensAcoes = variavel
+      ? montarAcoesImagemVariacoes(variacoesValidas)
+      : [];
+
     try {
       if (!produto) {
         const response = await produtoService.criar({
           nome: values.nome.trim(),
           descricao,
-          preco: values.preco,
+          preco,
+          tipo: values.tipo,
+          variacoes: variavel
+            ? variacoesValidas.map((item) => ({
+                nome: item.nome.trim(),
+                preco: item.preco,
+                ativo: item.ativo,
+              }))
+            : undefined,
+          variacaoImagens: variacaoImagensAcoes,
           ativo: values.ativo,
           imprimirSeparado: values.imprimirSeparado,
           ignorarImpressaoSozinho: values.ignorarImpressaoSozinho,
@@ -374,10 +455,24 @@ export function ProdutoFormDrawer({
         ingredientesOriginais,
       );
 
+      const variacoesOriginais = (produto.variacoes ?? []).map((item) => ({
+        id: item.id,
+        nome: item.nome,
+        preco: Number(item.preco),
+        ativo: item.ativo ?? true,
+      }));
+      // Mesmo formato de adicionais: criar sem id, editar/deletar com id.
+      const variacoes = variavel
+        ? montarAdicionaisEdicao(variacoesValidas, variacoesOriginais)
+        : [];
+
       const response = await produtoService.editar(produto.id, {
         nome: values.nome.trim(),
         descricao: descricao ?? '',
-        preco: values.preco,
+        preco,
+        tipo: values.tipo,
+        variacoes: variacoes.length > 0 ? variacoes : undefined,
+        variacaoImagens: variacaoImagensAcoes,
         ativo: values.ativo,
         imprimirSeparado: values.imprimirSeparado,
         ignorarImpressaoSozinho: values.ignorarImpressaoSozinho,
@@ -390,7 +485,10 @@ export function ProdutoFormDrawer({
       });
 
       if (!response.sucesso || !response.dados) return;
-      if (!('id' in response.dados)) return;
+      if (!('id' in response.dados)) {
+        onClose();
+        return;
+      }
       onSaved(response.dados);
       onClose();
     } catch {
@@ -426,6 +524,11 @@ export function ProdutoFormDrawer({
       >
         <div className="space-y-2">
           <Label>Foto do produto</Label>
+          {tipo === 'VARIAVEL' ? (
+            <p className="text-caption text-on-surface-variant">
+              Foto padrão, usada nas variações sem foto
+            </p>
+          ) : null}
           <ProdutoImagemField
             key={imagemSessao}
             file={imagemFile}
@@ -472,28 +575,103 @@ export function ProdutoFormDrawer({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="produto-preco">Preço</Label>
-          <Controller
-            name="preco"
-            control={control}
-            render={({ field }) => (
-              <CurrencyInput
-                id="produto-preco"
-                name={field.name}
-                ref={field.ref}
-                value={field.value}
-                onBlur={field.onBlur}
-                onChange={field.onChange}
-                error={Boolean(errors.preco)}
-                disabled={isSubmitting}
-                aria-label="Preço do produto"
-              />
-            )}
-          />
-          {errors.preco ? (
-            <p className="text-caption text-danger">{errors.preco.message}</p>
+          <Label>Tipo do produto</Label>
+          <div
+            role="radiogroup"
+            aria-label="Tipo do produto"
+            className="grid grid-cols-2 gap-2"
+          >
+            {(
+              [
+                { valor: 'SIMPLES', label: 'Simples', ajuda: 'Um preço só' },
+                {
+                  valor: 'VARIAVEL',
+                  label: 'Variável',
+                  ajuda: 'Preço e foto por opção',
+                },
+              ] as const
+            ).map((opcao) => {
+              const ativo = tipo === opcao.valor;
+              return (
+                <button
+                  key={opcao.valor}
+                  type="button"
+                  role="radio"
+                  aria-checked={ativo}
+                  disabled={isSubmitting}
+                  onClick={() =>
+                    setValue('tipo', opcao.valor, { shouldDirty: true })
+                  }
+                  className={cn(
+                    'rounded-xl border px-3 py-2.5 text-left transition-colors',
+                    ativo
+                      ? 'border-primary/40 bg-primary-container/20'
+                      : 'border-operator-border bg-operator-bg',
+                  )}
+                >
+                  <span className="block text-body-md text-on-surface">
+                    {opcao.label}
+                  </span>
+                  <span className="block text-caption text-on-surface-variant">
+                    {opcao.ajuda}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {isEdicao &&
+          produto?.tipo === 'VARIAVEL' &&
+          tipo === 'SIMPLES' ? (
+            <p className="text-caption text-danger">
+              Ao salvar como simples, as variações deste produto serão
+              apagadas.
+            </p>
           ) : null}
         </div>
+
+        {tipo === 'VARIAVEL' ? (
+          <ProdutoVariacoesField
+            fields={variacoesFields}
+            control={control}
+            register={register}
+            watch={watch}
+            setValue={setValue}
+            errors={errors}
+            originais={produto?.variacoes ?? []}
+            imagens={variacaoImagens}
+            imagemSessao={imagemSessao}
+            onChangeImagem={(fieldKey, draft) =>
+              setVariacaoImagens((atual) => ({ ...atual, [fieldKey]: draft }))
+            }
+            onAdicionar={handleAdicionarVariacao}
+            onRemover={handleRemoverVariacao}
+            disabled={isSubmitting}
+          />
+        ) : (
+          <div className="space-y-2">
+            <Label htmlFor="produto-preco">Preço</Label>
+            <Controller
+              name="preco"
+              control={control}
+              render={({ field }) => (
+                <CurrencyInput
+                  id="produto-preco"
+                  name={field.name}
+                  ref={field.ref}
+                  value={field.value}
+                  onBlur={field.onBlur}
+                  onChange={field.onChange}
+                  error={Boolean(errors.preco)}
+                  disabled={isSubmitting}
+                  aria-label="Preço do produto"
+                />
+              )}
+            />
+            {errors.preco ? (
+              <p className="text-caption text-danger">{errors.preco.message}</p>
+            ) : null}
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="produto-categoria">Categoria</Label>

@@ -2,6 +2,7 @@ import { ArrowDown, ArrowUp, Pencil, Trash2 } from 'lucide-react';
 
 import { Button } from '../../../components/ui';
 import type { Produto } from '../../../services/types';
+import { precoExibicao, variacoesAtivas } from '../../../lib/produtoVariacao';
 import { formatarMoeda } from './produtoFormat';
 
 type ProdutoCardProps = {
@@ -40,8 +41,16 @@ export function ProdutoCard({
             </p>
           ) : null}
           <p className="mt-2 text-body-md font-medium text-on-surface">
-            {formatarMoeda(Number(produto.preco))}
+            {precoExibicao(produto).aPartirDe ? 'a partir de ' : ''}
+            {formatarMoeda(precoExibicao(produto).valor)}
           </p>
+          {produto.tipo === 'VARIAVEL' ? (
+            <p className="mt-0.5 text-caption text-on-surface-variant">
+              {variacoesAtivas(produto)
+                .map((item) => item.nome)
+                .join(' · ') || 'Nenhuma variação disponível'}
+            </p>
+          ) : null}
         </div>
         {mostrarOrdem && (canMoveUp || canMoveDown) ? (
           <div className="flex shrink-0 gap-1">

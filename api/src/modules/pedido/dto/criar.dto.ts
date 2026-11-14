@@ -74,6 +74,15 @@ export class ItemPedidoDto {
   @IsNotEmpty({ message: 'O ID do produto é obrigatório' })
   id: string;
 
+  @ApiPropertyOptional({
+    example: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+    description: 'ID da variação escolhida (obrigatório para produto VARIAVEL)',
+  })
+  @Transform(emptyToUndefined)
+  @IsOptional()
+  @IsString({ message: 'O ID da variação deve ser um texto (UUID)' })
+  variacaoId?: string;
+
   @ApiProperty({ example: 1, description: 'Quantidade do produto' })
   @IsNumber({}, { message: 'A quantidade deve ser um número' })
   @Min(1, { message: 'A quantidade mínima é 1' })

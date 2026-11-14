@@ -11,6 +11,7 @@ import {
   pedidoEstaPronto,
   totalPedido,
 } from './pedidoTotais';
+import { nomeItemPedido } from '../../../lib/produtoVariacao';
 
 type PedidoCardProps = {
   pedido: Pedido;
@@ -32,7 +33,7 @@ export function PedidoCard({
   onDelete,
 }: PedidoCardProps) {
   const nomesItens = (pedido.itens ?? [])
-    .map((item) => item.produto?.nome ?? 'Item')
+    .map((item) => nomeItemPedido(item))
     .slice(0, 3);
   const restantes = (pedido.itens?.length ?? 0) - nomesItens.length;
   const pronto = pedidoEstaPronto(pedido);

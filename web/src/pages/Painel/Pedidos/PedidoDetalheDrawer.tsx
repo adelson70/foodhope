@@ -10,6 +10,7 @@ import { notifyError, pedidoService } from '../../../services';
 import type { Pedido } from '../../../services/types';
 import { PedidoStatusPagamentoBadge } from './PedidoStatusPagamentoBadge';
 import { formatarMoeda, pedidoEstaPronto, totalItem, totalPedido } from './pedidoTotais';
+import { nomeItemPedido } from '../../../lib/produtoVariacao';
 
 type PedidoDetalheDrawerProps = {
   pedido: Pedido | null;
@@ -160,7 +161,7 @@ export function PedidoDetalheDrawer({
                 >
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-body-md text-on-surface">
-                      {item.quantidade}× {item.produto?.nome ?? 'Item'}
+                      {item.quantidade}× {nomeItemPedido(item)}
                     </p>
                     <p className="shrink-0 text-caption text-primary">
                       {formatarMoeda(totalItem(item))}

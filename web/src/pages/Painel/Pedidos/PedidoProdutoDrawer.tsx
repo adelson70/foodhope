@@ -13,11 +13,18 @@ import {
   type AdicionalDraft,
 } from '../../Home/HomeProdutoAdicionais';
 import { HomeProdutoRetirar } from '../../Home/HomeProdutoRetirar';
+import { HomeProdutoVariacoes } from '../../Home/HomeProdutoVariacoes';
+import {
+  precoExibicao,
+  produtoVariavel,
+  variacoesAtivas,
+} from '../../../lib/produtoVariacao';
 import type { Produto } from '../../../services/types';
 import { formatarMoeda } from './pedidoTotais';
 
 export type PedidoProdutoItemDraft = {
   produtoId: string;
+  variacaoId?: string;
   qtd: number;
   adicional?: { id: string; qtd: number }[];
   retirar?: string[];
@@ -47,6 +54,15 @@ export function PedidoProdutoDrawer({
   const [adicionais, setAdicionais] = useState<AdicionalDraft[]>([]);
   const [retirarIds, setRetirarIds] = useState<string[]>([]);
   const [observacao, setObservacao] = useState('');
+  const [variacaoId, setVariacaoId] = useState<string | null>(null);
+
+  const variavel = produtoVariavel(produto);
+  const variacoesDisponiveis = useMemo(() => variacoesAtivas(produto), [produto]);
+  const variacao =
+    variacoesDisponiveis.find((item) => item.id === variacaoId) ?? null;
+  const precoUnitario = variavel
+    ? Number(variacao?.preco ?? 0)
+    : Number(produto?.preco ?? 0);
 
   useEffect(() => {
     if (!open) return;
@@ -60,7 +76,11 @@ export function PedidoProdutoDrawer({
 
   const produtosFiltrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
-    const ativos = produtos.filter((item) => item.ativo !== false);
+    const ativos = produtos.filter(
+      (item) =>
+        item.ativo !== false &&
+        (!produtoVariavel(item) || variacoesAtivas(item).length > 0),
+    );
     if (!termo) return ativos;
     return ativos.filter((item) => item.nome.toLowerCase().includes(termo));
   }, [produtos, busca]);
@@ -74,19 +94,20 @@ export function PedidoProdutoDrawer({
 
   const totalPreview = useMemo(() => {
     if (!produto) return 0;
-    const base = Number(produto.preco) * qtd;
+    const base = precoUnitario * qtd;
     const extras = adicionais.reduce(
       (soma, item) => soma + item.preco * item.qtd,
       0,
     );
     return base + extras;
-  }, [produto, qtd, adicionais]);
+  }, [produto, precoUnitario, qtd, adicionais]);
 
   function resetProdutoDraft() {
     setQtd(1);
     setAdicionais([]);
     setRetirarIds([]);
     setObservacao('');
+    setVariacaoId(null);
   }
 
   function handleClose() {
@@ -104,6 +125,7 @@ export function PedidoProdutoDrawer({
   function handleEscolherProduto(next: Produto) {
     setProduto(next);
     resetProdutoDraft();
+    setVariacaoId(variacoesAtivas(next)[0]?.id ?? null);
   }
 
   function addAdicional(adicional: {
@@ -145,8 +167,10 @@ export function PedidoProdutoDrawer({
 
   function handleAdd() {
     if (!produto) return;
+    if (variavel && !variacao) return;
     onAdd({
       produtoId: produto.id,
+      variacaoId: variacao?.id,
       qtd,
       adicional:
         adicionais.length > 0
@@ -170,7 +194,12 @@ export function PedidoProdutoDrawer({
       onClose={handleClose}
       footer={
         produto ? (
-          <Button type="button" fullWidth onClick={handleAdd}>
+          <Button
+            type="button"
+            fullWidth
+            onClick={handleAdd}
+            disabled={variavel && !variacao}
+          >
             Adicionar · {formatarMoeda(totalPreview)}
           </Button>
         ) : null
@@ -219,7 +248,8 @@ export function PedidoProdutoDrawer({
                         {item.nome}
                       </span>
                       <span className="shrink-0 text-caption text-on-surface-variant">
-                        {formatarMoeda(Number(item.preco))}
+                        {precoExibicao(item).aPartirDe ? 'a partir de ' : ''}
+                        {formatarMoeda(precoExibicao(item).valor)}
                       </span>
                     </button>
                   </li>
@@ -240,8 +270,16 @@ export function PedidoProdutoDrawer({
           </button>
 
           <p className="text-title-md text-primary">
-            {formatarMoeda(Number(produto.preco))}
+            {formatarMoeda(precoUnitario)}
           </p>
+
+          {variavel ? (
+            <HomeProdutoVariacoes
+              variacoes={variacoesDisponiveis}
+              selecionadaId={variacao?.id ?? null}
+              onSelect={setVariacaoId}
+            />
+          ) : null}
 
           {produto.descricao ? (
             <p className="text-caption text-on-surface-variant">

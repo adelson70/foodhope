@@ -4,6 +4,12 @@ import { Minus, Plus } from 'lucide-react';
 import { Button, Drawer, Textarea } from '../../components/ui';
 import { formatarMoeda } from '../../lib/currency';
 import { urlImagemProduto } from '../../lib/produtoImagem';
+import {
+  imagemVariacaoOuProduto,
+  nomeComVariacao,
+  produtoVariavel,
+  variacoesAtivas,
+} from '../../lib/produtoVariacao';
 import type { Produto } from '../../services/types';
 import { useCarrinhoStore } from '../../stores/carrinho.store';
 import {
@@ -11,6 +17,7 @@ import {
   type AdicionalDraft,
 } from './HomeProdutoAdicionais';
 import { HomeProdutoRetirar } from './HomeProdutoRetirar';
+import { HomeProdutoVariacoes } from './HomeProdutoVariacoes';
 
 type HomeProdutoDrawerProps = {
   produto: Produto | null;
@@ -30,9 +37,19 @@ export function HomeProdutoDrawer({
   const [adicionais, setAdicionais] = useState<AdicionalDraft[]>([]);
   const [retirarIds, setRetirarIds] = useState<string[]>([]);
   const [observacao, setObservacao] = useState('');
+  const [variacaoId, setVariacaoId] = useState<string | null>(null);
+
+  const variavel = produtoVariavel(produto);
+  const variacoesDisponiveis = useMemo(() => variacoesAtivas(produto), [produto]);
+  // Sem escolha (ou escolha que ficou indisponível) → primeira variação ativa.
+  const variacao =
+    variacoesDisponiveis.find((item) => item.id === variacaoId) ??
+    variacoesDisponiveis[0] ??
+    null;
 
   useEffect(() => {
     if (!open) return;
+    setVariacaoId(null);
     setQtd(1);
     setAdicionais([]);
     setRetirarIds([]);
@@ -54,27 +71,33 @@ export function HomeProdutoDrawer({
     );
   }, [produto]);
 
-  const imagem = urlImagemProduto(produto?.imagemUrl, produto?.updatedAt);
+  const imagemAtual = produto ? imagemVariacaoOuProduto(produto, variacao) : null;
+  const imagem = urlImagemProduto(imagemAtual?.imagemUrl, imagemAtual?.cacheKey);
+  const precoUnitario = variavel
+    ? Number(variacao?.preco ?? 0)
+    : Number(produto?.preco ?? 0);
   const adicionaisDisponiveis = produto?.adicionais ?? [];
   const ingredientesDisponiveis = produto?.ingredientes ?? [];
-  const produtoIndisponivel = produto?.ativo === false;
+  const produtoIndisponivel =
+    produto?.ativo === false || (variavel && variacoesDisponiveis.length === 0);
   const compraBloqueada = produtoIndisponivel || lojaFechada;
 
   const totalPreview = useMemo(() => {
     if (!produto) return 0;
-    const base = Number(produto.preco) * qtd;
+    const base = precoUnitario * qtd;
     const extras = adicionais.reduce(
       (soma, item) => soma + item.preco * item.qtd,
       0,
     );
     return base + extras;
-  }, [produto, qtd, adicionais]);
+  }, [produto, precoUnitario, qtd, adicionais]);
 
   function resetDraft() {
     setQtd(1);
     setAdicionais([]);
     setRetirarIds([]);
     setObservacao('');
+    setVariacaoId(null);
   }
 
   function handleClose() {
@@ -123,13 +146,15 @@ export function HomeProdutoDrawer({
 
   function handleAdd() {
     if (!produto || compraBloqueada) return;
+    if (variavel && !variacao) return;
     const retirar = ingredientesDisponiveis
       .filter((item) => retirarIds.includes(item.id))
       .map((item) => ({ id: item.id, nome: item.nome }));
     addItem({
       produtoId: produto.id,
-      nome: produto.nome,
-      preco: Number(produto.preco),
+      variacaoId: variacao?.id,
+      nome: nomeComVariacao(produto.nome, variacao?.nome),
+      preco: precoUnitario,
       qtd,
       adicionais,
       retirar: retirar.length > 0 ? retirar : undefined,
@@ -148,7 +173,7 @@ export function HomeProdutoDrawer({
           type="button"
           fullWidth
           onClick={handleAdd}
-          disabled={!produto || compraBloqueada}
+          disabled={!produto || compraBloqueada || (variavel && !variacao)}
         >
           {lojaFechada
             ? 'Loja fechada'
@@ -170,6 +195,7 @@ export function HomeProdutoDrawer({
             {imagem ? (
               <>
                 <img
+                  key={imagem}
                   src={imagem}
                   alt={produto.nome}
                   className="size-full object-cover"
@@ -200,8 +226,17 @@ export function HomeProdutoDrawer({
           ) : null}
 
           <p className="text-title-md text-primary">
-            {formatarMoeda(Number(produto.preco))}
+            {formatarMoeda(precoUnitario)}
           </p>
+
+          {variavel ? (
+            <HomeProdutoVariacoes
+              variacoes={variacoesDisponiveis}
+              selecionadaId={variacao?.id ?? null}
+              onSelect={setVariacaoId}
+              disabled={compraBloqueada}
+            />
+          ) : null}
 
           {!compraBloqueada ? (
             <div className="flex items-center justify-between rounded-xl border border-operator-border bg-operator-card px-3 py-2">

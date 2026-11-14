@@ -30,6 +30,7 @@ import {
 } from '../impressora/impressao-texto.js';
 import type { AuthUser } from '../../infra/auth/auth.guard.js';
 import { CozinhaService } from '../cozinha/cozinha.service.js';
+import { nomeItemComVariacao, resolverPrecoItem } from './preco-item.js';
 
 @Injectable()
 export class PedidoService {
@@ -316,6 +317,8 @@ export class PedidoService {
             throw new Error(`Produto com ID ${itemDto.id} indisponível.`);
           }
 
+          const precoItem = await resolverPrecoItem(tx, produto, itemDto.variacaoId);
+
           const adicionaisVenda: Array<{
             id: string;
             nome: string;
@@ -396,8 +399,10 @@ export class PedidoService {
 
           itensParaCriar.push({
             produto_id: produto.id,
+            variacao_id: precoItem.variacao_id,
+            variacao_nome: precoItem.variacao_nome,
             quantidade: itemDto.qtd,
-            preco_produto: produto.preco,
+            preco_produto: precoItem.preco,
             adicional_venda: adicionaisVenda,
             retirada_venda: retiradasVenda,
             observacao: itemDto.observacao,
@@ -459,6 +464,10 @@ export class PedidoService {
             },
           };
         }
+      }
+
+      if (erro instanceof BadRequestException) {
+        throw erro;
       }
 
       if (erro instanceof Error && erro.message.includes('não encontrado')) {
@@ -656,8 +665,9 @@ export class PedidoService {
 
   private chaveGrupoImpressao(item: any): string {
     const produtoId = item.produto_id ?? item.produto?.id ?? item.produto?.nome ?? '';
+    const variacao = item.variacao_id ?? item.variacao_nome ?? '';
     const obs = (item.observacao ?? '').trim().toLowerCase();
-    return `${produtoId}|${this.chaveAdicionaisImpressao(item.adicional_venda)}|${this.chaveRetiradaImpressao(item.retirada_venda)}|${obs}`;
+    return `${produtoId}:${variacao}|${this.chaveAdicionaisImpressao(item.adicional_venda)}|${this.chaveRetiradaImpressao(item.retirada_venda)}|${obs}`;
   }
 
   private consolidarItensImpressao(itens: any[]): any[] {
@@ -813,7 +823,7 @@ export class PedidoService {
     const subtotalLanche = item.quantidade * Number(item.preco_produto);
     total += subtotalLanche;
 
-    const nomeProduto = item.produto?.nome || 'Lanche';
+    const nomeProduto = nomeItemComVariacao(item.produto?.nome || 'Lanche', item.variacao_nome);
     texto += `${linhaItemCupom(item.quantidade, nomeProduto, subtotalLanche)}\n`;
 
     if (

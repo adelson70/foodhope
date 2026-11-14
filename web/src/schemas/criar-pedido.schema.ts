@@ -9,6 +9,7 @@ export const criarPedidoSchema = z.object({
     .array(
       z.object({
         produtoId: z.string().min(1),
+        variacaoId: z.string().min(1).optional(),
         qtd: z.number().int().min(1, 'Quantidade mínima é 1'),
         adicional: z
           .array(

@@ -39,6 +39,7 @@ import {
   type PedidoProdutoItemDraft,
 } from './PedidoProdutoDrawer';
 import { rotuloRetiradas } from '../../../lib/retiradaPedido';
+import { nomeComVariacao } from '../../../lib/produtoVariacao';
 
 type PedidoCriarDrawerProps = {
   open: boolean;
@@ -166,14 +167,21 @@ export function PedidoCriarDrawer({
     }
   }, [open, reset]);
 
+  function precoUnitarioDraft(produto: Produto, variacaoId?: string) {
+    if (!variacaoId) return Number(produto.preco);
+    const variacao = produto.variacoes?.find((v) => v.id === variacaoId);
+    return Number(variacao?.preco ?? produto.preco);
+  }
+
   function totalItemDraft(field: {
     produtoId: string;
+    variacaoId?: string;
     qtd: number;
     adicional?: { id: string; qtd: number }[];
   }) {
     const produto = produtos.find((p) => p.id === field.produtoId);
     if (!produto) return 0;
-    const base = Number(produto.preco) * field.qtd;
+    const base = precoUnitarioDraft(produto, field.variacaoId) * field.qtd;
     const extras = (field.adicional ?? []).reduce((acc, adic) => {
       const info = produto.adicionais?.find((a) => a.id === adic.id);
       return acc + (info ? Number(info.preco) * adic.qtd : 0);
@@ -234,8 +242,9 @@ export function PedidoCriarDrawer({
         .join(' ');
 
       const itensPayload = values.itens.map(
-        ({ produtoId, qtd, adicional, retirar, observacao }) => ({
+        ({ produtoId, variacaoId, qtd, adicional, retirar, observacao }) => ({
           id: produtoId,
+          ...(variacaoId ? { variacaoId } : {}),
           qtd,
           adicional,
           retirar,
@@ -261,7 +270,7 @@ export function PedidoCriarDrawer({
             status_pagamento: statusPagamento,
             totalEstimado: total,
             itens: values.itens.map((item) => ({
-              nome: nomeProduto(item.produtoId),
+              nome: nomeProduto(item.produtoId, item.variacaoId),
               qtd: item.qtd,
             })),
           },
@@ -281,8 +290,13 @@ export function PedidoCriarDrawer({
     }
   }
 
-  function nomeProduto(id: string) {
-    return produtos.find((p) => p.id === id)?.nome ?? 'Produto';
+  function nomeProduto(id: string, variacaoId?: string) {
+    const produto = produtos.find((p) => p.id === id);
+    if (!produto) return 'Produto';
+    const variacao = variacaoId
+      ? produto.variacoes?.find((v) => v.id === variacaoId)
+      : undefined;
+    return nomeComVariacao(produto.nome, variacao?.nome);
   }
 
   return (
@@ -397,7 +411,7 @@ export function PedidoCriarDrawer({
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-2">
                             <p className="text-body-md text-on-surface">
-                              {field.qtd}× {nomeProduto(field.produtoId)}
+                              {field.qtd}× {nomeProduto(field.produtoId, field.variacaoId)}
                             </p>
                             <p className="shrink-0 text-body-md font-medium text-primary">
                               {formatarMoeda(totalItemDraft(field))}

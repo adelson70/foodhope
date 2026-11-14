@@ -13,6 +13,7 @@ import { CozinhaService } from '../cozinha/cozinha.service.js';
 import { CriarPedidoDto } from '../pedido/dto/criar.dto.js';
 import { PedidoService } from '../pedido/pedido.service.js';
 import { ConfigurarInfinitePayDto, ConfirmarCheckoutDto } from './dto/infinitepay.dto.js';
+import { nomeItemComVariacao, resolverPrecoItem } from '../pedido/preco-item.js';
 import { InfinitePayClient } from './infinitepay.client.js';
 
 const CONFIG_ID = 'default';
@@ -516,7 +517,8 @@ export class InfinitePayService {
         throw new BadRequestException(`Produto ${itemDto.id} indisponível.`);
       }
 
-      const precoProdutoCentavos = Math.round(Number(produto.preco) * 100);
+      const precoItem = await resolverPrecoItem(this.prismaRead, produto, itemDto.variacaoId);
+      const precoProdutoCentavos = Math.round(Number(precoItem.preco) * 100);
       let linhaCentavos = precoProdutoCentavos * itemDto.qtd;
       const descricoesAdic: string[] = [];
 
@@ -556,7 +558,7 @@ export class InfinitePayService {
       }
 
       const description = [
-        produto.nome,
+        nomeItemComVariacao(produto.nome, precoItem.variacao_nome),
         descricoesAdic.length ? `(${descricoesAdic.join(', ')})` : null,
       ]
         .filter(Boolean)

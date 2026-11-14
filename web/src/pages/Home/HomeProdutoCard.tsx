@@ -1,6 +1,7 @@
 import { formatarMoeda } from '../../lib/currency';
 import { cn } from '../../lib/cn';
 import { urlImagemProduto } from '../../lib/produtoImagem';
+import { imagemCapaProduto, precoExibicao } from '../../lib/produtoVariacao';
 import type { Produto } from '../../services/types';
 
 type HomeProdutoCardProps = {
@@ -9,7 +10,9 @@ type HomeProdutoCardProps = {
 };
 
 export function HomeProdutoCard({ produto, onSelect }: HomeProdutoCardProps) {
-  const imagem = urlImagemProduto(produto.imagemUrl, produto.updatedAt);
+  const capa = imagemCapaProduto(produto);
+  const imagem = urlImagemProduto(capa.imagemUrl, capa.cacheKey);
+  const preco = precoExibicao(produto);
   const indisponivel = produto.ativo === false;
 
   return (
@@ -42,7 +45,8 @@ export function HomeProdutoCard({ produto, onSelect }: HomeProdutoCardProps) {
             {produto.nome}
           </h2>
           <span className="shrink-0 text-subtitle-md text-primary">
-            {formatarMoeda(Number(produto.preco))}
+            {preco.aPartirDe ? 'a partir de ' : ''}
+            {formatarMoeda(preco.valor)}
           </span>
         </div>
         {indisponivel ? (

@@ -45,6 +45,16 @@ type IngredienteRow = {
   ordem: number;
 };
 
+type VariacaoRow = {
+  id: string;
+  nome: string;
+  preco: Prisma.Decimal | number;
+  imagemUrl: string | null;
+  ativo: boolean;
+  ordem: number;
+  updatedAt?: Date;
+};
+
 type ProdutoComAdicionais = {
   id: string;
   nome: string;
@@ -55,6 +65,7 @@ type ProdutoComAdicionais = {
   imprimirSeparado?: boolean;
   ignorarImpressaoSozinho?: boolean;
   ordem?: number;
+  tipo?: 'SIMPLES' | 'VARIAVEL';
   categoria_id?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
@@ -62,6 +73,7 @@ type ProdutoComAdicionais = {
   adicionais: AdicionalEspecificoRow[];
   adicionaisGlobais: AdicionalGlobalVinculoRow[];
   ingredientes: IngredienteRow[];
+  variacoes: VariacaoRow[];
 };
 
 const produtoAdicionaisInclude = {
@@ -83,6 +95,18 @@ const produtoAdicionaisInclude = {
   ingredientes: {
     select: { id: true, nome: true, ordem: true },
     orderBy: [{ ordem: 'asc' as const }, { nome: 'asc' as const }, { id: 'asc' as const }],
+  },
+  variacoes: {
+    select: {
+      id: true,
+      nome: true,
+      preco: true,
+      imagemUrl: true,
+      ativo: true,
+      ordem: true,
+      updatedAt: true,
+    },
+    orderBy: [{ ordem: 'asc' as const }, { id: 'asc' as const }],
   },
 } satisfies Prisma.ProdutoInclude;
 
@@ -124,6 +148,7 @@ function montarRespostaProduto(produto: ProdutoComAdicionais) {
     adicionais: _a,
     adicionaisGlobais: _g,
     ingredientes: ingredientesRaw,
+    variacoes: variacoesRaw,
     categoria_id: _cid,
     categoria,
     ...rest
@@ -144,7 +169,24 @@ function montarRespostaProduto(produto: ProdutoComAdicionais) {
     adicionaisEspecificos,
     adicionalGlobalIds,
     ingredientes,
+    variacoes: variacoesRaw.map((v) => ({
+      id: v.id,
+      nome: v.nome,
+      preco: v.preco,
+      imagemUrl: v.imagemUrl,
+      ativo: v.ativo,
+      ordem: v.ordem,
+      updatedAt: v.updatedAt,
+    })),
   };
+}
+
+function erroNomeVariacaoDuplicado(erro: unknown) {
+  return (
+    erro instanceof Prisma.PrismaClientKnownRequestError &&
+    erro.code === 'P2002' &&
+    JSON.stringify(erro.meta ?? {}).includes('variacao')
+  );
 }
 
 @Injectable()
@@ -279,6 +321,62 @@ export class ProdutoService {
         where: { id: reordenados[index].id },
         data: { ordem: index },
       });
+    }
+  }
+
+  /**
+   * Garante a regra do tipo do produto depois de criar/editar:
+   * - VARIAVEL: precisa de ao menos uma variação; `preco` do produto vira o menor
+   *   preço entre as variações ativas (ou entre todas, se nenhuma estiver ativa).
+   * - SIMPLES: apaga variações remanescentes.
+   * Retorna os ids das variações apagadas (para limpar as imagens fora da transação).
+   */
+  private async aplicarRegraTipo(tx: Prisma.TransactionClient, produtoId: string) {
+    const produto = await tx.produto.findUniqueOrThrow({
+      where: { id: produtoId },
+      select: {
+        tipo: true,
+        preco: true,
+        variacoes: { select: { id: true, nome: true, preco: true, ativo: true } },
+      },
+    });
+
+    if (produto.tipo === 'SIMPLES') {
+      const ids = produto.variacoes.map((v) => v.id);
+      if (ids.length > 0) {
+        await tx.variacaoProduto.deleteMany({ where: { produto_id: produtoId } });
+      }
+      return ids;
+    }
+
+    if (produto.variacoes.length === 0) {
+      throw new BadRequestException('Produto variável precisa de ao menos uma variação.');
+    }
+
+    const nomes = new Set<string>();
+    for (const variacao of produto.variacoes) {
+      const chave = normalizarNome(variacao.nome);
+      if (nomes.has(chave)) {
+        throw new BadRequestException(`A variação "${variacao.nome}" está repetida.`);
+      }
+      nomes.add(chave);
+    }
+
+    const base = produto.variacoes.some((v) => v.ativo)
+      ? produto.variacoes.filter((v) => v.ativo)
+      : produto.variacoes;
+    const menorPreco = Math.min(...base.map((v) => Number(v.preco)));
+
+    if (Number(produto.preco) !== menorPreco) {
+      await tx.produto.update({ where: { id: produtoId }, data: { preco: menorPreco } });
+    }
+
+    return [];
+  }
+
+  private async removerImagensVariacoes(ids: string[]) {
+    for (const id of ids) {
+      await this.produtoImagem.remover(id);
     }
   }
 
@@ -432,6 +530,7 @@ export class ProdutoService {
             ativo: dto.ativo ?? true,
             imprimirSeparado: dto.imprimirSeparado ?? false,
             ignorarImpressaoSozinho: dto.ignorarImpressaoSozinho ?? false,
+            tipo: dto.tipo ?? 'SIMPLES',
             ordem,
             ...(categoriaId ? { categoria: { connect: { id: categoriaId } } } : {}),
           },
@@ -458,7 +557,20 @@ export class ProdutoService {
           });
         }
 
+        if (dto.tipo === 'VARIAVEL' && dto.variacoes && dto.variacoes.length > 0) {
+          await tx.variacaoProduto.createMany({
+            data: dto.variacoes.map((variacao, index) => ({
+              nome: variacao.nome.trim(),
+              preco: variacao.preco,
+              ativo: variacao.ativo ?? true,
+              ordem: index,
+              produto_id: novoProduto.id,
+            })),
+          });
+        }
+
         await this.sincronizarGlobais(tx, novoProduto.id, globalIds);
+        await this.aplicarRegraTipo(tx, novoProduto.id);
 
         return novoProduto;
       });
@@ -480,6 +592,10 @@ export class ProdutoService {
         throw erro;
       }
 
+      if (erroNomeVariacaoDuplicado(erro)) {
+        throw new BadRequestException('Há variações com o mesmo nome neste produto.');
+      }
+
       throw new InternalServerErrorException('Não foi possível criar o produto. Tente novamente.');
     }
   }
@@ -488,6 +604,7 @@ export class ProdutoService {
     try {
       let ativoAnterior: boolean | undefined;
       const adicionaisAtivoAntes = new Map<string, boolean>();
+      const variacoesRemovidas: string[] = [];
 
       const produtoEditado = await this.prismaWrite.$transaction(async (tx) => {
         const existente = await tx.produto.findUnique({
@@ -531,6 +648,7 @@ export class ProdutoService {
         if (dto.ignorarImpressaoSozinho !== undefined) {
           dadosUpdate.ignorarImpressaoSozinho = dto.ignorarImpressaoSozinho;
         }
+        if (dto.tipo !== undefined) dadosUpdate.tipo = dto.tipo;
 
         if (dto.categoriaId !== undefined) {
           const categoriaId = await this.validarCategoriaId(tx, dto.categoriaId);
@@ -622,6 +740,50 @@ export class ProdutoService {
           dadosUpdate.ingredientes = ingredientesNested;
         }
 
+        if (dto.variacoes && dto.variacoes.length > 0) {
+          const deletadas = dto.variacoes.filter((v) => v.foiDeletado && v.id);
+          const editadas = dto.variacoes.filter(
+            (v) =>
+              !v.foiDeletado &&
+              v.id &&
+              (v.nome !== undefined || v.preco !== undefined || v.ativo !== undefined),
+          );
+          const novas = dto.variacoes.filter((v) => !v.foiDeletado && !v.id);
+
+          const variacoesNested: Prisma.VariacaoProdutoUpdateManyWithoutProdutoNestedInput = {};
+
+          if (deletadas.length > 0) {
+            variacoesNested.delete = deletadas.map((v) => ({ id: v.id! }));
+            variacoesRemovidas.push(...deletadas.map((v) => v.id!));
+          }
+
+          if (editadas.length > 0) {
+            variacoesNested.update = editadas.map((v) => {
+              const data: { nome?: string; preco?: number; ativo?: boolean } = {};
+              if (v.nome !== undefined) data.nome = v.nome.trim();
+              if (v.preco !== undefined) data.preco = v.preco;
+              if (v.ativo !== undefined) data.ativo = v.ativo;
+              return { where: { id: v.id! }, data };
+            });
+          }
+
+          if (novas.length > 0) {
+            const maxOrdem = await tx.variacaoProduto.aggregate({
+              where: { produto_id: id },
+              _max: { ordem: true },
+            });
+            let proximaOrdem = (maxOrdem._max.ordem ?? -1) + 1;
+
+            variacoesNested.create = novas.map((v) => {
+              const ordem = proximaOrdem;
+              proximaOrdem += 1;
+              return { nome: v.nome!.trim(), preco: v.preco!, ativo: v.ativo ?? true, ordem };
+            });
+          }
+
+          dadosUpdate.variacoes = variacoesNested;
+        }
+
         if (Object.keys(dadosUpdate).length > 0) {
           await tx.produto.update({
             where: { id },
@@ -656,11 +818,15 @@ export class ProdutoService {
           }
         }
 
+        variacoesRemovidas.push(...(await this.aplicarRegraTipo(tx, id)));
+
         return tx.produto.findUniqueOrThrow({
           where: { id },
           include: produtoAdicionaisInclude,
         });
       });
+
+      await this.removerImagensVariacoes(variacoesRemovidas);
 
       if (dto.ativo !== undefined && ativoAnterior !== undefined && dto.ativo !== ativoAnterior) {
         this.websocket.emitirProdutoAtivo({
@@ -699,9 +865,13 @@ export class ProdutoService {
         throw erro;
       }
 
+      if (erroNomeVariacaoDuplicado(erro)) {
+        throw new BadRequestException('Há variações com o mesmo nome neste produto.');
+      }
+
       if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2025') {
         throw new NotFoundException(
-          'O produto ou um dos adicionais informados não foi encontrado no banco de dados.',
+          'O produto ou um dos adicionais/variações informados não foi encontrado no banco de dados.',
         );
       }
 
@@ -771,10 +941,95 @@ export class ProdutoService {
     }
   }
 
+  private async buscarVariacaoDoProduto(produtoId: string, variacaoId: string) {
+    const variacao = await this.prismaWrite.variacaoProduto.findFirst({
+      where: { id: variacaoId, produto_id: produtoId },
+      select: { id: true },
+    });
+    if (!variacao) {
+      throw new NotFoundException('Variação não encontrada neste produto.');
+    }
+    return variacao;
+  }
+
+  private async produtoCompleto(id: string) {
+    const produto = await this.prismaWrite.produto.findUniqueOrThrow({
+      where: { id },
+      include: produtoAdicionaisInclude,
+    });
+    return montarRespostaProduto(produto);
+  }
+
+  async editarImagemVariacao(produtoId: string, variacaoId: string, file: Express.Multer.File) {
+    try {
+      await this.buscarVariacaoDoProduto(produtoId, variacaoId);
+      const imagemUrl = await this.produtoImagem.salvar(variacaoId, file);
+      await this.prismaWrite.variacaoProduto.update({
+        where: { id: variacaoId },
+        data: { imagemUrl },
+      });
+      // updatedAt do produto muda para invalidar caches de listagem no cliente.
+      await this.prismaWrite.produto.update({
+        where: { id: produtoId },
+        data: { updatedAt: new Date() },
+      });
+
+      return {
+        mensagem: 'Imagem da variação atualizada com sucesso',
+        dados: await this.produtoCompleto(produtoId),
+      };
+    } catch (erro) {
+      console.error('Erro ao editar imagem da variação:', erro);
+
+      if (erro instanceof BadRequestException || erro instanceof NotFoundException) {
+        throw erro;
+      }
+
+      throw new InternalServerErrorException(
+        'Não foi possível atualizar a imagem da variação. Tente novamente.',
+      );
+    }
+  }
+
+  async removerImagemVariacao(produtoId: string, variacaoId: string) {
+    try {
+      await this.buscarVariacaoDoProduto(produtoId, variacaoId);
+      await this.produtoImagem.remover(variacaoId);
+      await this.prismaWrite.variacaoProduto.update({
+        where: { id: variacaoId },
+        data: { imagemUrl: null },
+      });
+      await this.prismaWrite.produto.update({
+        where: { id: produtoId },
+        data: { updatedAt: new Date() },
+      });
+
+      return {
+        mensagem: 'Imagem da variação removida com sucesso',
+        dados: await this.produtoCompleto(produtoId),
+      };
+    } catch (erro) {
+      console.error('Erro ao remover imagem da variação:', erro);
+
+      if (erro instanceof NotFoundException) {
+        throw erro;
+      }
+
+      throw new InternalServerErrorException(
+        'Não foi possível remover a imagem da variação. Tente novamente.',
+      );
+    }
+  }
+
   async deletarProduto(id: string) {
     try {
+      const variacoes = await this.prismaWrite.variacaoProduto.findMany({
+        where: { produto_id: id },
+        select: { id: true },
+      });
       await this.prismaWrite.produto.delete({ where: { id } });
       await this.produtoImagem.remover(id);
+      await this.removerImagensVariacoes(variacoes.map((v) => v.id));
       return { mensagem: 'Produto deletado com sucesso' };
     } catch (erro) {
       console.log('erro', erro);

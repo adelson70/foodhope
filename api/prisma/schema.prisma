@@ -106,6 +106,11 @@ model Categoria {
   @@map("categoria")
 }
 
+enum TipoProduto {
+  SIMPLES
+  VARIAVEL
+}
+
 model Produto {
   id        String  @id @default(uuid())
   nome      String @unique
@@ -116,6 +121,7 @@ model Produto {
   imprimirSeparado          Boolean @default(false) @map("imprimir_separado")
   ignorarImpressaoSozinho   Boolean @default(false) @map("ignorar_impressao_sozinho")
   ordem                     Int     @default(0)
+  tipo                    TipoProduto @default(SIMPLES)
 
   categoria_id String?    @map("categoria_id")
   categoria    Categoria? @relation(fields: [categoria_id], references: [id], onDelete: SetNull)
@@ -123,6 +129,7 @@ model Produto {
   adicionais AdicionalProduto[]
   adicionaisGlobais ProdutoAdicionalGlobal[]
   ingredientes IngredienteProduto[]
+  variacoes VariacaoProduto[]
   itens PedidoItem[]
 
   createdAt DateTime @default(now())
@@ -188,11 +195,34 @@ model IngredienteProduto {
   @@map("ingrediente_produto")
 }
 
+model VariacaoProduto {
+  id         String  @id @default(uuid())
+  produto_id String  @map("produto_id")
+  nome       String
+  preco      Decimal @db.Decimal(10, 2)
+  imagemUrl  String? @map("imagem_url")
+  ativo      Boolean @default(true)
+  ordem      Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  produto Produto      @relation(fields: [produto_id], references: [id], onDelete: Cascade)
+  itens   PedidoItem[]
+
+  @@unique([produto_id, nome])
+  @@index([produto_id])
+  @@map("variacao_produto")
+}
+
 model PedidoItem {
   id String @id @default(uuid())
 
   pedido_id  String @map("pedido_id")
   produto_id String @map("produto_id")
+
+  variacao_id   String? @map("variacao_id")
+  variacao_nome String? @map("variacao_nome")
 
   quantidade Int @default(1)
 
@@ -207,6 +237,8 @@ model PedidoItem {
   pedido Pedido @relation(fields: [pedido_id], references: [id], onDelete: Cascade)
 
   produto Produto @relation(fields: [produto_id], references: [id], onDelete: Cascade)
+
+  variacao VariacaoProduto? @relation(fields: [variacao_id], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -70,6 +70,18 @@ export type ProdutoCategoria = {
   ordem: number;
 };
 
+export type TipoProduto = 'SIMPLES' | 'VARIAVEL';
+
+export type VariacaoProduto = {
+  id: string;
+  nome: string;
+  preco: string | number;
+  imagemUrl: string | null;
+  ativo: boolean;
+  ordem?: number;
+  updatedAt?: string;
+};
+
 export type Produto = {
   id: string;
   nome: string;
@@ -80,6 +92,8 @@ export type Produto = {
   imprimirSeparado?: boolean;
   ignorarImpressaoSozinho?: boolean;
   ordem?: number;
+  tipo?: TipoProduto;
+  variacoes?: VariacaoProduto[];
   categoria?: ProdutoCategoria | null;
   createdAt?: string;
   updatedAt?: string;
@@ -139,6 +153,28 @@ export type IngredienteCriarInput = {
   nome: string;
 };
 
+export type VariacaoCriarInput = {
+  nome: string;
+  preco: number;
+  ativo?: boolean;
+};
+
+export type VariacaoEditarInput = {
+  id?: string;
+  foiDeletado?: boolean;
+  nome?: string;
+  preco?: number;
+  ativo?: boolean;
+};
+
+/** Imagem de variação a enviar/remover depois de salvar o produto (casada pelo nome). */
+export type VariacaoImagemAcao = {
+  id?: string;
+  nome: string;
+  imagem?: File;
+  removerImagem?: boolean;
+};
+
 export type IngredienteEditarInput = {
   id?: string;
   foiDeletado?: boolean;
@@ -184,6 +220,9 @@ export type CriarProdutoInput = {
   adicionais?: AdicionalCriarInput[];
   adicionalGlobalIds?: string[];
   ingredientes?: IngredienteCriarInput[];
+  tipo?: TipoProduto;
+  variacoes?: VariacaoCriarInput[];
+  variacaoImagens?: VariacaoImagemAcao[];
   imagem?: File;
 };
 
@@ -199,6 +238,9 @@ export type EditarProdutoInput = {
   adicionais?: AdicionalEditarInput[];
   adicionalGlobalIds?: string[];
   ingredientes?: IngredienteEditarInput[];
+  tipo?: TipoProduto;
+  variacoes?: VariacaoEditarInput[];
+  variacaoImagens?: VariacaoImagemAcao[];
   imagem?: File;
   removerImagem?: boolean;
 };
@@ -228,6 +270,8 @@ export type PedidoItem = {
   id: string;
   pedido_id: string;
   produto_id: string;
+  variacao_id?: string | null;
+  variacao_nome?: string | null;
   quantidade: number;
   preco_produto: string | number;
   adicional_venda: AdicionalVenda[] | null;
@@ -274,6 +318,7 @@ export type AdicionalPedidoInput = {
 
 export type ItemPedidoInput = {
   id: string;
+  variacaoId?: string;
   qtd: number;
   adicional?: AdicionalPedidoInput[];
   retirar?: string[];

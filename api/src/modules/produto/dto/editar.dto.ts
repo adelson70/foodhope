@@ -9,10 +9,12 @@ import {
   Min,
   ValidateIf,
   ValidateNested,
+  IsIn,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { AdicionalEditarDto } from './adicional.dto.js';
 import { IngredienteEditarDto } from './ingrediente.dto.js';
+import { TIPOS_PRODUTO, VariacaoEditarDto, type TipoProdutoDto } from './variacao.dto.js';
 
 export class EditarProdutoDto {
   @ApiProperty({ example: 'X Salada', description: 'Nome do produto', required: false })
@@ -104,4 +106,23 @@ export class EditarProdutoDto {
   @ValidateIf((_, v) => v !== null)
   @IsUUID('4', { message: 'Categoria inválida' })
   categoriaId?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'SIMPLES (preço único) ou VARIAVEL (preço e foto por variação)',
+    enum: TIPOS_PRODUTO,
+  })
+  @IsOptional()
+  @IsIn(TIPOS_PRODUTO, { message: 'O tipo do produto deve ser SIMPLES ou VARIAVEL' })
+  tipo?: TipoProdutoDto;
+
+  @ApiProperty({
+    description: 'Lista de alterações de variações (criar sem id, editar/deletar com id)',
+    type: [VariacaoEditarDto],
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => VariacaoEditarDto)
+  variacoes?: VariacaoEditarDto[];
 }
