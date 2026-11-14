@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, Matches, MinLength } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, Matches, MinLength } from 'class-validator';
 
 export class ConfigurarImpressoraDto {
   @ApiPropertyOptional({
@@ -27,4 +27,24 @@ export class ConfigurarImpressoraDto {
     },
   )
   dispositivo?: string;
+
+  @ApiPropertyOptional({
+    description: 'Imprimir pela ponte ESP32 (exclusivo com ip/dispositivo)',
+    example: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  ponte?: boolean;
+}
+
+export class DefinirIpPonteDto {
+  @ApiPropertyOptional({
+    description: 'IP da impressora na rede do ESP32; vazio = o ESP32 redescobre sozinho',
+    example: '10.0.0.50',
+  })
+  @IsOptional()
+  @Matches(/^(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)$/, {
+    message: 'Informe um IPv4 válido, ex.: 10.0.0.50',
+  })
+  ip?: string;
 }

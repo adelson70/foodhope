@@ -13,6 +13,7 @@ import { BreakLine, CharacterSet, PrinterTypes, ThermalPrinter } from 'node-ther
 import { PrismaReadService } from '../../infra/database/prisma-read.service.js';
 import { PrismaWriteService } from '../../infra/database/prisma-write.service.js';
 import { ConfigurarImpressoraDto } from './dto/configurar.dto.js';
+import { PonteService } from './ponte.service.js';
 import {
   ehMaquinaDaApi,
   ehRedeInternaDoServidor,
@@ -135,16 +136,47 @@ const COMANDO_CORTE = Buffer.from([
   0x69,
   ...Array<number>(LINHAS_DEPOIS_DO_CORTE).fill(0x0a),
 ]);
-type DestinoImpressora = { tipo: 'rede'; ip: string } | { tipo: 'local'; dispositivo: string };
+type DestinoImpressora =
+  { tipo: 'rede'; ip: string } | { tipo: 'local'; dispositivo: string } | { tipo: 'ponte' };
+
+/** Só monta bytes (getBuffer); nunca executa, então a interface não é usada. */
+const INTERFACE_SO_RENDER = 'tcp://127.0.0.1:9';
+
+function descreverDestino(destino: DestinoImpressora) {
+  if (destino.tipo === 'rede') return destino.ip;
+  if (destino.tipo === 'local') return destino.dispositivo;
+  return 'Ponte ESP32';
+}
+
+function mensagemSemResposta(destino: DestinoImpressora, prefixo = '') {
+  if (destino.tipo === 'rede') {
+    return `${prefixo}A impressora não está respondendo. Verifique o IP, se ela está ligada e na mesma rede.`;
+  }
+  if (destino.tipo === 'local') {
+    return `${prefixo}A impressora não está respondendo neste dispositivo. Verifique se está ligada e conectada.`;
+  }
+  return `${prefixo}A ponte ESP32 não está pronta: confira se ela está conectada, autorizada e se encontrou a impressora.`;
+}
+
+function dadosDestino(destino: DestinoImpressora) {
+  return {
+    ip: destino.tipo === 'rede' ? destino.ip : null,
+    dispositivo: destino.tipo === 'local' ? destino.dispositivo : null,
+    ponte: destino.tipo === 'ponte',
+  };
+}
 
 @Injectable()
 export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ImpressoraService.name);
   private impressora: ThermalPrinter | null = null;
+  private destino: DestinoImpressora | null = null;
+  private renderizador: ThermalPrinter | null = null;
 
   constructor(
     private readonly prismaRead: PrismaReadService,
     private readonly prismaWrite: PrismaWriteService,
+    private readonly ponte: PonteService,
   ) {}
 
   async onModuleInit() {
@@ -172,13 +204,14 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
     try {
       const config = await this.prismaRead.configImpressora.findUnique({
         where: { id: CONFIG_ID },
-        select: { ip: true, dispositivo: true },
+        select: { ip: true, dispositivo: true, ponte: true },
       });
 
       return {
         dados: {
           ip: config?.ip ?? null,
           dispositivo: config?.dispositivo ?? null,
+          ponte: config?.ponte ?? false,
         },
       };
     } catch (erro) {
@@ -269,20 +302,12 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
     const conectada = await this.verificarConexao(destino);
 
     if (!conectada) {
-      throw new BadRequestException(
-        destino.tipo === 'rede'
-          ? 'A impressora não está respondendo. Verifique o IP, se ela está ligada e na mesma rede.'
-          : 'A impressora não está respondendo neste dispositivo. Verifique se está ligada e conectada.',
-      );
+      throw new BadRequestException(mensagemSemResposta(destino));
     }
 
     return {
       mensagem: 'Conexão com a impressora OK',
-      dados: {
-        conectada: true,
-        ip: destino.tipo === 'rede' ? destino.ip : null,
-        dispositivo: destino.tipo === 'local' ? destino.dispositivo : null,
-      },
+      dados: { conectada: true, ...dadosDestino(destino) },
     };
   }
 
@@ -291,35 +316,23 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
     const conectada = await this.verificarConexao(destino);
 
     if (!conectada) {
-      throw new BadRequestException(
-        destino.tipo === 'rede'
-          ? 'Não foi possível salvar: a impressora não está respondendo neste IP.'
-          : 'Não foi possível salvar: a impressora não está respondendo neste dispositivo.',
-      );
+      throw new BadRequestException(mensagemSemResposta(destino, 'Não foi possível salvar. '));
     }
 
-    const ip = destino.tipo === 'rede' ? destino.ip : null;
-    const dispositivo = destino.tipo === 'local' ? destino.dispositivo : null;
+    const { ip, dispositivo, ponte } = dadosDestino(destino);
 
     try {
-      const config = await this.prismaWrite.configImpressora.upsert({
+      await this.prismaWrite.configImpressora.upsert({
         where: { id: CONFIG_ID },
-        create: { id: CONFIG_ID, ip, dispositivo },
-        update: { ip, dispositivo },
+        create: { id: CONFIG_ID, ip, dispositivo, ponte },
+        update: { ip, dispositivo, ponte },
       });
 
-      await this.reconfigurar(
-        config.dispositivo
-          ? { tipo: 'local', dispositivo: config.dispositivo }
-          : { tipo: 'rede', ip: config.ip! },
-      );
+      await this.reconfigurar(destino);
 
       return {
         mensagem: 'Impressora configurada com sucesso',
-        dados: {
-          ip: config.ip ?? null,
-          dispositivo: config.dispositivo ?? null,
-        },
+        dados: { ip, dispositivo, ponte },
       };
     } catch (erro) {
       if (erro instanceof BadRequestException) throw erro;
@@ -331,6 +344,14 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
   }
 
   async reconfigurar(destino: DestinoImpressora) {
+    this.destino = destino;
+
+    if (destino.tipo === 'ponte') {
+      this.impressora = null;
+      this.logger.log('Impressão pela ponte ESP32');
+      return;
+    }
+
     const impressora = this.criarInstancia(destino);
     const conectada = await impressora.isPrinterConnected();
 
@@ -347,7 +368,18 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async print(textoFormatado: string) {
+  /** Destino ativo é a ponte ESP32? (a fila espera a ponte reconectar antes de falhar) */
+  usaPonte() {
+    return this.destino?.tipo === 'ponte';
+  }
+
+  async print(textoFormatado: string, jobId?: string | number | null) {
+    if (this.destino?.tipo === 'ponte') {
+      await this.ponte.enviar(this.montarBuffer(textoFormatado), jobId);
+      this.logger.log(`Cupom confirmado pela ponte ESP32 (job ${jobId ?? '-'})`);
+      return;
+    }
+
     if (!this.impressora) {
       this.logger.warn('Impressão abortada: Impressora não configurada ou não instanciada.');
       return;
@@ -366,7 +398,12 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
 
   async imprimirTeste(dto: ConfigurarImpressoraDto) {
     const destino = this.resolverDestinoDto(dto);
-    const alvo = destino.tipo === 'rede' ? destino.ip : destino.dispositivo;
+
+    if (destino.tipo === 'ponte') {
+      return this.imprimirTestePonte();
+    }
+
+    const alvo = descreverDestino(destino);
     const impressora = this.criarInstancia(destino);
 
     let conectada = false;
@@ -377,11 +414,7 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
     }
 
     if (!conectada) {
-      throw new BadRequestException(
-        destino.tipo === 'rede'
-          ? 'A impressora não está respondendo. Verifique o IP, se ela está ligada e na mesma rede.'
-          : 'A impressora não está respondendo neste dispositivo. Verifique se está ligada e conectada.',
-      );
+      throw new BadRequestException(mensagemSemResposta(destino));
     }
 
     try {
@@ -396,12 +429,47 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
 
     return {
       mensagem: 'Página de teste enviada para a impressora',
-      dados: {
-        conectada: true,
-        ip: destino.tipo === 'rede' ? destino.ip : null,
-        dispositivo: destino.tipo === 'local' ? destino.dispositivo : null,
-      },
+      dados: { conectada: true, ...dadosDestino(destino) },
     };
+  }
+
+  private async imprimirTestePonte() {
+    const destino: DestinoImpressora = { tipo: 'ponte' };
+    if (!(await this.verificarConexao(destino))) {
+      throw new BadRequestException(mensagemSemResposta(destino));
+    }
+
+    const ip = this.ponte.estado().status?.impressoraIp ?? '?';
+    try {
+      await this.ponte.enviar(this.montarBuffer(formatarCupomTeste(`ESP32 > ${ip}`)));
+    } catch (error) {
+      this.logger.error('Erro ao imprimir página de teste pela ponte', error);
+      throw new BadRequestException(
+        error instanceof Error
+          ? error.message
+          : 'A ponte não conseguiu imprimir a página de teste.',
+      );
+    }
+
+    return {
+      mensagem: 'Página de teste enviada pela ponte ESP32',
+      dados: { conectada: true, ...dadosDestino(destino) },
+    };
+  }
+
+  /** ESC/POS completo do cupom (mesmos comandos do envio direto), sem tocar na impressora. */
+  montarBuffer(texto: string): Buffer {
+    this.renderizador ??= this.criarInstancia({ tipo: 'rede', ip: INTERFACE_SO_RENDER });
+    const r = this.renderizador;
+    try {
+      r.clear();
+      r.add(COMANDO_FORCAR_ESCPOS);
+      this.renderizarTexto(r, texto);
+      r.add(COMANDO_CORTE);
+      return Buffer.from(r.getBuffer());
+    } finally {
+      r.clear();
+    }
   }
 
   private async enviar(impressora: ThermalPrinter, texto: string) {
@@ -442,12 +510,19 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
   }
 
   estaConfigurada(): boolean {
-    return this.impressora !== null;
+    return this.impressora !== null || this.destino?.tipo === 'ponte';
   }
 
   private resolverDestinoDto(dto: ConfigurarImpressoraDto): DestinoImpressora {
     const ip = dto.ip?.trim() || null;
     const dispositivo = dto.dispositivo?.trim() || null;
+
+    if (dto.ponte) {
+      if (ip || dispositivo) {
+        throw new BadRequestException('No modo ponte ESP32 não informe IP nem dispositivo.');
+      }
+      return { tipo: 'ponte' };
+    }
 
     if (ip && dispositivo) {
       throw new BadRequestException('Informe apenas o IP ou o dispositivo local, não os dois.');
@@ -472,8 +547,12 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
   private async resolverDestinoInicial(): Promise<DestinoImpressora | null> {
     const config = await this.prismaRead.configImpressora.findUnique({
       where: { id: CONFIG_ID },
-      select: { ip: true, dispositivo: true },
+      select: { ip: true, dispositivo: true, ponte: true },
     });
+
+    if (config?.ponte) {
+      return { tipo: 'ponte' };
+    }
 
     if (config?.dispositivo) {
       return { tipo: 'local', dispositivo: config.dispositivo };
@@ -497,8 +576,15 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
     return { tipo: 'rede', ip: envIp };
   }
 
-  private criarInstancia(destino: DestinoImpressora) {
-    const iface = destino.tipo === 'local' ? destino.dispositivo : `tcp://${destino.ip}`;
+  private criarInstancia(
+    destino: { tipo: 'rede'; ip: string } | { tipo: 'local'; dispositivo: string },
+  ) {
+    const iface =
+      destino.tipo === 'local'
+        ? destino.dispositivo
+        : destino.ip.startsWith('tcp://')
+          ? destino.ip
+          : `tcp://${destino.ip}`;
 
     return new ThermalPrinter({
       type: PrinterTypes.EPSON,
@@ -511,7 +597,12 @@ export class ImpressoraService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async verificarConexao(destino: DestinoImpressora): Promise<boolean> {
-    const alvo = destino.tipo === 'rede' ? destino.ip : destino.dispositivo;
+    if (destino.tipo === 'ponte') {
+      const estado = await this.ponte.sondar();
+      return estado.autorizada && !!estado.status?.impressoraOnline;
+    }
+
+    const alvo = descreverDestino(destino);
 
     try {
       const impressora = this.criarInstancia(destino);

@@ -252,6 +252,10 @@ model ConfigImpressora {
   id          String   @id @default("default")
   ip          String?
   dispositivo String?
+  /// Modo ponte ESP32: os cupons vão pela conexão WSS do ESP32 (ver ponte.service.ts)
+  ponte       Boolean  @default(false)
+  /// MAC do ESP32 autorizado a receber cupons
+  ponteId     String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

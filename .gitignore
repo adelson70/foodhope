@@ -7,3 +7,4 @@ api/generated
 */dist
 .cursor
 .venv-ssh
+firmware/ponte-impressora/secrets.h

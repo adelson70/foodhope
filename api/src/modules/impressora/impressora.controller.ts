@@ -1,8 +1,9 @@
 import { Body, Controller, Get, Post, Put, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
-import { ConfigurarImpressoraDto } from './dto/configurar.dto.js';
+import { ConfigurarImpressoraDto, DefinirIpPonteDto } from './dto/configurar.dto.js';
 import { ImpressoraService } from './impressora.service.js';
+import { PonteService } from './ponte.service.js';
 import { Roles } from '../../common/decorator/roles.decorator.js';
 
 @ApiTags('Impressora')
@@ -10,7 +11,32 @@ import { Roles } from '../../common/decorator/roles.decorator.js';
 @Roles('ADMIN')
 @Controller('impressora')
 export class ImpressoraController {
-  constructor(private readonly impressora: ImpressoraService) {}
+  constructor(
+    private readonly impressora: ImpressoraService,
+    private readonly ponte: PonteService,
+  ) {}
+
+  @Get('ponte')
+  @ApiOperation({ summary: 'Estado da ponte ESP32 (conexão, autorização e impressora encontrada)' })
+  async estadoPonte() {
+    return { dados: await this.ponte.sondar(1500) };
+  }
+
+  @Put('ponte/ip')
+  @ApiOperation({ summary: 'Fixa o IP da impressora no ESP32 (vazio = redescobrir na rede)' })
+  @ApiBody({ type: DefinirIpPonteDto })
+  async definirIpPonte(@Body() dto: DefinirIpPonteDto) {
+    return {
+      mensagem: dto.ip ? 'IP enviado para o ESP32' : 'ESP32 procurando a impressora na rede',
+      dados: await this.ponte.definirIp(dto.ip?.trim() || null),
+    };
+  }
+
+  @Post('ponte/aceitar')
+  @ApiOperation({ summary: 'Autoriza o ESP32 conectado (troca de dispositivo)' })
+  async aceitarPonte() {
+    return { mensagem: 'ESP32 autorizado', dados: await this.ponte.aceitarDispositivo() };
+  }
 
   @Get()
   @ApiOperation({ summary: 'Retorna a configuração da impressora' })

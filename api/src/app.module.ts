@@ -24,6 +24,7 @@ import { InfinitePayModule } from './modules/infinitepay/infinitepay.module.js';
 import { TelaPedidosModule } from './modules/tela-pedidos/tela-pedidos.module.js';
 import { CozinhaModule } from './modules/cozinha/cozinha.module.js';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor.js';
+import { FILA_IMPRESSAO } from './modules/impressora/fila-impressao.js';
 
 @Module({
   imports: [
@@ -38,16 +39,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
         password: process.env.REDIS_PASSWORD || '',
       },
     }),
-    BullModule.registerQueue({
-      name: 'fila-impressao',
-      defaultJobOptions: {
-        attempts: 3,
-        backoff: {
-          type: 'fixed',
-          delay: 15000,
-        },
-      },
-    }),
+    BullModule.registerQueue(FILA_IMPRESSAO),
     WebsocketModule,
     DatabaseModule,
     RedisModule,

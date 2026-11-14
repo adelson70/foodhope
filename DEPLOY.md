@@ -101,6 +101,35 @@ Imagens dos produtos ficam no volume `docker_produto-imagens`.
   gateway `10.0.23.1`), a impressora não é encontrada, mesmo com a faixa `10.0.x.x` parecida.
 - Teste rápido no host: `timeout 3 bash -c '</dev/tcp/<ip-da-impressora>/9100' && echo ok`.
 
+## Ponte de impressão ESP32
+
+Com a ponte, a API não precisa estar na rede da impressora. Um ESP32 no restaurante abre um WSS
+de saída para `wss://foodhope-api.abjr.dev/ponte-impressora` e repassa os cupons ESC/POS para a
+impressora na porta 9100.
+
+- **Painel:** Configurações → Impressora → **Ponte ESP32**. Mostra se o ESP32 está conectado e
+  autenticado, o MAC, o firmware, o sinal e a impressora encontrada (IP + papel). Testar → Salvar.
+- **Autenticação:** `PONTE_IMPRESSORA_TOKEN` (`docker/.env`) precisa ser igual a `PONTE_TOKEN`
+  (`firmware/ponte-impressora/secrets.h`). O primeiro ESP32 com token válido fica registrado pelo
+  MAC. Um ESP32 diferente só recebe cupons depois de "Autorizar" no painel.
+- **Firmware:** `firmware/ponte-impressora/`. Copie `secrets.example.h` para `secrets.h`, preencha
+  e grave:
+  ```bash
+  arduino-cli compile --fqbn esp32:esp32:esp32 firmware/ponte-impressora
+  arduino-cli upload  --fqbn esp32:esp32:esp32 -p /dev/ttyUSB0 firmware/ponte-impressora
+  ```
+- **Plug and play:** o ESP32 tenta o Wi-Fi salvo, depois `WIFI_SSID` e depois `WIFI_SSID_2`. Se
+  nenhum funcionar, abre a rede **FoodHope-Ponte** (senha `PORTAL_SENHA`). Pelo celular, abra
+  http://192.168.4.1 e escolha o Wi-Fi. A impressora é achada sozinha: primeiro testa o IP salvo,
+  senão varre o /24 na porta 9100.
+- **LED:** pisca rápido = sem Wi-Fi; médio = sem API; lento = sem impressora; aceso = pronto.
+- **Sem perder comanda:** a fila (`fila-impressao`) tenta 10 vezes com backoff exponencial a partir
+  de 5 s (~40 min). Com a ponte fora do ar, cada job ainda espera até 30 s pela reconexão. O ESP32
+  não reimprime um job já confirmado.
+- **Carga:** `api/scripts/carga-ponte.mjs <A|B|C|D|E|real> --confirmo` (use o emulador
+  `docker compose --profile dev up -d escpos`). Os cenários partem do pico real de 05/09/2026:
+  6 pedidos/min, 44/h.
+
 ## GitHub Actions
 
 `.github/workflows/deploy.yml` está só com `workflow_dispatch` (não roda no push), porque não há

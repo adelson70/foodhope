@@ -12,7 +12,7 @@ export type ApiErrorBody = {
   statusCode: number;
 };
 
-export type RoleOperador = 'ADMIN' | 'OPERADOR' | 'TOTEM';
+export type RoleOperador = "ADMIN" | "OPERADOR" | "TOTEM";
 
 export type Operador = {
   id: string;
@@ -70,7 +70,7 @@ export type ProdutoCategoria = {
   ordem: number;
 };
 
-export type TipoProduto = 'SIMPLES' | 'VARIAVEL';
+export type TipoProduto = "SIMPLES" | "VARIAVEL";
 
 export type VariacaoProduto = {
   id: string;
@@ -282,9 +282,9 @@ export type PedidoItem = {
   produto?: Produto;
 };
 
-export type TipoConsumo = 'LEVAR' | 'COMER_AQUI';
+export type TipoConsumo = "LEVAR" | "COMER_AQUI";
 
-export type StatusPagamento = 'PAGO' | 'NAO_PAGO' | 'GRATUITO';
+export type StatusPagamento = "PAGO" | "NAO_PAGO" | "GRATUITO";
 
 export type Pedido = {
   id: string;
@@ -363,11 +363,37 @@ export type DashDados = {
   topAdicionais: DashItemRank[];
 };
 
-export type TipoRelatorio = 'resumido' | 'completo';
+export type TipoRelatorio = "resumido" | "completo";
 
 export type ConfigImpressora = {
   ip: string | null;
   dispositivo: string | null;
+  ponte: boolean;
+};
+
+export type ModoImpressora = "rede" | "local" | "ponte";
+
+export type StatusPonte = {
+  impressoraIp: string | null;
+  impressoraOnline: boolean;
+  papel: "ok" | "acabando" | "sem-papel" | "desconhecido";
+  rssi: number;
+  heap: number;
+  uptime: number;
+  mac: string;
+  versao: string;
+};
+
+export type EstadoPonte = {
+  habilitada: boolean;
+  conectada: boolean;
+  autorizada: boolean;
+  macPendente: string | null;
+  macAutorizado: string | null;
+  conectadaEm: string | null;
+  origem: string | null;
+  statusEm: string | null;
+  status: StatusPonte | null;
 };
 
 export type PortaImpressora = {
@@ -389,11 +415,13 @@ export type TestarImpressoraDados = {
   conectada: boolean;
   ip: string | null;
   dispositivo: string | null;
+  ponte: boolean;
 };
 
 export type ConfigurarImpressoraInput = {
   ip?: string;
   dispositivo?: string;
+  ponte?: boolean;
 };
 
 export type ConfigInfinitePay = {
@@ -401,7 +429,7 @@ export type ConfigInfinitePay = {
   webhookUrl: string | null;
 };
 
-export type VisualizacaoTelaPedidos = 'DIA' | 'TUDO';
+export type VisualizacaoTelaPedidos = "DIA" | "TUDO";
 
 export type ConfigTelaPedidos = {
   hash: string;
