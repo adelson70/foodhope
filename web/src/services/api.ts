@@ -1,5 +1,5 @@
 import axios, {
-  type AxiosError,
+  AxiosError,
   type AxiosResponse,
   type InternalAxiosRequestConfig,
 } from 'axios';
@@ -72,12 +72,27 @@ api.interceptors.request.use(async (config) => {
     const baseURL = config.baseURL || import.meta.env.VITE_API_URL || '';
     const fullUri = axios.getUri(config);
     const pathWithQuery = pathWithQueryFromUrl(fullUri, baseURL);
-    const headers = await signRequestHeaders({
-      apiBaseUrl: baseURL.replace(/\/$/, ''),
-      method: (config.method || 'get').toUpperCase(),
-      pathWithQuery,
-      bodyBytes: bodyForSignature(config.data),
-    });
+    let headers: Record<string, string>;
+    try {
+      headers = await signRequestHeaders({
+        apiBaseUrl: baseURL.replace(/\/$/, ''),
+        method: (config.method || 'get').toUpperCase(),
+        pathWithQuery,
+        bodyBytes: bodyForSignature(config.data),
+      });
+    } catch (error: unknown) {
+      // Registro do visitor via fetch: sem rede (TypeError) ou página de erro
+      // da Cloudflare (SyntaxError no .json()) viram falha de rede do axios.
+      if (error instanceof TypeError || error instanceof SyntaxError) {
+        marcarApiInalcancavel();
+        throw new AxiosError(
+          error.message,
+          AxiosError.ERR_NETWORK,
+          config,
+        );
+      }
+      throw error;
+    }
 
     Object.entries(headers).forEach(([key, value]) => {
       config.headers.set(key, value);

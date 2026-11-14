@@ -2,10 +2,12 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { registerSW } from 'virtual:pwa-register'
 import { initConectividade } from './lib/conectividade'
+import { initInstalacaoPwa } from './lib/pwaInstall'
 import './index.css'
 import App from './App.tsx'
 
 initConectividade()
+initInstalacaoPwa()
 
 registerSW({
   immediate: true,

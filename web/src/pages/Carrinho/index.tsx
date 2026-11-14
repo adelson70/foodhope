@@ -29,6 +29,7 @@ import {
 } from '../../schemas/checkout-cliente.schema';
 import { infinitepayService } from '../../services';
 import { criarPedidoComOutbox } from '../../lib/criarPedidoComOutbox';
+import { useOnlineStatus } from '../../hooks/usePedidoOutboxSync';
 import { getVisitorId } from '../../services/visitor';
 import {
   totalCarrinho,
@@ -56,6 +57,8 @@ export function Carrinho() {
     TIPO_CONSUMO_PADRAO,
   );
   const lojaFechada = !cozinhaAtiva;
+  const online = useOnlineStatus();
+  const semConexaoCheckout = !isTotem && !online;
 
   const {
     register,
@@ -186,7 +189,7 @@ export function Carrinho() {
   }
 
   async function onSubmit(values: CheckoutClienteValues) {
-    if (itens.length === 0 || lojaFechada) return;
+    if (itens.length === 0 || lojaFechada || semConexaoCheckout) return;
 
     await finalizarCliente({
       primeiro_nome: values.primeiro_nome,
@@ -379,11 +382,13 @@ export function Carrinho() {
               <Button
                 type="submit"
                 fullWidth
-                disabled={lojaFechada || isSubmitting}
+                disabled={lojaFechada || isSubmitting || semConexaoCheckout}
               >
                 {lojaFechada
                   ? 'Loja fechada'
-                  : isSubmitting
+                  : semConexaoCheckout
+                    ? 'Conecte-se para finalizar o pedido'
+                    : isSubmitting
                     ? 'Redirecionando…'
                     : 'Pagar e fazer pedido'}
               </Button>

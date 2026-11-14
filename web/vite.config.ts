@@ -42,7 +42,6 @@ export default defineConfig({
         'icons.svg',
         'og.png',
         'og-share.png',
-        'manifest-painel.webmanifest',
       ],
       manifest: {
         id: '/',
@@ -54,7 +53,7 @@ export default defineConfig({
         background_color: '#F7F3EB',
         display: 'standalone',
         lang: 'pt-BR',
-        start_url: '/?utm_source=pwa',
+        start_url: '/app?utm_source=pwa',
         scope: '/',
         launch_handler: {
           client_mode: ['navigate-existing', 'auto'],

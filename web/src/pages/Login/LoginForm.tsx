@@ -6,6 +6,8 @@ import { ArrowRight, Eye, EyeOff, Lock, User } from 'lucide-react';
 
 import { Button, Input, Label } from '../../components/ui';
 import { authService } from '../../services';
+import { useOnlineStatus } from '../../hooks/usePedidoOutboxSync';
+import { liberarRetryApi } from '../../lib/conectividade';
 import { rotaInicialPorRole } from '../../lib/rotaPorRole';
 import {
   loginSchema,
@@ -15,6 +17,7 @@ import {
 export function LoginForm() {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
+  const online = useOnlineStatus();
 
   const {
     register,
@@ -26,6 +29,7 @@ export function LoginForm() {
   });
 
   async function onSubmit(values: LoginFormValues) {
+    liberarRetryApi();
     try {
       const response = await authService.login(values);
       const role = response.dados?.operador?.role;
@@ -86,6 +90,16 @@ export function LoginForm() {
           <p className="px-1 text-caption text-danger">{errors.senha.message}</p>
         ) : null}
       </div>
+
+      {!online ? (
+        <p
+          role="status"
+          className="rounded-xl border border-primary-container/40 bg-primary-container/25 px-4 py-2 text-caption text-on-surface"
+        >
+          Sem conexão. O login precisa de internet; quem já entrou neste
+          aparelho continua usando o painel offline.
+        </p>
+      ) : null}
 
       <Button
         type="submit"
