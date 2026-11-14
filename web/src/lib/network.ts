@@ -2,7 +2,10 @@ import axios from 'axios';
 
 import { isAppOffline } from './conectividade';
 
-const GATEWAY_STATUSES = new Set([502, 503, 504]);
+// 502-504: gateway; 520-530: erros da Cloudflare/tunnel com a origem fora.
+const GATEWAY_STATUSES = new Set([
+  502, 503, 504, 520, 521, 522, 523, 524, 525, 526, 527, 530,
+]);
 
 export function isNetworkFailure(error: unknown): boolean {
   if (!navigator.onLine) return true;

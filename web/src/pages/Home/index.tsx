@@ -8,6 +8,8 @@ import {
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useDeferredLoading } from '../../hooks/useDeferredLoading';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
+import { useOnlineStatus } from '../../hooks/usePedidoOutboxSync';
+import { isNetworkFailure } from '../../lib/network';
 import { getApiErrorMensagens, socket } from '../../services';
 import type { Produto, ProdutoCategoria } from '../../services/types';
 import {
@@ -131,6 +133,7 @@ export function Home() {
     null,
   );
 
+  const online = useOnlineStatus();
   const listaQuery = useCardapioInfinito();
   const buscaQuery = useCardapioBusca(busca);
   const {
@@ -162,12 +165,19 @@ export function Home() {
 
   const erroAtivo = buscaAtiva ? buscaQuery.isError : listaIsError;
   const erroFonte = buscaAtiva ? buscaQuery.error : listaError;
-  const erro = erroAtivo
-    ? (getApiErrorMensagens(erroFonte)[0] ??
-      (buscaAtiva
-        ? 'Não foi possível buscar o cardápio.'
-        : 'Não foi possível carregar o cardápio.'))
-    : null;
+  const semConexao = !online || (erroAtivo && isNetworkFailure(erroFonte));
+  const erro = semConexao
+    ? produtos.length > 0
+      ? null
+      : buscaAtiva
+        ? 'Busca indisponível sem conexão.'
+        : 'Sem conexão. Conecte-se para carregar o cardápio.'
+    : erroAtivo
+      ? (getApiErrorMensagens(erroFonte)[0] ??
+        (buscaAtiva
+          ? 'Não foi possível buscar o cardápio.'
+          : 'Não foi possível carregar o cardápio.'))
+      : null;
 
   const initialPending = loading && produtos.length === 0;
   const showSkeleton = useDeferredLoading(initialPending);

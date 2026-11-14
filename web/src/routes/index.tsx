@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom';
 import { MobileAppLayout } from '../components/layout/MobileLayout';
 import { PainelLayout } from '../components/layout/PainelLayout';
+import { AppEntryRedirect } from './AppEntryRedirect';
 import { PainelHomeRedirect } from './PainelHomeRedirect';
 import { ProtectedRoute } from './ProtectedRoute';
 import { RequireRole } from './RequireRole';
@@ -25,6 +26,10 @@ import { ConfigUsuarios } from '../pages/Painel/Config/ConfigUsuarios';
 import { NotFound } from '../pages/NotFound';
 
 export const router = createBrowserRouter([
+  {
+    path: '/app',
+    element: <AppEntryRedirect />,
+  },
   {
     path: '/login',
     element: <Login />,

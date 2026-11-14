@@ -1,5 +1,5 @@
 const DB_NAME = 'foodhope';
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 export const STORE_VISITOR = 'visitor';
 export const STORE_CARRINHO = 'carrinho';
@@ -8,6 +8,7 @@ export const STORE_CLIENTE = 'clientePerfil';
 export const STORE_PEDIDO_OUTBOX = 'pedidoOutbox';
 export const STORE_SESSAO_OPERADOR = 'sessaoOperador';
 export const STORE_CARDAPIO_OPERADOR = 'cardapioOperador';
+export const STORE_PEDIDOS_OPERADOR = 'pedidosOperador';
 
 export class QuotaExceededIdbError extends Error {
   constructor(message = 'Armazenamento local sem espaço') {
@@ -30,6 +31,7 @@ const ALL_STORES = [
   STORE_PEDIDO_OUTBOX,
   STORE_SESSAO_OPERADOR,
   STORE_CARDAPIO_OPERADOR,
+  STORE_PEDIDOS_OPERADOR,
 ] as const;
 
 export function openClientDb(): Promise<IDBDatabase> {

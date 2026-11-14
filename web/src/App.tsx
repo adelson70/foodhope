@@ -1,11 +1,11 @@
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { useEffect } from 'react';
 import { RouterProvider } from 'react-router-dom';
+import { InstalarAppPrompt } from './components/pwa/InstalarAppPrompt';
 import { Toaster } from './components/ui/Toaster';
 import { useCardapioCarrinhoRealtime } from './hooks/useCardapioCarrinhoRealtime';
 import { useCozinhaStatusRealtime } from './hooks/useCozinhaStatusRealtime';
 import { usePedidoProntoRealtime } from './hooks/usePedidoProntoRealtime';
-import { aplicarManifestPwa } from './lib/pwaManifest';
 import { limparSessaoOperador } from './lib/sessaoOperador';
 import { router } from './routes';
 import { persistOptions, queryClient } from './services/queryClient';
@@ -25,14 +25,6 @@ function AppRealtime() {
 }
 
 function App() {
-  useEffect(() => {
-    aplicarManifestPwa(window.location.pathname);
-    const unsubscribe = router.subscribe((state) => {
-      aplicarManifestPwa(state.location.pathname);
-    });
-    return unsubscribe;
-  }, []);
-
   useEffect(() => {
     if (!isTelaPedidosPublicaPath()) {
       void connectSocket();
@@ -70,6 +62,7 @@ function App() {
       <AppRealtime />
       <RouterProvider router={router} />
       <Toaster />
+      <InstalarAppPrompt />
     </PersistQueryClientProvider>
   );
 }

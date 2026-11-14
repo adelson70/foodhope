@@ -5,7 +5,8 @@ import { Button, Drawer } from '../../../components/ui';
 import { rotuloRetiradas } from '../../../lib/retiradaPedido';
 import { pedidoPendentePagamento } from '../../../lib/statusPagamento';
 import { rotuloTipoConsumo } from '../../../lib/tipoConsumo';
-import { pedidoService } from '../../../services';
+import { isOfflineNow } from '../../../lib/network';
+import { notifyError, pedidoService } from '../../../services';
 import type { Pedido } from '../../../services/types';
 import { PedidoStatusPagamentoBadge } from './PedidoStatusPagamentoBadge';
 import { formatarMoeda, pedidoEstaPronto, totalItem, totalPedido } from './pedidoTotais';
@@ -52,6 +53,10 @@ export function PedidoDetalheDrawer({
 
   async function handleReimprimir() {
     if (!pedido) return;
+    if (isOfflineNow()) {
+      notifyError(null, 'Sem conexão: reimpressão precisa de internet.');
+      return;
+    }
     setImprimindo(true);
     try {
       await pedidoService.reimprimir(pedido.id);
