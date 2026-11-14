@@ -1,4 +1,10 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  type PointerEvent,
+  type ReactNode,
+} from 'react';
 import { X } from 'lucide-react';
 
 import { useScrollFocusedIntoView } from '../../hooks/useScrollFocusedIntoView';
@@ -22,6 +28,12 @@ type DrawerProps = {
 // Drawers abertos, do mais antigo ao mais recente: o Esc fecha só o de cima.
 const drawersAbertos: symbol[] = [];
 
+// Arrastar o drawer de baixo: fecha se passar desta fração da altura ou se o
+// gesto for rápido (px/ms).
+const FECHAR_FRACAO = 0.3;
+const FECHAR_VELOCIDADE = 0.6;
+const VOLTAR_TRANSICAO = 'transform 240ms cubic-bezier(0.32, 0.72, 0, 1)';
+
 export function Drawer({
   open,
   title,
@@ -32,6 +44,8 @@ export function Drawer({
 }: DrawerProps) {
   const { mounted, exiting, onExitAnimationEnd } = useAnimatedPresence(open);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const arrastoRef = useRef<{ id: number; y: number; t: number } | null>(null);
   useScrollFocusedIntoView(bodyRef);
   const titleId = useId();
   // Ref: o efeito não reinicia (e não muda a ordem da pilha) quando onClose muda.
@@ -66,6 +80,45 @@ export function Drawer({
 
   const sheet = variant === 'sheet';
 
+  function iniciarArrasto(event: PointerEvent<HTMLDivElement>) {
+    if (!sheet || exiting || !panelRef.current) return;
+    if ((event.target as HTMLElement).closest('button')) return;
+    arrastoRef.current = {
+      id: event.pointerId,
+      y: event.clientY,
+      t: event.timeStamp,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    panelRef.current.style.transition = 'none';
+  }
+
+  function moverArrasto(event: PointerEvent<HTMLDivElement>) {
+    const arrasto = arrastoRef.current;
+    const panel = panelRef.current;
+    if (!arrasto || arrasto.id !== event.pointerId || !panel) return;
+    const dy = Math.max(0, event.clientY - arrasto.y);
+    panel.style.transform = dy > 0 ? `translateY(${dy}px)` : '';
+  }
+
+  function soltarArrasto(event: PointerEvent<HTMLDivElement>) {
+    const arrasto = arrastoRef.current;
+    const panel = panelRef.current;
+    if (!arrasto || arrasto.id !== event.pointerId || !panel) return;
+    arrastoRef.current = null;
+    const dy = Math.max(0, event.clientY - arrasto.y);
+    const velocidade = dy / Math.max(1, event.timeStamp - arrasto.t);
+    if (
+      dy > panel.offsetHeight * FECHAR_FRACAO ||
+      (dy > 10 && velocidade > FECHAR_VELOCIDADE)
+    ) {
+      // A animação de saída parte da posição atual do arrasto.
+      onClose();
+      return;
+    }
+    panel.style.transition = VOLTAR_TRANSICAO;
+    panel.style.transform = '';
+  }
+
   return (
     <div
       className={cn(
@@ -77,13 +130,21 @@ export function Drawer({
         type="button"
         aria-label="Fechar drawer"
         className={cn(
-          'absolute inset-0 bg-operator-bg/80',
-          exiting ? 'overlay-exit' : 'overlay-enter',
+          'absolute inset-0',
+          sheet ? 'bg-black/45' : 'bg-operator-bg/80',
+          sheet
+            ? exiting
+              ? 'sheet-overlay-exit'
+              : 'sheet-overlay-enter'
+            : exiting
+              ? 'overlay-exit'
+              : 'overlay-enter',
         )}
         disabled={exiting}
         onClick={exiting ? undefined : onClose}
       />
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -93,37 +154,55 @@ export function Drawer({
           sheet
             ? 'max-h-[90dvh] rounded-t-2xl border-t'
             : 'h-dvh pt-[env(safe-area-inset-top)]',
-          exiting ? 'drawer-exit' : 'drawer-enter',
+          sheet
+            ? exiting
+              ? 'sheet-exit'
+              : 'sheet-enter'
+            : exiting
+              ? 'drawer-exit'
+              : 'drawer-enter',
         )}
         onAnimationEnd={onExitAnimationEnd}
       >
-        {sheet ? (
-          <div
-            aria-hidden
-            className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-outline-variant"
-          />
-        ) : null}
         <header
           className={cn(
-            'flex shrink-0 items-center justify-between gap-3 border-b border-operator-border px-4',
-            sheet ? 'py-2' : 'py-4',
+            'shrink-0 border-b border-operator-border',
+            sheet &&
+              'cursor-grab touch-none select-none active:cursor-grabbing',
           )}
+          onPointerDown={iniciarArrasto}
+          onPointerMove={moverArrasto}
+          onPointerUp={soltarArrasto}
+          onPointerCancel={soltarArrasto}
         >
-          <h2
-            id={titleId}
-            className="text-title-md font-semibold text-on-surface"
+          {sheet ? (
+            <div
+              aria-hidden
+              className="mx-auto mt-2 h-1 w-10 rounded-full bg-outline-variant"
+            />
+          ) : null}
+          <div
+            className={cn(
+              'flex items-center justify-between gap-3 px-4',
+              sheet ? 'py-2' : 'py-4',
+            )}
           >
-            {title}
-          </h2>
-          <button
-            type="button"
-            aria-label="Fechar"
-            disabled={exiting}
-            className="flex size-10 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-on-surface/5 hover:text-on-surface disabled:opacity-50"
-            onClick={onClose}
-          >
-            <X size={19} strokeWidth={1.75} />
-          </button>
+            <h2
+              id={titleId}
+              className="text-title-md font-semibold text-on-surface"
+            >
+              {title}
+            </h2>
+            <button
+              type="button"
+              aria-label="Fechar"
+              disabled={exiting}
+              className="flex size-10 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-on-surface/5 hover:text-on-surface disabled:opacity-50"
+              onClick={onClose}
+            >
+              <X size={19} strokeWidth={1.75} />
+            </button>
+          </div>
         </header>
         <div
           ref={bodyRef}

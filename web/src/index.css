@@ -214,6 +214,25 @@
   animation: drawer-exit 240ms ease-in both;
 }
 
+/* Drawer de baixo (meia tela): só desliza, com curva de "folha".
+   Entrada sem fill "forwards" para não travar o transform (arrastar para fechar);
+   a saída parte da posição atual (inclusive do arrasto). */
+.sheet-enter {
+  animation: sheet-enter 420ms cubic-bezier(0.32, 0.72, 0, 1) backwards;
+}
+
+.sheet-exit {
+  animation: sheet-exit 260ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+.sheet-overlay-enter {
+  animation: overlay-enter 320ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.sheet-overlay-exit {
+  animation: overlay-exit 260ms ease-in both;
+}
+
 .select-enter {
   animation: select-enter 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -291,6 +310,18 @@
 
   to {
     opacity: 0;
+    transform: translateY(100%);
+  }
+}
+
+@keyframes sheet-enter {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes sheet-exit {
+  to {
     transform: translateY(100%);
   }
 }
