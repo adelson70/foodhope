@@ -35,6 +35,40 @@ export function isIos(): boolean {
   return /Macintosh/i.test(ua) && navigator.maxTouchPoints > 1;
 }
 
+export type NavegadorInstalacao =
+  | 'ios'
+  | 'inapp'
+  | 'android-chrome'
+  | 'android-samsung'
+  | 'android-firefox'
+  | 'android-outro'
+  | 'desktop-chromium'
+  | 'desktop-safari';
+
+/**
+ * Navegador atual para escolher as instruções de instalação manual.
+ * `null` quando não há como instalar (ex.: Firefox no computador).
+ */
+export function detectarNavegadorInstalacao(): NavegadorInstalacao | null {
+  if (typeof navigator === 'undefined') return null;
+  const ua = navigator.userAgent;
+  if (/FBAN|FBAV|FB_IAB|Instagram|Line\/|TikTok|musical_ly|Snapchat|Twitter/i.test(ua)) {
+    return 'inapp';
+  }
+  if (isIos()) return 'ios';
+  if (/Android/i.test(ua)) {
+    if (/SamsungBrowser/i.test(ua)) return 'android-samsung';
+    if (/Firefox/i.test(ua)) return 'android-firefox';
+    if (/Chrome|EdgA/i.test(ua)) return 'android-chrome';
+    return 'android-outro';
+  }
+  if (/Edg\/|Chrome\//i.test(ua) && !/OPR\//i.test(ua)) return 'desktop-chromium';
+  if (/Macintosh/i.test(ua) && /Safari/i.test(ua) && !/Chrome|Firefox/i.test(ua)) {
+    return 'desktop-safari';
+  }
+  return null;
+}
+
 export function podeInstalarNativo(): boolean {
   return promptEvent !== null;
 }
