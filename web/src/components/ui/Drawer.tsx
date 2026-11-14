@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 
 import { useScrollFocusedIntoView } from '../../hooks/useScrollFocusedIntoView';
@@ -14,18 +14,36 @@ type DrawerProps = {
   footer?: ReactNode;
 };
 
-export function Drawer({ open, title, onClose, children, footer }: DrawerProps) {
+// Drawers abertos, do mais antigo ao mais recente: o Esc fecha só o de cima.
+const drawersAbertos: symbol[] = [];
+
+export function Drawer({
+  open,
+  title,
+  onClose,
+  children,
+  footer,
+}: DrawerProps) {
   const { mounted, exiting, onExitAnimationEnd } = useAnimatedPresence(open);
   const bodyRef = useRef<HTMLDivElement>(null);
   useScrollFocusedIntoView(bodyRef);
+  const titleId = useId();
+  // Ref: o efeito não reinicia (e não muda a ordem da pilha) quando onClose muda.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!mounted || exiting) return;
 
+    const token = Symbol('drawer');
+    drawersAbertos.push(token);
+
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        onClose();
-      }
+      if (event.key !== 'Escape') return;
+      if (drawersAbertos[drawersAbertos.length - 1] !== token) return;
+      onCloseRef.current();
     }
 
     document.addEventListener('keydown', onKeyDown);
@@ -33,9 +51,10 @@ export function Drawer({ open, title, onClose, children, footer }: DrawerProps) 
 
     return () => {
       document.removeEventListener('keydown', onKeyDown);
+      drawersAbertos.splice(drawersAbertos.indexOf(token), 1);
       unlockAppScroll();
     };
-  }, [mounted, exiting, onClose]);
+  }, [mounted, exiting]);
 
   if (!mounted) return null;
 
@@ -54,7 +73,7 @@ export function Drawer({ open, title, onClose, children, footer }: DrawerProps) 
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="drawer-title"
+        aria-labelledby={titleId}
         className={cn(
           'relative z-10 flex h-dvh w-full max-w-md flex-col',
           'bg-operator-surface border-x border-operator-border shadow-card',
@@ -65,7 +84,7 @@ export function Drawer({ open, title, onClose, children, footer }: DrawerProps) 
       >
         <header className="flex shrink-0 items-center justify-between gap-3 border-b border-operator-border px-4 py-4">
           <h2
-            id="drawer-title"
+            id={titleId}
             className="text-title-md font-semibold text-on-surface"
           >
             {title}
