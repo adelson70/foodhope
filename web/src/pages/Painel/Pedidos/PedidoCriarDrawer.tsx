@@ -434,6 +434,7 @@ export function PedidoCriarDrawer({
                             <p className="mt-1 text-caption text-on-surface-variant">
                               {rotuloRetiradas(
                                 retiradas.map((nome) => ({ nome })),
+                                field.qtd,
                               )}
                             </p>
                           ) : null}

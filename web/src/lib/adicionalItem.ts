@@ -14,7 +14,8 @@ export function rotuloAdicional(
   const lanches = Math.max(1, Number(qtdItem) || 1);
   if (qtd % lanches === 0) {
     const porLanche = qtd / lanches;
-    return `+ ${porLanche > 1 ? `${porLanche}× ` : ''}${adicional.nome}`;
+    const emCada = lanches > 1 ? ' em cada' : '';
+    return `+ ${porLanche > 1 ? `${porLanche}× ` : ''}${adicional.nome}${emCada}`;
   }
   const preco = Number(adicional.preco) || 0;
   return `+ ${qtd}× ${adicional.nome} para os ${lanches}${preco > 0 ? ` (${formatarMoeda(preco * qtd)})` : ''}`;

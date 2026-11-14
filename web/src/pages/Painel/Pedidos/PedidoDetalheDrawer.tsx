@@ -180,9 +180,9 @@ export function PedidoDetalheDrawer({
                       ))}
                     </ul>
                   ) : null}
-                  {rotuloRetiradas(item.retirada_venda) ? (
+                  {rotuloRetiradas(item.retirada_venda, item.quantidade) ? (
                     <p className="mt-2 text-caption text-on-surface-variant">
-                      {rotuloRetiradas(item.retirada_venda)}
+                      {rotuloRetiradas(item.retirada_venda, item.quantidade)}
                     </p>
                   ) : null}
                   {item.observacao ? (
