@@ -22,6 +22,7 @@ import {
   produtoService,
 } from '../../../services';
 import { criarPedidoComOutbox } from '../../../lib/criarPedidoComOutbox';
+import { rotuloAdicional } from '../../../lib/adicionalItem';
 import {
   obterCardapioOperador,
   salvarCardapioOperador,
@@ -200,7 +201,7 @@ export function PedidoCriarDrawer({
       return {
         nome: info?.nome ?? 'Adicional',
         qtd: adic.qtd,
-        preco: info ? Number(info.preco) * adic.qtd : 0,
+        preco: info ? Number(info.preco) : 0,
       };
     });
   }
@@ -424,10 +425,7 @@ export function PedidoCriarDrawer({
                                   key={`${field.id}-adic-${adicIndex}`}
                                   className="text-caption text-on-surface-variant"
                                 >
-                                  + {adic.qtd}× {adic.nome}
-                                  {adic.preco > 0
-                                    ? ` (${formatarMoeda(adic.preco)})`
-                                    : ''}
+                                  {rotuloAdicional(adic, field.qtd)}
                                 </li>
                               ))}
                             </ul>

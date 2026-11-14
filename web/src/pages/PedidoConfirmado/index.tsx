@@ -266,7 +266,8 @@ async function persistirPedidoLocal(
         adicionais: item.adicionais.map((adic) => ({
           nome: adic.nome,
           preco: adic.preco,
-          qtd: adic.qtd,
+          // mesmo formato do pedido da API: total da linha
+          qtd: adic.qtd * item.qtd,
         })),
         retirar: item.retirar?.map((ret) => ({ nome: ret.nome })),
         observacao: item.observacao,

@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 
 import { Button } from '../../components/ui';
 import { formatarMoeda } from '../../lib/currency';
-import { rotuloRetiradas } from '../../lib/retiradaPedido';
 import {
   totalItemCarrinho,
   useCarrinhoStore,
@@ -41,17 +40,21 @@ export function CarrinhoLista({ itens }: CarrinhoListaProps) {
           className="flex items-center justify-between gap-3 rounded-xl border border-operator-border bg-operator-card p-3"
         >
           <div className="min-w-0 flex-1">
-            <p className="text-subtitle-md text-on-surface">{item.nome}</p>
-            {item.adicionais.length > 0 ? (
-              <p className="mt-1 text-caption text-on-surface-variant">
-                {item.adicionais
-                  .map((adic) => `${adic.nome} ×${adic.qtd}`)
-                  .join(', ')}
+            <p className="text-subtitle-md text-on-surface">
+              {item.qtd}x {item.nome}
+            </p>
+            {item.adicionais.map((adic) => (
+              <p
+                key={adic.id}
+                className="mt-0.5 text-caption text-on-surface-variant"
+              >
+                + {adic.qtd > 1 ? `${adic.qtd}× ` : ''}
+                {adic.nome}
               </p>
-            ) : null}
-            {rotuloRetiradas(item.retirar) ? (
-              <p className="mt-1 text-caption text-on-surface-variant">
-                {rotuloRetiradas(item.retirar)}
+            ))}
+            {item.retirar && item.retirar.length > 0 ? (
+              <p className="mt-0.5 text-caption text-on-surface-variant">
+                Sem: {item.retirar.map((ret) => ret.nome).join(', ')}
               </p>
             ) : null}
             {item.observacao ? (

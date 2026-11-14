@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, Minus, Plus, Search } from 'lucide-react';
+import { ChevronLeft, Search } from 'lucide-react';
 
 import {
   Button,
@@ -13,6 +13,7 @@ import {
   type AdicionalDraft,
 } from '../../Home/HomeProdutoAdicionais';
 import { HomeProdutoRetirar } from '../../Home/HomeProdutoRetirar';
+import { HomeProdutoRodape } from '../../Home/HomeProdutoRodape';
 import { HomeProdutoVariacoes } from '../../Home/HomeProdutoVariacoes';
 import {
   precoExibicao,
@@ -94,12 +95,12 @@ export function PedidoProdutoDrawer({
 
   const totalPreview = useMemo(() => {
     if (!produto) return 0;
-    const base = precoUnitario * qtd;
+    // adicionais são por lanche: cada um dos `qtd` lanches leva os mesmos extras
     const extras = adicionais.reduce(
       (soma, item) => soma + item.preco * item.qtd,
       0,
     );
-    return base + extras;
+    return (precoUnitario + extras) * qtd;
   }, [produto, precoUnitario, qtd, adicionais]);
 
   function resetProdutoDraft() {
@@ -176,7 +177,8 @@ export function PedidoProdutoDrawer({
         adicionais.length > 0
           ? adicionais.map(({ id, qtd: adicionalQtd }) => ({
               id,
-              qtd: adicionalQtd,
+              // a API guarda o total da linha (por lanche × lanches)
+              qtd: adicionalQtd * qtd,
             }))
           : undefined,
       retirar: retirarIds.length > 0 ? retirarIds : undefined,
@@ -194,14 +196,19 @@ export function PedidoProdutoDrawer({
       onClose={handleClose}
       footer={
         produto ? (
-          <Button
-            type="button"
-            fullWidth
-            onClick={handleAdd}
-            disabled={variavel && !variacao}
-          >
-            Adicionar · {formatarMoeda(totalPreview)}
-          </Button>
+          <HomeProdutoRodape qtd={qtd} onChangeQtd={setQtd}>
+            <Button
+              type="button"
+              fullWidth
+              onClick={handleAdd}
+              disabled={variavel && !variacao}
+            >
+              <span className="flex w-full items-center justify-between gap-2">
+                <span>Adicionar</span>
+                <span>{formatarMoeda(totalPreview)}</span>
+              </span>
+            </Button>
+          </HomeProdutoRodape>
         ) : null
       }
     >
@@ -286,33 +293,6 @@ export function PedidoProdutoDrawer({
               {produto.descricao}
             </p>
           ) : null}
-
-          <div className="flex items-center justify-between rounded-xl border border-operator-border bg-operator-card px-3 py-2">
-            <span className="text-subtitle-md text-on-surface">Quantidade</span>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                className="size-10 px-0 py-0"
-                aria-label="Diminuir quantidade"
-                onClick={() => setQtd((atual) => Math.max(1, atual - 1))}
-              >
-                <Minus size={15} />
-              </Button>
-              <span className="min-w-8 text-center text-body-md text-on-surface">
-                {qtd}
-              </span>
-              <Button
-                type="button"
-                variant="secondary"
-                className="size-10 px-0 py-0"
-                aria-label="Aumentar quantidade"
-                onClick={() => setQtd((atual) => atual + 1)}
-              >
-                <Plus size={15} />
-              </Button>
-            </div>
-          </div>
 
           <HomeProdutoAdicionais
             disponiveis={adicionaisDisponiveis}

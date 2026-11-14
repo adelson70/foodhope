@@ -1,4 +1,5 @@
 import { Drawer } from '../../components/ui';
+import { rotuloAdicional } from '../../lib/adicionalItem';
 import { formatarMoeda } from '../../lib/currency';
 import { rotuloTipoConsumo } from '../../lib/tipoConsumo';
 import type { PedidoLocal, PedidoLocalItem } from '../../lib/clienteStorage';
@@ -94,10 +95,7 @@ export function PedidoLocalDetalheDrawer({
                           key={`${pedido.id}-adic-${index}-${adicIndex}`}
                           className="text-caption text-on-surface-variant"
                         >
-                          + {adic.qtd}× {adic.nome}
-                          {adic.preco != null && Number(adic.preco) > 0
-                            ? ` (${formatarMoeda(Number(adic.preco) * adic.qtd)})`
-                            : ''}
+                          {rotuloAdicional(adic, item.qtd)}
                         </li>
                       ))}
                     </ul>

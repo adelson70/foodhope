@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Check, Printer, Trash2 } from 'lucide-react';
 
 import { Button, Drawer } from '../../../components/ui';
+import { rotuloAdicional } from '../../../lib/adicionalItem';
 import { rotuloRetiradas } from '../../../lib/retiradaPedido';
 import { pedidoPendentePagamento } from '../../../lib/statusPagamento';
 import { rotuloTipoConsumo } from '../../../lib/tipoConsumo';
@@ -174,10 +175,7 @@ export function PedidoDetalheDrawer({
                           key={`${item.id}-adic-${adicIndex}`}
                           className="text-caption text-on-surface-variant"
                         >
-                          + {adic.qtd}× {adic.nome}
-                          {Number(adic.preco) > 0
-                            ? ` (${formatarMoeda(Number(adic.preco) * adic.qtd)})`
-                            : ''}
+                          {rotuloAdicional(adic, item.quantidade)}
                         </li>
                       ))}
                     </ul>

@@ -83,13 +83,13 @@ export const useCarrinhoStore = create<CarrinhoState>((set, get) => ({
   },
 }));
 
+/** No carrinho, `adicionais[].qtd` é por lanche: o +/− do item repete o lanche inteiro. */
 export function totalItemCarrinho(item: CarrinhoItem): number {
-  const base = item.preco * item.qtd;
   const adicionais = item.adicionais.reduce(
     (soma, adicional) => soma + adicional.preco * adicional.qtd,
     0,
   );
-  return base + adicionais;
+  return (item.preco + adicionais) * item.qtd;
 }
 
 export function totalCarrinho(itens: CarrinhoItem[]): number {

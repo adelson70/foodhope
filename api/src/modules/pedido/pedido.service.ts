@@ -15,14 +15,12 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { WebsocketGateway } from '../../infra/websocket/websocket.gateway.js';
 import {
+  blocoItemCupom,
   formatarHorarioCupom,
-  linhaAdicionalCupom,
   linhaBanner,
   linhaCentralizada,
-  linhaItemCupom,
   linhaMetaCupom,
   linhaNumeroPedido,
-  linhaObsCupom,
   linhaSeparadora,
   linhaTotalCupom,
   montarTextoObservacaoCupom,
@@ -817,33 +815,14 @@ export class PedidoService {
   }
 
   private formatarBlocoItem(item: any): { texto: string; total: number } {
-    let total = 0;
-    let texto = '';
-
-    const subtotalLanche = item.quantidade * Number(item.preco_produto);
-    total += subtotalLanche;
-
-    const nomeProduto = nomeItemComVariacao(item.produto?.nome || 'Lanche', item.variacao_nome);
-    texto += `${linhaItemCupom(item.quantidade, nomeProduto, subtotalLanche)}\n`;
-
-    if (
-      item.adicional_venda &&
-      Array.isArray(item.adicional_venda) &&
-      item.adicional_venda.length > 0
-    ) {
-      item.adicional_venda.forEach((add: any) => {
-        const subtotalAdicional = add.qtd * Number(add.preco);
-        total += subtotalAdicional;
-        texto += `${linhaAdicionalCupom(add.nome, subtotalAdicional, add.qtd)}\n`;
-      });
-    }
-
-    const observacaoCupom = montarTextoObservacaoCupom(item);
-    if (observacaoCupom) {
-      texto += `${linhaObsCupom(observacaoCupom)}\n`;
-    }
-
-    return { texto, total };
+    return blocoItemCupom({
+      quantidade: item.quantidade,
+      nome: nomeItemComVariacao(item.produto?.nome || 'Lanche', item.variacao_nome),
+      precoUnitario: item.preco_produto,
+      adicionais: item.adicional_venda,
+      retirada_venda: item.retirada_venda,
+      observacao: item.observacao,
+    });
   }
 
   private formatarCupom(

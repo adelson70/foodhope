@@ -113,7 +113,8 @@ export function Carrinho() {
         item.adicionais.length > 0
           ? item.adicionais.map((adic) => ({
               id: adic.id,
-              qtd: adic.qtd,
+              // a API guarda o total da linha (por lanche × lanches)
+              qtd: adic.qtd * item.qtd,
             }))
           : undefined,
       retirar:

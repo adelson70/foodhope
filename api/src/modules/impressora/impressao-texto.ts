@@ -75,6 +75,63 @@ export function montarTextoObservacaoCupom(item: {
   return partes.join(' | ');
 }
 
+type AdicionalCupom = { nome?: string; qtd?: number | string; preco?: number | string };
+
+/**
+ * Bloco de um item no cupom. O `qtd` de cada adicional é o total da linha (por lanche × quantidade).
+ * Quando todos dividem pela quantidade, o adicional é "por lanche": o cupom mostra o total da linha
+ * no item e lista o adicional sem preço (vale para cada um). Pedidos antigos, com adicional total
+ * que não divide (ex.: 2 lanches + 1 frango), saem no formato antigo, com quantidade e preço.
+ */
+export function blocoItemCupom(item: {
+  quantidade: number;
+  nome: string;
+  precoUnitario: number | string;
+  adicionais?: unknown;
+  retirada_venda?: unknown;
+  observacao?: string | null;
+}): { texto: string; total: number } {
+  const qtdItem = Math.max(1, Number(item.quantidade) || 1);
+  const adicionais: AdicionalCupom[] = Array.isArray(item.adicionais) ? item.adicionais : [];
+  const subtotalLanche = qtdItem * Number(item.precoUnitario);
+  const subtotalAdicionais = adicionais.reduce(
+    (soma, add) => soma + Number(add.qtd) * Number(add.preco),
+    0,
+  );
+  const total = subtotalLanche + subtotalAdicionais;
+  const porLanche = adicionais.every((add) => Number(add.qtd) % qtdItem === 0);
+
+  const linhas: string[] = [];
+  if (porLanche) {
+    linhas.push(linhaItemCupom(qtdItem, item.nome, total));
+    for (const add of adicionais) {
+      const qtd = Number(add.qtd) / qtdItem;
+      linhas.push(`  + ${qtd > 1 ? `${qtd}X ` : ''}${paraCupom(add.nome ?? '')}`);
+    }
+  } else {
+    linhas.push(linhaItemCupom(qtdItem, item.nome, subtotalLanche));
+    for (const add of adicionais) {
+      const qtd = Number(add.qtd);
+      linhas.push(linhaAdicionalCupom(add.nome ?? '', qtd * Number(add.preco), qtd));
+    }
+  }
+
+  const retiradas = Array.isArray(item.retirada_venda)
+    ? item.retirada_venda
+        .map((r: { nome?: string }) => (typeof r?.nome === 'string' ? r.nome.trim() : ''))
+        .filter((nome) => nome.length > 0)
+    : [];
+  if (retiradas.length > 0) {
+    linhas.push(
+      `${MARCA_OBS_ABRE}  ${paraCupom(retiradas.map((nome) => `SEM ${nome}`).join(', '))}${MARCA_OBS_FECHA}`,
+    );
+  }
+  const obs = item.observacao?.trim();
+  if (obs) linhas.push(`${MARCA_OBS_ABRE}  OBS: ${paraCupom(obs)}${MARCA_OBS_FECHA}`);
+
+  return { texto: linhas.map((l) => `${l}\n`).join(''), total };
+}
+
 export function linhaTotalCupom(rotulo: string, valor: number | string): string {
   return `${MARCA_TOTAL_ABRE}${alinharLinha(paraCupom(rotulo), formatarMoeda(valor), ' ')}${MARCA_TOTAL_FECHA}`;
 }
