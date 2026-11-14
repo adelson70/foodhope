@@ -622,9 +622,9 @@ export function ProdutoFormDrawer({
           {isEdicao &&
           produto?.tipo === 'VARIAVEL' &&
           tipo === 'SIMPLES' ? (
-            <p className="text-caption text-danger">
-              Ao salvar como simples, as variações deste produto serão
-              apagadas.
+            <p className="text-caption text-on-surface-variant">
+              As variações ficam guardadas, com as fotos, e voltam se o produto
+              for marcado como variável de novo.
             </p>
           ) : null}
         </div>

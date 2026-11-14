@@ -328,7 +328,7 @@ export class ProdutoService {
    * Garante a regra do tipo do produto depois de criar/editar:
    * - VARIAVEL: precisa de ao menos uma variação; `preco` do produto vira o menor
    *   preço entre as variações ativas (ou entre todas, se nenhuma estiver ativa).
-   * - SIMPLES: apaga variações remanescentes.
+   * - SIMPLES: mantém as variações guardadas, sem efeito no cardápio nem no pedido.
    * Retorna os ids das variações apagadas (para limpar as imagens fora da transação).
    */
   private async aplicarRegraTipo(tx: Prisma.TransactionClient, produtoId: string) {
@@ -341,12 +341,10 @@ export class ProdutoService {
       },
     });
 
+    // SIMPLES: as variações ficam guardadas (com as fotos) e são ignoradas no cardápio
+    // e no pedido; voltam a valer se o produto for marcado como variável de novo.
     if (produto.tipo === 'SIMPLES') {
-      const ids = produto.variacoes.map((v) => v.id);
-      if (ids.length > 0) {
-        await tx.variacaoProduto.deleteMany({ where: { produto_id: produtoId } });
-      }
-      return ids;
+      return [];
     }
 
     if (produto.variacoes.length === 0) {
