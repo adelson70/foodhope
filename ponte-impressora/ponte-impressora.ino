@@ -2,7 +2,7 @@
 //
 // Liga na tomada e funciona:
 //   1. Entra no Wi-Fi (salvo pelo portal > restaurante > alternativo). Sem Wi-Fi, abre o portal
-//      "FoodHope-Ponte" (http://192.168.4.1) para escolher a rede pelo celular.
+//      "FoodHope-Ponte" (http://192.168.77.1) para escolher a rede pelo celular.
 //   2. Acha a impressora térmica (IP salvo; senão varre o /24 na porta 9100).
 //   3. Abre WSS de saída autenticado para a API e repassa os cupons ESC/POS para a impressora.
 //
@@ -16,6 +16,7 @@
 #include <WebServer.h>
 #include <DNSServer.h>
 #include <esp_task_wdt.h>
+#include <esp_mac.h>
 #include <lwip/sockets.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -46,7 +47,8 @@ enum : uint8_t { P_OK = 0, P_ACABANDO = 1, P_SEM = 2, P_DESCONHECIDO = 255 };
 
 const uint16_t PORTA_IMPRESSORA = 9100;
 const uint32_t WIFI_TENTATIVA_MS = 15000;
-const uint32_t PORTAL_MS = 180000;
+const uint32_t PORTAL_MS = 300000;
+const IPAddress IP_PORTAL(192, 168, 77, 1);
 const uint32_t STATUS_MS = 30000;
 const uint32_t SEM_WIFI_REINICIA_MS = 90000;
 const uint32_t WDT_MS = 30000;
@@ -111,7 +113,7 @@ void enviarStatus() {
   p[6] = (uint8_t)(int8_t)WiFi.RSSI();
   escreverU32(p + 7, ESP.getFreeHeap());
   escreverU32(p + 11, millis() / 1000);
-  WiFi.macAddress(p + 15);
+  esp_read_mac(p + 15, ESP_MAC_WIFI_STA);  // do eFuse: vale mesmo antes do Wi-Fi subir
   memcpy(p + 21, FW_VERSAO, sizeof(FW_VERSAO) - 1);
   enviarFrame(F_STATUS, 0, p, 21 + sizeof(FW_VERSAO) - 1);
   ultimoStatus = millis();
@@ -317,8 +319,11 @@ void onWs(WStype_t tipo, uint8_t* payload, size_t len) {
 }
 
 // ---------- Wi-Fi + portal ----------
+volatile uint8_t motivoQueda = 0;
+
 bool tentarWifi(const char* ssid, const char* senha) {
   if (!ssid || !*ssid) return false;
+  motivoQueda = 0;
   Serial.printf("Wi-Fi: tentando \"%s\"\n", ssid);
   WiFi.begin(ssid, senha);
   uint32_t ini = millis();
@@ -328,56 +333,107 @@ bool tentarWifi(const char* ssid, const char* senha) {
     delay(50);
   }
   if (WiFi.status() == WL_CONNECTED) return true;
+  Serial.printf("Wi-Fi: falhou (status %d, motivo %u)\n", WiFi.status(), motivoQueda);
   WiFi.disconnect(false, false);
   delay(100);
   return false;
 }
 
+// Portal aberto (sem senha): só existe enquanto o ESP32 está sem Wi-Fi, e nada sensível passa
+// por ele (o token só trafega no TLS com a API). O celular abre a página sozinho (captive portal).
 void portal() {
-  Serial.println("Wi-Fi indisponível: abrindo portal FoodHope-Ponte (http://192.168.4.1)");
-  WiFi.disconnect(true, false);
-  WiFi.mode(WIFI_AP_STA);
-  WiFi.softAP("FoodHope-Ponte", PORTAL_SENHA);
-  DNSServer dns;
-  dns.start(53, "*", WiFi.softAPIP());
-  WebServer srv(80);
-
-  int n = WiFi.scanNetworks();
+  Serial.println("Wi-Fi indisponível: abrindo portal FoodHope-Ponte (http://192.168.77.1)");
+  WiFi.disconnect(false, false);
+  WiFi.mode(WIFI_STA);
+  int n = WiFi.scanNetworks();  // antes de subir o AP, para ele não cair durante a busca
   String opcoes;
   for (int i = 0; i < n; i++) {
     String s = WiFi.SSID(i);
-    if (s.length() && opcoes.indexOf(">" + s + "<") < 0) opcoes += "<option>" + s + "</option>";
+    Serial.printf("  rede vista: \"%s\" canal %d %d dBm\n", s.c_str(), WiFi.channel(i), WiFi.RSSI(i));
+    if (!s.length() || opcoes.indexOf("\"" + s + "\"") >= 0) continue;
+    opcoes += "<option value=\"" + s + "\">" + s + " (" + String(WiFi.RSSI(i)) + " dBm)</option>";
   }
+  WiFi.scanDelete();
 
-  srv.onNotFound([&]() {
-    srv.send(200, "text/html; charset=utf-8",
-             "<!doctype html><meta name=viewport content='width=device-width'><title>Food Hope</title>"
-             "<body style='font-family:sans-serif;max-width:22rem;margin:2rem auto'><h2>Ponte de impressão</h2>"
-             "<form method=post action=/salvar><p>Rede<br><select name=s style='width:100%'>" + opcoes +
-             "</select></p><p>Senha<br><input name=p type=password style='width:100%'></p>"
-             "<button style='width:100%;padding:.6rem'>Conectar</button></form>");
+  WiFi.mode(WIFI_AP);
+  delay(100);
+  WiFi.onEvent([](WiFiEvent_t e, WiFiEventInfo_t info) {
+    if (e == ARDUINO_EVENT_WIFI_AP_STACONNECTED) Serial.println("portal: aparelho conectou no AP");
+    if (e == ARDUINO_EVENT_WIFI_AP_STAIPASSIGNED)
+      Serial.printf("portal: IP entregue %s\n", IPAddress(info.wifi_ap_staipassigned.ip.addr).toString().c_str());
+    if (e == ARDUINO_EVENT_WIFI_AP_STADISCONNECTED) Serial.println("portal: aparelho saiu do AP");
   });
+  bool apOk = WiFi.softAP("FoodHope-Ponte", nullptr, 6, 0, 4);
+  delay(200);
+  // Placas com antena mal casada: o celular vê a rede mas não associa em potência máxima.
+  WiFi.setTxPower(WIFI_POWER_8_5dBm);
+  // IP aplicado DEPOIS do softAP (ordem que funciona no core 3.x)
+  WiFi.softAPConfig(IP_PORTAL, IP_PORTAL, IPAddress(255, 255, 255, 0));
+  delay(100);
+  WiFi.setSleep(false);
+  Serial.printf("portal: AP %s em %s canal 6, tx %d, %d redes na lista\n", apOk ? "no ar" : "FALHOU",
+                WiFi.softAPIP().toString().c_str(), (int)WiFi.getTxPower(), n);
+  DNSServer dns;
+  dns.setErrorReplyCode(DNSReplyCode::NoError);
+  dns.start(53, "*", WiFi.softAPIP());
+  WebServer srv(80);
+
+  const String pagina =
+      "<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
+      "<title>Food Hope</title><body style='font-family:sans-serif;max-width:22rem;margin:2rem auto;padding:0 1rem'>"
+      "<h2>Ponte de impressão</h2><p>Escolha o Wi-Fi do restaurante (2,4 GHz).</p>"
+      "<form method=post action=/salvar><p>Rede<br><select name=s style='width:100%;padding:.5rem'>" + opcoes +
+      "</select></p><p>Ou digite o nome<br><input name=m style='width:100%;padding:.5rem' placeholder='opcional'></p>"
+      "<p>Senha<br><input name=p type=password style='width:100%;padding:.5rem'></p>"
+      "<button style='width:100%;padding:.8rem;font-size:1rem'>Conectar</button></form>";
+
+  auto mostrar = [&]() {
+    Serial.printf("portal: GET %s -> pagina\n", srv.uri().c_str());
+    srv.send(200, "text/html; charset=utf-8", pagina);
+  };
+  auto redirecionar = [&]() {
+    Serial.printf("portal: %s%s -> redireciona\n", srv.hostHeader().c_str(), srv.uri().c_str());
+    srv.sendHeader("Location", "http://192.168.77.1/");
+    srv.send(302, "text/plain", "");
+  };
+  srv.on("/", mostrar);
+  srv.on("/generate_204", redirecionar);         // Android
+  srv.on("/gen_204", redirecionar);
+  srv.on("/hotspot-detect.html", mostrar);       // iPhone/Mac
+  srv.on("/connecttest.txt", redirecionar);      // Windows
+  srv.on("/ncsi.txt", redirecionar);
+  srv.onNotFound(redirecionar);
   srv.on("/salvar", HTTP_POST, [&]() {
-    nvs.putString("ssid", srv.arg("s"));
+    String ssid = srv.arg("m");
+    ssid.trim();
+    if (!ssid.length()) ssid = srv.arg("s");
+    Serial.printf("portal: salvo Wi-Fi \"%s\"\n", ssid.c_str());
+    nvs.putString("ssid", ssid);
     nvs.putString("pass", srv.arg("p"));
-    srv.send(200, "text/html; charset=utf-8", "<body style='font-family:sans-serif'>Salvo. Reiniciando…");
-    delay(800);
+    srv.send(200, "text/html; charset=utf-8",
+             "<meta charset=utf-8><body style='font-family:sans-serif;padding:2rem'>Salvo. O ESP32 vai "
+             "reiniciar e conectar em <b>" + ssid + "</b>. Pode fechar esta página.");
+    delay(1000);
     ESP.restart();
   });
   srv.begin();
 
-  uint32_t ini = millis();
-  while (millis() - ini < PORTAL_MS) {
+  uint32_t ultimoUso = millis();
+  while (millis() - ultimoUso < PORTAL_MS) {
     dns.processNextRequest();
     srv.handleClient();
+    if (WiFi.softAPgetStationNum() > 0) ultimoUso = millis();  // não fecha com alguém conectado
     digitalWrite(LED_PIN, (millis() / 1000) % 2 ? HIGH : (millis() / 100) % 2);
     esp_task_wdt_reset();
     delay(2);
   }
+  Serial.println("portal: 5 min sem uso, reiniciando para tentar as redes de novo");
   ESP.restart();  // ninguém configurou: tenta as redes de novo
 }
 
 void conectarWifi() {
+  WiFi.onEvent([](WiFiEvent_t, WiFiEventInfo_t info) { motivoQueda = info.wifi_sta_disconnected.reason; },
+               ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);  // sem power-save: latência mínima
   WiFi.setAutoReconnect(true);
@@ -410,7 +466,10 @@ void setup() {
   nvs.begin("ponte", false);
   ipImpressora = nvs.getUInt("imp", 0);
 
-  Serial.printf("\nFood Hope ponte %s  MAC %s\n", FW_VERSAO, WiFi.macAddress().c_str());
+  uint8_t mac[6];
+  esp_read_mac(mac, ESP_MAC_WIFI_STA);
+  Serial.printf("\nFood Hope ponte %s  MAC %02X:%02X:%02X:%02X:%02X:%02X\n", FW_VERSAO, mac[0], mac[1],
+                mac[2], mac[3], mac[4], mac[5]);
   conectarWifi();
   Serial.printf("Wi-Fi ok: %s  RSSI %d\n", WiFi.localIP().toString().c_str(), WiFi.RSSI());
 
