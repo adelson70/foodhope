@@ -196,7 +196,11 @@ export function PedidoProdutoDrawer({
       onClose={handleClose}
       footer={
         produto ? (
-          <HomeProdutoRodape qtd={qtd} onChangeQtd={setQtd}>
+          <HomeProdutoRodape
+            qtd={qtd}
+            onChangeQtd={setQtd}
+            precoCada={formatarMoeda(totalPreview / qtd)}
+          >
             <Button
               type="button"
               fullWidth
@@ -295,6 +299,7 @@ export function PedidoProdutoDrawer({
           ) : null}
 
           <HomeProdutoAdicionais
+            qtdLanches={qtd}
             disponiveis={adicionaisDisponiveis}
             selecionados={adicionais}
             onAdd={addAdicional}
@@ -302,6 +307,7 @@ export function PedidoProdutoDrawer({
           />
 
           <HomeProdutoRetirar
+            qtdLanches={qtd}
             disponiveis={ingredientesDisponiveis}
             selecionados={retirarIds}
             onToggle={toggleRetirar}

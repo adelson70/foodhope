@@ -10,6 +10,8 @@ type HomeProdutoRetirarProps = {
   selecionados: string[];
   onToggle: (id: string) => void;
   disabled?: boolean;
+  /** Com 2+ lanches, deixa claro que a retirada vale para cada um. */
+  qtdLanches?: number;
 };
 
 export function HomeProdutoRetirar({
@@ -17,6 +19,7 @@ export function HomeProdutoRetirar({
   selecionados,
   onToggle,
   disabled = false,
+  qtdLanches = 1,
 }: HomeProdutoRetirarProps) {
   if (disponiveis.length === 0) return null;
 
@@ -24,9 +27,15 @@ export function HomeProdutoRetirar({
     <div className="flex flex-col gap-2">
       <div className="flex flex-col gap-0.5">
         <p className="text-subtitle-md text-on-surface">Retirar</p>
-        <p className="text-caption text-on-surface-variant">
-          Marque o que não quer no lanche
-        </p>
+        {qtdLanches > 1 ? (
+          <p className="text-caption font-medium text-primary">
+            Sai de cada um dos {qtdLanches} lanches
+          </p>
+        ) : (
+          <p className="text-caption text-on-surface-variant">
+            Marque o que não quer no lanche
+          </p>
+        )}
       </div>
 
       <ul className="overflow-hidden rounded-xl border border-operator-border bg-operator-card">

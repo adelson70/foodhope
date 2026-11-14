@@ -22,6 +22,8 @@ type HomeProdutoAdicionaisProps = {
   selecionados: AdicionalDraft[];
   onAdd: (adicional: AdicionalDisponivel) => void;
   onChangeQtd: (id: string, qtd: number) => void;
+  /** Com 2+ lanches, deixa claro que o adicional vai em cada um. */
+  qtdLanches?: number;
 };
 
 export function HomeProdutoAdicionais({
@@ -29,6 +31,7 @@ export function HomeProdutoAdicionais({
   selecionados,
   onAdd,
   onChangeQtd,
+  qtdLanches = 1,
 }: HomeProdutoAdicionaisProps) {
   if (disponiveis.length === 0) return null;
 
@@ -36,9 +39,15 @@ export function HomeProdutoAdicionais({
     <div className="flex flex-col gap-2">
       <div className="flex flex-col gap-0.5">
         <p className="text-subtitle-md text-on-surface">Adicionais</p>
-        <p className="text-caption text-on-surface-variant">
-          Escolha quantos quiser
-        </p>
+        {qtdLanches > 1 ? (
+          <p className="text-caption font-medium text-primary">
+            Vai em cada um dos {qtdLanches} lanches
+          </p>
+        ) : (
+          <p className="text-caption text-on-surface-variant">
+            Escolha quantos quiser
+          </p>
+        )}
       </div>
 
       <ul className="overflow-hidden rounded-xl border border-operator-border bg-operator-card">

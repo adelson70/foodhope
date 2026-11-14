@@ -172,6 +172,7 @@ export function HomeProdutoDrawer({
         <HomeProdutoRodape
           qtd={qtd}
           onChangeQtd={setQtd}
+          precoCada={formatarMoeda(totalPreview / qtd)}
           mostrarQtd={!compraBloqueada}
         >
           <Button
@@ -250,6 +251,7 @@ export function HomeProdutoDrawer({
           ) : null}
 
           <HomeProdutoAdicionais
+            qtdLanches={qtd}
             disponiveis={adicionaisDisponiveis}
             selecionados={adicionais}
             onAdd={addAdicional}
@@ -257,6 +259,7 @@ export function HomeProdutoDrawer({
           />
 
           <HomeProdutoRetirar
+            qtdLanches={qtd}
             disponiveis={ingredientesDisponiveis}
             selecionados={retirarIds}
             onToggle={toggleRetirar}
