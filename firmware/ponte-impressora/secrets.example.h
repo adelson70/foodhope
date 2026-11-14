@@ -8,8 +8,7 @@
 #define WIFI_SSID_2 ""
 #define WIFI_PASSWORD_2 ""
 
-// Senha do portal "FoodHope-Ponte" (mínimo 8 caracteres), aberto quando nenhuma rede conecta.
-#define PORTAL_SENHA "troque-esta-senha"
+// (PORTAL_SENHA não é mais usada: o portal é aberto e só existe sem Wi-Fi.)
 
 // API (mesmo valor de PONTE_IMPRESSORA_TOKEN no docker/.env). Gere com: openssl rand -hex 32
 #define PONTE_TOKEN ""
