@@ -1,3 +1,6 @@
+# Projeto fixo "foodhope" (independe da pasta de onde o compose é chamado).
+name: foodhope
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -113,7 +116,11 @@ services:
       - "9100:9100"
       - "3000:3000"
 
+# Nomes fixos: os volumes foram criados quando o projeto se chamava "docker".
 volumes:
   postgres-data:
+    name: docker_postgres-data
   redis-data:
+    name: docker_redis-data
   produto-imagens:
+    name: docker_produto-imagens

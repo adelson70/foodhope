@@ -1,13 +1,9 @@
 name: Deploy
 run-name: ${{ github.event.head_commit.message || 'Deploy manual' }}
 
+# Por enquanto a hospedagem é Docker local (make deploy), sem runner.
+# Push não dispara mais; rodar manualmente só quando houver runner.
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - "**.md"
-      - "DEPLOY.md"
-      - "DEPLOY_CHECKLIST.md"
   workflow_dispatch:
 
 concurrency:

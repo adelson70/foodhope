@@ -12,6 +12,5 @@ down:
 	cd docker && $(COMPOSE) down api web
 
 deploy:
-	@echo "CD de produção = push na main (GitHub Actions + self-hosted)."
-	@echo "Para stack local com tunnel: make up"
+	@echo "Deploy local: build de web/api e up do projeto foodhope (sem runner)."
 	cd docker && $(COMPOSE) build web api && $(COMPOSE) up -d && $(COMPOSE) logs -f

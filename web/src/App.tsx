@@ -6,6 +6,7 @@ import { Toaster } from './components/ui/Toaster';
 import { useCardapioCarrinhoRealtime } from './hooks/useCardapioCarrinhoRealtime';
 import { useCozinhaStatusRealtime } from './hooks/useCozinhaStatusRealtime';
 import { usePedidoProntoRealtime } from './hooks/usePedidoProntoRealtime';
+import { marcarSeRotaEquipe } from './lib/dispositivoEquipe';
 import { limparSessaoOperador } from './lib/sessaoOperador';
 import { router } from './routes';
 import { persistOptions, queryClient } from './services/queryClient';
@@ -25,6 +26,13 @@ function AppRealtime() {
 }
 
 function App() {
+  useEffect(() => {
+    marcarSeRotaEquipe(window.location.pathname);
+    return router.subscribe((state) => {
+      marcarSeRotaEquipe(state.location.pathname);
+    });
+  }, []);
+
   useEffect(() => {
     if (!isTelaPedidosPublicaPath()) {
       void connectSocket();
