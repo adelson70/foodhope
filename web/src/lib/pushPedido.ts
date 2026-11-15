@@ -1,8 +1,7 @@
 // Aviso de "pedido pronto" por Firebase Cloud Messaging.
 // Android: funciona no navegador e no app instalado. iOS (16.4+): só com o app
 // adicionado à tela de início; no Safari comum não existe Web Push.
-import { pedidoService } from '../services/pedido.service';
-import { loadPedidosLocais } from './clienteStorage';
+import { api, request } from '../services/api';
 import { isDispositivoEquipe } from './dispositivoEquipe';
 import { isIos, isStandalone } from './pwaInstall';
 
@@ -65,12 +64,21 @@ async function obterTokenFcm(): Promise<string | null> {
 }
 
 /**
- * Inscreve o aparelho no aviso do pedido. Com `pedirPermissao`, abre o pedido de
- * permissão do sistema (precisa vir de um toque do usuário, exigência do iOS).
- * Retorna o estado final.
+ * Registra o token deste aparelho para o cliente (visitor). Todo pedido feito por
+ * ele passa a avisar este aparelho, mesmo com o app fechado.
  */
-export async function ativarAvisoPedido(
-  pedidoId: string,
+export async function registrarDispositivo(): Promise<void> {
+  if (estadoPush() !== 'ativo') return;
+  const token = await obterTokenFcm();
+  if (!token) return;
+  await request(api.post('/push/dispositivo', { token }));
+}
+
+/**
+ * Ativa as notificações neste aparelho. Com `pedirPermissao`, abre a pergunta do
+ * sistema (precisa vir de um toque do usuário, exigência do iOS). Retorna o estado final.
+ */
+export async function ativarNotificacoes(
   pedirPermissao: boolean,
 ): Promise<EstadoPush> {
   let estado = estadoPush();
@@ -79,33 +87,8 @@ export async function ativarAvisoPedido(
     estado = resultado === 'granted' ? 'ativo' : estadoPush();
   }
   if (estado !== 'ativo') return estado;
-
-  const token = await obterTokenFcm();
-  if (!token) return 'indisponivel';
-  await pedidoService.inscreverPush(pedidoId, token);
+  await registrarDispositivo();
   return 'ativo';
-}
-
-/** Pedidos locais mais antigos que isso não recebem mais aviso. */
-const JANELA_PEDIDOS_MS = 1000 * 60 * 60 * 24;
-
-/**
- * Com a permissão já dada, inscreve o aparelho nos pedidos recentes dele. A API
- * ignora os que já estão prontos. Chamado ao abrir o app e ao ativar o aviso.
- */
-export async function inscreverPedidosRecentes(): Promise<void> {
-  if (estadoPush() !== 'ativo') return;
-  const limite = Date.now() - JANELA_PEDIDOS_MS;
-  const recentes = (await loadPedidosLocais()).filter(
-    (p) => new Date(p.createdAt).getTime() >= limite,
-  );
-  if (recentes.length === 0) return;
-
-  const token = await obterTokenFcm();
-  if (!token) return;
-  await Promise.allSettled(
-    recentes.map((p) => pedidoService.inscreverPush(p.id, token)),
-  );
 }
 
 const DISPENSADO_KEY = 'foodhope-notificacao-dispensada-em';

@@ -27,18 +27,6 @@ function comClientRequestId(input: CriarPedidoInput): CriarPedidoInput {
 }
 
 export const pedidoService = {
-  async inscreverPush(
-    id: string,
-    token: string,
-  ): Promise<ApiResponse<{ pronto: boolean }>> {
-    return request(
-      api.post<ApiResponse<{ pronto: boolean }>>(
-        `/pedido/${encodeURIComponent(id)}/push`,
-        { token },
-      ),
-    );
-  },
-
   async listar(
     params: ListarPedidosParams = {},
   ): Promise<ApiResponse<ListarPedidosDados>> {

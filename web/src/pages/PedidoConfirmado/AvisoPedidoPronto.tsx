@@ -1,33 +1,23 @@
 import { BellRing } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { Button } from '../../components/ui';
 import {
-  ativarAvisoPedido,
+  ativarNotificacoes,
   estadoPush,
   type EstadoPush,
 } from '../../lib/pushPedido';
 
-type Props = { pedidoId: string };
-
-export function AvisoPedidoPronto({ pedidoId }: Props) {
+export function AvisoPedidoPronto() {
   const [estado, setEstado] = useState<EstadoPush>(() => estadoPush());
   const [ativando, setAtivando] = useState(false);
   const [falhou, setFalhou] = useState(false);
-
-  // Permissão já concedida em outro pedido: inscreve sem perguntar de novo.
-  useEffect(() => {
-    if (estadoPush() !== 'ativo') return;
-    ativarAvisoPedido(pedidoId, false)
-      .then(setEstado)
-      .catch(() => setFalhou(true));
-  }, [pedidoId]);
 
   async function ativar() {
     setAtivando(true);
     setFalhou(false);
     try {
-      setEstado(await ativarAvisoPedido(pedidoId, true));
+      setEstado(await ativarNotificacoes(true));
     } catch {
       setFalhou(true);
     } finally {

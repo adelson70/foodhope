@@ -53,7 +53,7 @@ export class InfinitePayController {
     if (!req.user || req.user.tipo !== 'visitor') {
       throw new BadRequestException('Checkout online disponível apenas para o cliente.');
     }
-    return this.infinitepay.iniciarCheckout(dto);
+    return this.infinitepay.iniciarCheckout(dto, req.user.id);
   }
 
   @Post('checkout/confirmar')

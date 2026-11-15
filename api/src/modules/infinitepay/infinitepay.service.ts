@@ -133,7 +133,7 @@ export class InfinitePayService {
     }
   }
 
-  async iniciarCheckout(dto: CriarPedidoDto) {
+  async iniciarCheckout(dto: CriarPedidoDto, visitorId: string) {
     await this.cozinha.assertAberta();
     const handle = await this.obterHandleObrigatorio();
     const { items, amountCentavos, payload } = await this.montarItensDoBanco(dto);
@@ -147,6 +147,7 @@ export class InfinitePayService {
         id: orderNsu,
         payload: payload as unknown as Prisma.InputJsonValue,
         amountCentavos,
+        visitorId,
       },
     });
 

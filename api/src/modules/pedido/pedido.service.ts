@@ -495,17 +495,6 @@ export class PedidoService {
     }
   }
 
-  /** Pedido já pronto não guarda o token: o aviso já passou (a tela mostra pelo socket). */
-  async inscreverPush(id: string, token: string) {
-    const pedido = await this.prismaRead.pedido.findUnique({
-      where: { id },
-      select: { prontoAt: true },
-    });
-    if (!pedido) throw new NotFoundException('Pedido não encontrado.');
-    if (!pedido.prontoAt) await this.push.inscrever(id, token);
-    return { mensagem: 'Aviso ativado', dados: { pronto: Boolean(pedido.prontoAt) } };
-  }
-
   async marcarPedidoPronto(id: string) {
     try {
       const pedido = await this.prismaRead.pedido.findUnique({

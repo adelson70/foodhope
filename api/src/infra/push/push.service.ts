@@ -53,23 +53,44 @@ export class PushService implements OnApplicationBootstrap {
     return this.messaging;
   }
 
-  async inscrever(pedidoId: string, token: string) {
-    await this.prismaWrite.pushPedido.upsert({
-      where: { pedidoId_token: { pedidoId, token } },
-      create: { pedidoId, token },
-      update: {},
+  /** Registra o aparelho do cliente. O token troca de dono se o aparelho mudou de visitor. */
+  async registrarDispositivo(visitorId: string, token: string) {
+    const existente = await this.prismaWrite.pushDispositivo.findUnique({
+      where: { token },
+      select: { visitorId: true },
     });
-    this.logger.log(`Aparelho inscrito no pedido ${pedidoId} (${token.slice(0, 12)}…)`);
+    if (existente?.visitorId === visitorId) {
+      // Só marca que o token segue vivo.
+      await this.prismaWrite.pushDispositivo.update({
+        where: { token },
+        data: { updatedAt: new Date() },
+      });
+      return;
+    }
+    await this.prismaWrite.pushDispositivo.upsert({
+      where: { token },
+      create: { visitorId, token },
+      update: { visitorId },
+    });
+    this.logger.log(`Aparelho registrado para o visitor ${visitorId} (${token.slice(0, 12)}…)`);
   }
 
-  /** Envia o aviso para os aparelhos inscritos no pedido. */
+  /** Avisa os aparelhos do cliente que fez o pedido (visitor do checkout online). */
   async avisarPedidoPronto(pedidoId: string, numero: string) {
-    const inscricoes = await this.prismaWrite.pushPedido.findMany({
+    const sessao = await this.prismaWrite.checkoutSessao.findUnique({
       where: { pedidoId },
+      select: { visitorId: true },
+    });
+    if (!sessao?.visitorId) {
+      this.logger.log(`Pedido ${numero} pronto: sem cliente do app vinculado.`);
+      return;
+    }
+    const inscricoes = await this.prismaWrite.pushDispositivo.findMany({
+      where: { visitorId: sessao.visitorId },
       select: { token: true },
     });
     if (inscricoes.length === 0) {
-      this.logger.log(`Pedido ${numero} pronto: nenhum aparelho inscrito.`);
+      this.logger.log(`Pedido ${numero} pronto: cliente sem aparelho com notificação.`);
       return;
     }
 
@@ -101,11 +122,10 @@ export class PushService implements OnApplicationBootstrap {
           if (TOKEN_INVALIDO.has(r.error?.code ?? '')) mortos.push(tokens[i]);
           else this.logger.warn(`Push falhou (${tokens[i].slice(0, 12)}…): ${r.error?.code}`);
         });
-        // Só sai o token morto (app desinstalado, permissão revogada). Os válidos
-        // ficam: pedido reaberto e marcado pronto de novo avisa outra vez.
+        // Token morto (app desinstalado, permissão revogada) sai do cadastro.
         if (mortos.length > 0) {
-          await this.prismaWrite.pushPedido.deleteMany({
-            where: { pedidoId, token: { in: mortos } },
+          await this.prismaWrite.pushDispositivo.deleteMany({
+            where: { token: { in: mortos } },
           });
         }
       } catch (erro) {

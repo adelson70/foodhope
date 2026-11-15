@@ -230,7 +230,7 @@ export function PedidoConfirmado() {
         <p className="mt-1 text-title-md text-primary">#{numero}</p>
       </div>
 
-      {pedidoId ? <AvisoPedidoPronto pedidoId={pedidoId} /> : null}
+      {pedidoId ? <AvisoPedidoPronto /> : null}
 
       <div className="flex w-full flex-col gap-3">
         <Link to="/" className="w-full">
