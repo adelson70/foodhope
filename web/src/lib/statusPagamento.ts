@@ -24,3 +24,20 @@ export function pedidoPendentePagamento(
 ): boolean {
   return status === 'NAO_PAGO';
 }
+
+/**
+ * Meio de pagamento de um pedido pago. `meio` é o `capture_method` do InfinitePay; sem checkout
+ * online, o pedido foi lançado no painel/totem e pago no caixa.
+ */
+export function rotuloMeioPagamento(
+  meio?: string | null,
+  parcelas?: number | null,
+): string {
+  if (!meio) return 'Caixa';
+  if (meio === 'pix') return 'Pix';
+  if (meio === 'debit_card') return 'Débito';
+  if (meio === 'credit_card') {
+    return parcelas && parcelas > 1 ? `Crédito ${parcelas}x` : 'Crédito';
+  }
+  return meio.replace(/_/g, ' ');
+}

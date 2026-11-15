@@ -482,7 +482,7 @@ export class InfinitePayService {
       tipo_consumo: payload.tipo_consumo,
     };
 
-    const criado = await this.pedido.criarPedidoPago(dto, 'PAGO');
+    const criado = await this.pedido.criarPedidoPago(dto, 'PAGO', input.orderNsu);
     const pedido = criado.dados.pedido;
 
     await this.prismaWrite.checkoutSessao.update({
@@ -626,13 +626,19 @@ export class InfinitePayService {
   private async buscarPedidoFormatado(pedidoId: string) {
     const pedido = await this.prismaRead.pedido.findUnique({
       where: { id: pedidoId },
-      include: { itens: { include: { produto: true } } },
+      include: {
+        itens: { include: { produto: true } },
+        checkoutSessao: { select: { captureMethod: true, installments: true } },
+      },
     });
     if (!pedido) {
       throw new BadRequestException('Pedido não encontrado.');
     }
+    const { checkoutSessao, ...resto } = pedido;
     return {
-      ...pedido,
+      ...resto,
+      meio_pagamento: checkoutSessao?.captureMethod ?? null,
+      parcelas: checkoutSessao?.installments ?? null,
       numero: pedido.numero.toString(),
       prontoAt: pedido.prontoAt ? pedido.prontoAt.toISOString() : null,
       pronto: Boolean(pedido.prontoAt),

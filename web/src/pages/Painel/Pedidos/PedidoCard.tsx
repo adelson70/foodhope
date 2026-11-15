@@ -59,7 +59,12 @@ export function PedidoCard({
             <span className="rounded-full bg-primary-container/40 px-2 py-0.5 text-label-sm font-medium text-on-surface">
               {rotuloTipoConsumo(pedido.tipo_consumo)}
             </span>
-            <PedidoStatusPagamentoBadge status={pedido.status_pagamento} />
+            <PedidoStatusPagamentoBadge
+              status={pedido.status_pagamento}
+              meio={pedido.meio_pagamento}
+              parcelas={pedido.parcelas}
+              mostrarMeio={!pedido.pendingSync && !pedido.syncFailed}
+            />
             {pedido.pendingSync ? (
               <span className="rounded-full bg-primary-container/40 px-2 py-0.5 text-label-sm font-medium text-on-surface">
                 Pendente sync

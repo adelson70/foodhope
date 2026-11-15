@@ -3,7 +3,11 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 
 import { PrismaReadService } from '../../infra/database/prisma-read.service.js';
-import { formatarRelatorioCompleto, formatarRelatorioDia } from '../impressora/impressao-texto.js';
+import {
+  formatarRelatorioCompleto,
+  formatarRelatorioDia,
+  rotuloMeioPagamento,
+} from '../impressora/impressao-texto.js';
 import { ImpressoraService } from '../impressora/impressora.service.js';
 import type { TipoRelatorioDto } from './dto/relatorio.dto.js';
 
@@ -28,6 +32,8 @@ type AdicionalRow = {
 type PedidoValorRow = {
   nome: string;
   valor: number | string;
+  meio: string | null;
+  parcelas: number | null;
 };
 
 type DiaResumoRow = {
@@ -62,6 +68,18 @@ function resolverDataRelatorio(data?: string): string {
     throw new BadRequestException('Data inválida');
   }
   return escolhida;
+}
+
+/** Soma os pedidos pagos por meio de pagamento, do maior valor para o menor. */
+function agruparPorMeio(pedidos: Array<{ meio: string; valor: number }>) {
+  const porMeio = new Map<string, { meio: string; pedidos: number; valor: number }>();
+  for (const pedido of pedidos) {
+    const atual = porMeio.get(pedido.meio) ?? { meio: pedido.meio, pedidos: 0, valor: 0 };
+    atual.pedidos += 1;
+    atual.valor += pedido.valor;
+    porMeio.set(pedido.meio, atual);
+  }
+  return [...porMeio.values()].sort((a, b) => b.valor - a.valor);
 }
 
 @Injectable()
@@ -297,9 +315,11 @@ export class DashService {
     ]);
 
     const resumo = resumoRows[0];
+    const { pedidos: pedidosPagos } = await this.obterCompletoPorData(data);
 
     return {
       faturamento: toNumber(resumo?.faturamento),
+      pagamentos: agruparPorMeio(pedidosPagos),
       pedidos: toNumber(resumo?.pedidos),
       pedidosGratuitos: toNumber(resumo?.pedidosGratuitos),
       valorGratuito: toNumber(resumo?.valorGratuito),
@@ -339,19 +359,23 @@ export class DashService {
             )
           ),
           0
-        ) AS valor
+        ) AS valor,
+        c.capture_method AS meio,
+        c.installments AS parcelas
       FROM pedido p
       LEFT JOIN pedido_item pi ON pi.pedido_id = p.id
+      LEFT JOIN checkout_sessao c ON c.pedido_id = p.id
       WHERE (p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
         = CAST(${data} AS DATE)
         AND p.status_pagamento = 'PAGO'
-      GROUP BY p.id, p.nome_completo, p."createdAt"
+      GROUP BY p.id, p.nome_completo, p."createdAt", c.capture_method, c.installments
       ORDER BY lower(p.nome_completo) ASC, p."createdAt" ASC
     `;
 
     const pedidos = pedidosRows.map((row) => ({
       nome: row.nome,
       valor: toNumber(row.valor),
+      meio: rotuloMeioPagamento(row.meio, row.parcelas),
     }));
 
     const faturamento = pedidos.reduce((acc, item) => acc + item.valor, 0);
@@ -384,6 +408,7 @@ export class DashService {
         texto = formatarRelatorioDia({
           data: dataRelatorio,
           faturamento: resumido.faturamento,
+          pagamentos: resumido.pagamentos,
           pedidos: resumido.pedidos,
           pedidosGratuitos: resumido.pedidosGratuitos,
           valorGratuito: resumido.valorGratuito,

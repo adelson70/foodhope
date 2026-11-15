@@ -138,6 +138,9 @@ export function PedidoDetalheDrawer({
                 </span>
                 <PedidoStatusPagamentoBadge
                   status={pedido.status_pagamento}
+                  meio={pedido.meio_pagamento}
+                  parcelas={pedido.parcelas}
+                  mostrarMeio={!pedido.pendingSync && !pedido.syncFailed}
                   className="px-3 py-1"
                 />
                 {pronto ? (

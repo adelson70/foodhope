@@ -1,14 +1,24 @@
 import { cn } from '../../../lib/cn';
-import { rotuloStatusPagamento } from '../../../lib/statusPagamento';
+import {
+  rotuloMeioPagamento,
+  rotuloStatusPagamento,
+} from '../../../lib/statusPagamento';
 import type { StatusPagamento } from '../../../services/types';
 
 type PedidoStatusPagamentoBadgeProps = {
   status?: StatusPagamento | null;
+  /** Com o pedido pago, mostra o meio junto: "Pago · Pix". */
+  meio?: string | null;
+  parcelas?: number | null;
+  mostrarMeio?: boolean;
   className?: string;
 };
 
 export function PedidoStatusPagamentoBadge({
   status,
+  meio,
+  parcelas,
+  mostrarMeio = true,
   className,
 }: PedidoStatusPagamentoBadgeProps) {
   const efetivo = status ?? 'PAGO';
@@ -25,6 +35,9 @@ export function PedidoStatusPagamentoBadge({
       )}
     >
       {rotuloStatusPagamento(efetivo)}
+      {mostrarMeio && efetivo === 'PAGO'
+        ? ` · ${rotuloMeioPagamento(meio, parcelas)}`
+        : null}
     </span>
   );
 }

@@ -30,6 +30,12 @@ import type { AuthUser } from '../../infra/auth/auth.guard.js';
 import { CozinhaService } from '../cozinha/cozinha.service.js';
 import { nomeItemComVariacao, resolverPrecoItem } from './preco-item.js';
 
+/** Itens com produto e o meio de pagamento do checkout online (InfinitePay), quando houver. */
+const INCLUDE_PEDIDO = {
+  itens: { include: { produto: true } },
+  checkoutSessao: { select: { captureMethod: true, installments: true } },
+} satisfies Prisma.PedidoInclude;
+
 @Injectable()
 export class PedidoService {
   constructor(
@@ -79,13 +85,7 @@ export class PedidoService {
         cursor: decodedCursor ? { id: decodedCursor.id } : undefined,
         skip: decodedCursor ? 1 : 0,
         orderBy,
-        include: {
-          itens: {
-            include: {
-              produto: true,
-            },
-          },
-        },
+        include: INCLUDE_PEDIDO,
       });
 
       let nextCursor: string | null = null;
@@ -174,13 +174,7 @@ export class PedidoService {
         where: {
           OR: orConditions,
         },
-        include: {
-          itens: {
-            include: {
-              produto: true,
-            },
-          },
-        },
+        include: INCLUDE_PEDIDO,
       });
 
       if (!pedidos || pedidos.length === 0) {
@@ -229,16 +223,19 @@ export class PedidoService {
     return this.criarPedidoPago(dto, status_pagamento);
   }
 
-  async criarPedidoPago(dto: CriarPedidoDto, status_pagamento: 'PAGO' | 'NAO_PAGO' | 'GRATUITO') {
+  /** `checkoutSessaoId`: liga o pedido ao checkout já na criação, para o meio de pagamento ir junto no evento. */
+  async criarPedidoPago(
+    dto: CriarPedidoDto,
+    status_pagamento: 'PAGO' | 'NAO_PAGO' | 'GRATUITO',
+    checkoutSessaoId?: string,
+  ) {
     try {
       const clientRequestId = dto.client_request_id?.trim() || undefined;
 
       if (clientRequestId) {
         const existente = await this.prismaRead.pedido.findUnique({
           where: { clientRequestId },
-          include: {
-            itens: { include: { produto: true } },
-          },
+          include: INCLUDE_PEDIDO,
         });
 
         if (existente) {
@@ -255,9 +252,7 @@ export class PedidoService {
         if (clientRequestId) {
           const existenteTx = await tx.pedido.findUnique({
             where: { clientRequestId },
-            include: {
-              itens: { include: { produto: true } },
-            },
+            include: INCLUDE_PEDIDO,
           });
 
           if (existenteTx) {
@@ -413,13 +408,12 @@ export class PedidoService {
             tipo_consumo: dto.tipo_consumo ?? 'COMER_AQUI',
             status_pagamento,
             ...(clientRequestId ? { clientRequestId } : {}),
+            ...(checkoutSessaoId ? { checkoutSessao: { connect: { id: checkoutSessaoId } } } : {}),
             itens: {
               create: itensParaCriar,
             },
           },
-          include: {
-            itens: { include: { produto: true } },
-          },
+          include: INCLUDE_PEDIDO,
         });
 
         return {
@@ -449,9 +443,7 @@ export class PedidoService {
       ) {
         const existente = await this.prismaRead.pedido.findUnique({
           where: { clientRequestId: dto.client_request_id },
-          include: {
-            itens: { include: { produto: true } },
-          },
+          include: INCLUDE_PEDIDO,
         });
 
         if (existente) {
@@ -486,9 +478,7 @@ export class PedidoService {
     try {
       const pedido = await this.prismaRead.pedido.findUnique({
         where: { id },
-        include: {
-          itens: { include: { produto: true } },
-        },
+        include: INCLUDE_PEDIDO,
       });
 
       if (!pedido) {
@@ -507,9 +497,7 @@ export class PedidoService {
       const atualizado = await this.prismaWrite.pedido.update({
         where: { id },
         data: { prontoAt: new Date() },
-        include: {
-          itens: { include: { produto: true } },
-        },
+        include: INCLUDE_PEDIDO,
       });
 
       const pedidoCompleto = this.formatarPedido(atualizado);
@@ -543,9 +531,7 @@ export class PedidoService {
     try {
       const pedido = await this.prismaRead.pedido.findUnique({
         where: { id },
-        include: {
-          itens: { include: { produto: true } },
-        },
+        include: INCLUDE_PEDIDO,
       });
 
       if (!pedido) {
@@ -568,9 +554,7 @@ export class PedidoService {
       const atualizado = await this.prismaWrite.pedido.update({
         where: { id },
         data: { status_pagamento: 'PAGO' },
-        include: {
-          itens: { include: { produto: true } },
-        },
+        include: INCLUDE_PEDIDO,
       });
 
       const pedidoCompleto = this.formatarPedido(atualizado);
@@ -597,14 +581,18 @@ export class PedidoService {
       numero: bigint;
       prontoAt: Date | null;
       status_pagamento: string;
+      checkoutSessao?: { captureMethod: string | null; installments: number | null } | null;
     },
   >(pedido: T) {
+    const { checkoutSessao, ...resto } = pedido;
     return {
-      ...pedido,
+      ...resto,
       numero: pedido.numero.toString(),
       prontoAt: pedido.prontoAt ? pedido.prontoAt.toISOString() : null,
       pronto: Boolean(pedido.prontoAt),
       status_pagamento: pedido.status_pagamento,
+      meio_pagamento: checkoutSessao?.captureMethod ?? null,
+      parcelas: checkoutSessao?.installments ?? null,
     };
   }
 
@@ -855,9 +843,7 @@ export class PedidoService {
     try {
       const pedido = await this.prismaRead.pedido.findUnique({
         where: { id },
-        include: {
-          itens: { include: { produto: true } },
-        },
+        include: INCLUDE_PEDIDO,
       });
 
       if (!pedido) {

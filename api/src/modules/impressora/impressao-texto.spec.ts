@@ -1,4 +1,4 @@
-import { blocoItemCupom } from './impressao-texto.js';
+import { blocoItemCupom, rotuloMeioPagamento } from './impressao-texto.js';
 
 const limpar = (t: string) =>
   t
@@ -46,5 +46,15 @@ describe('blocoItemCupom', () => {
     });
     expect(total).toBe(45);
     expect(limpar(texto)).toEqual(['2X XIS SALADA … R$ 40,00', '  + FRANGO … R$ 5,00']);
+  });
+});
+
+describe('rotuloMeioPagamento', () => {
+  it('traduz o capture_method do InfinitePay e usa CAIXA sem checkout', () => {
+    expect(rotuloMeioPagamento('pix')).toBe('PIX');
+    expect(rotuloMeioPagamento('credit_card', 1)).toBe('CREDITO');
+    expect(rotuloMeioPagamento('credit_card', 3)).toBe('CREDITO 3X');
+    expect(rotuloMeioPagamento('debit_card')).toBe('DEBITO');
+    expect(rotuloMeioPagamento(null)).toBe('CAIXA');
   });
 });

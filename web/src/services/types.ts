@@ -294,6 +294,9 @@ export type Pedido = {
   pronto?: boolean;
   prontoAt?: string | null;
   status_pagamento?: StatusPagamento;
+  /** `capture_method` do InfinitePay (pix, credit_card...); null = pago no caixa. */
+  meio_pagamento?: string | null;
+  parcelas?: number | null;
   clientRequestId?: string | null;
   pendingSync?: boolean;
   syncFailed?: boolean;

@@ -195,9 +195,28 @@ type ItemRankRelatorio = {
   quantidade: number;
 };
 
+/**
+ * Meio de pagamento para o papel. `meio` é o `capture_method` do InfinitePay; sem checkout online o
+ * pedido foi lançado no painel/totem e pago no caixa.
+ */
+export function rotuloMeioPagamento(meio?: string | null, parcelas?: number | null): string {
+  if (!meio) return 'CAIXA';
+  if (meio === 'pix') return 'PIX';
+  if (meio === 'debit_card') return 'DEBITO';
+  if (meio === 'credit_card') return parcelas && parcelas > 1 ? `CREDITO ${parcelas}X` : 'CREDITO';
+  return paraCupom(meio.replace(/_/g, ' '));
+}
+
+type PagamentoRelatorio = {
+  meio: string;
+  pedidos: number;
+  valor: number;
+};
+
 type RelatorioDiaInput = {
   data: string;
   faturamento: number;
+  pagamentos: PagamentoRelatorio[];
   pedidos: number;
   pedidosGratuitos: number;
   valorGratuito: number;
@@ -252,6 +271,15 @@ export function formatarRelatorioDia(input: RelatorioDiaInput): string {
   impressao +=
     alinharLinha('VALOR GRATUITO ', ` ${formatarMoeda(input.valorGratuito)}`, '.') + '\n';
   impressao += `${linhaSeparadora('-')}\n`;
+  impressao += 'PAGAMENTOS\n';
+  if (input.pagamentos.length === 0) {
+    impressao += 'Nenhum no periodo\n';
+  }
+  input.pagamentos.forEach((pag) => {
+    impressao +=
+      alinharLinha(`${pag.meio} (${pag.pedidos}) `, ` ${formatarMoeda(pag.valor)}`, '.') + '\n';
+  });
+  impressao += `${linhaSeparadora('-')}\n`;
   impressao += 'PRODUTOS\n';
   impressao += formatarRanking(input.topProdutos);
   impressao += `${linhaSeparadora('-')}\n`;
@@ -266,6 +294,8 @@ export function formatarRelatorioDia(input: RelatorioDiaInput): string {
 type PedidoRelatorio = {
   nome: string;
   valor: number;
+  /** Rótulo pronto, ver `rotuloMeioPagamento`. */
+  meio: string;
 };
 
 type RelatorioCompletoInput = {
@@ -282,7 +312,7 @@ function formatarListaPedidos(itens: PedidoRelatorio[]): string {
 
   let texto = '';
   itens.forEach((item) => {
-    const esq = `${item.nome} `;
+    const esq = `${item.nome} (${item.meio}) `;
     const dir = ` ${formatarMoeda(item.valor)}`;
     texto += alinharLinha(esq, dir, '.') + '\n';
   });

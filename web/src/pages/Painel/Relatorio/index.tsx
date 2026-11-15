@@ -75,7 +75,7 @@ export function Relatorio() {
           <RelatorioCard
             tipo="resumido"
             titulo="Resumido"
-            descricao="Total de vendas, pedidos, gratuitos e ranking do dia"
+            descricao="Total de vendas, por meio de pagamento, pedidos, gratuitos e ranking do dia"
             icon={FileText}
             gerando={gerando === 'resumido'}
             disabled={gerando !== null || !data}
@@ -86,7 +86,7 @@ export function Relatorio() {
           <RelatorioCard
             tipo="completo"
             titulo="Completo"
-            descricao="Nome de cada cliente, valor do pedido e total"
+            descricao="Nome de cada cliente, meio de pagamento, valor do pedido e total"
             icon={ListOrdered}
             gerando={gerando === 'completo'}
             disabled={gerando !== null || !data}
