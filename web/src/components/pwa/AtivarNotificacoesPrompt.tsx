@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { ConfirmDialog } from '../ui';
+import { ConviteDrawer } from './ConviteDrawer';
 import { isRotaEquipe } from '../../lib/dispositivoEquipe';
 import {
   dispensarNotificacao,
@@ -71,16 +71,15 @@ export function AtivarNotificacoesPrompt() {
   }, [fechar]);
 
   return (
-    <ConfirmDialog
+    <ConviteDrawer
       open={aberto}
       title="Ativar notificações"
-      variant="primary"
       loading={ativando}
-      description="Receba um aviso no celular quando o seu pedido ficar pronto para retirada."
       confirmLabel="Ativar"
-      cancelLabel="Agora não"
       onConfirm={() => void ativar()}
       onCancel={agoraNao}
-    />
+    >
+      Receba um aviso no celular quando o seu pedido ficar pronto para retirada.
+    </ConviteDrawer>
   );
 }

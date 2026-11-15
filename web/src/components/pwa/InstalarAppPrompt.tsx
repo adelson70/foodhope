@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 
-import { ConfirmDialog } from '../ui';
+import { ConviteDrawer } from './ConviteDrawer';
 import {
   detectarNavegadorInstalacao,
   dispensarInstalacao,
@@ -179,25 +179,22 @@ export function InstalarAppPrompt() {
   }, [fechar, modo]);
 
   return (
-    <ConfirmDialog
+    <ConviteDrawer
       open={aberto}
       title="Instalar o Food Hope"
-      variant="primary"
       loading={instalando}
-      description={
-        modo.tipo === 'instrucoes' ? (
-          <>
-            Adicione o app à sua tela inicial para abrir mais rápido.{' '}
-            {INSTRUCOES[modo.navegador]}
-          </>
-        ) : (
-          'Instale o app para abrir mais rápido, direto da tela inicial.'
-        )
-      }
       confirmLabel={modo.tipo === 'instrucoes' ? 'Entendi' : 'Instalar'}
-      cancelLabel="Agora não"
       onConfirm={() => void confirmar()}
       onCancel={fechar}
-    />
+    >
+      {modo.tipo === 'instrucoes' ? (
+        <>
+          Adicione o app à sua tela inicial para abrir mais rápido.{' '}
+          {INSTRUCOES[modo.navegador]}
+        </>
+      ) : (
+        'Instale o app para abrir mais rápido, direto da tela inicial.'
+      )}
+    </ConviteDrawer>
   );
 }
