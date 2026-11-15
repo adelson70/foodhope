@@ -316,10 +316,23 @@ export class DashService {
 
     const resumo = resumoRows[0];
     const { pedidos: pedidosPagos } = await this.obterCompletoPorData(data);
+    const aberturas = await this.prismaRead.$queryRaw<
+      Array<{ fundoTroco: number | string; createdAt: Date }>
+    >`
+      SELECT fundo_troco AS "fundoTroco", "createdAt"
+      FROM abertura_caixa
+      WHERE ("createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date
+        = CAST(${data} AS DATE)
+      ORDER BY "createdAt" ASC
+    `;
 
     return {
       faturamento: toNumber(resumo?.faturamento),
       pagamentos: agruparPorMeio(pedidosPagos),
+      aberturasCaixa: aberturas.map((row) => ({
+        valor: toNumber(row.fundoTroco),
+        em: row.createdAt,
+      })),
       pedidos: toNumber(resumo?.pedidos),
       pedidosGratuitos: toNumber(resumo?.pedidosGratuitos),
       valorGratuito: toNumber(resumo?.valorGratuito),
@@ -409,6 +422,7 @@ export class DashService {
           data: dataRelatorio,
           faturamento: resumido.faturamento,
           pagamentos: resumido.pagamentos,
+          aberturasCaixa: resumido.aberturasCaixa,
           pedidos: resumido.pedidos,
           pedidosGratuitos: resumido.pedidosGratuitos,
           valorGratuito: resumido.valorGratuito,

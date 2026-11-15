@@ -5,15 +5,29 @@ import { ChevronRight, Layers, Plus } from 'lucide-react';
 import { useDeferredLoading } from '../../../hooks/useDeferredLoading';
 import { cn } from '../../../lib/cn';
 import { isOfflineNow } from '../../../lib/network';
+import { formatarMoeda } from '../../../lib/currency';
 import { cozinhaService, getApiErrorMensagens } from '../../../services';
+import type { AberturaCaixa } from '../../../services/types';
 import { Skeleton } from '../../../components/ui';
+import { AberturaCaixaDrawer } from './AberturaCaixaDrawer';
 import { ConfigBackLink } from './ConfigBackLink';
+
+function horaAbertura(iso: string): string {
+  return new Date(iso).toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
 
 export function ConfigCozinha() {
   const [ativa, setAtiva] = useState(true);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [abrindoCaixa, setAbrindoCaixa] = useState(false);
+  const [abertura, setAbertura] = useState<AberturaCaixa | null>(null);
   const showSkeleton = useDeferredLoading(loading);
 
   useEffect(() => {
@@ -39,10 +53,18 @@ export function ConfigCozinha() {
           return;
         }
         setAtiva(response.dados.ativa);
+        const ultima = await cozinhaService
+          .ultimaAbertura()
+          .catch(() => undefined);
+        if (!cancelled && ultima?.sucesso && ultima.dados) {
+          setAbertura(ultima.dados.abertura);
+        }
       } catch (error) {
         if (cancelled) return;
         const mensagens = getApiErrorMensagens(error);
-        setErro(mensagens[0] ?? 'Não foi possível carregar o status da cozinha.');
+        setErro(
+          mensagens[0] ?? 'Não foi possível carregar o status da cozinha.',
+        );
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -55,14 +77,39 @@ export function ConfigCozinha() {
 
   async function handleToggle() {
     if (busy) return;
-    const proxima = !ativa;
+    // Abrir a cozinha passa pelo caixa: pergunta o dinheiro para troco antes.
+    if (!ativa) {
+      setAbrindoCaixa(true);
+      return;
+    }
     setBusy(true);
     try {
-      const response = await cozinhaService.atualizar(proxima);
+      const response = await cozinhaService.atualizar(false);
       if (response.sucesso && response.dados) {
         setAtiva(response.dados.ativa);
       }
     } catch {
+      // o toast do serviço já mostra o erro
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleAbrirCaixa(dados: {
+    fundo_troco: number;
+    observacao?: string;
+  }) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const response = await cozinhaService.atualizar(true, dados);
+      if (response.sucesso && response.dados) {
+        setAtiva(response.dados.ativa);
+        if (response.dados.abertura) setAbertura(response.dados.abertura);
+        setAbrindoCaixa(false);
+      }
+    } catch {
+      // o toast do serviço já mostra o erro
     } finally {
       setBusy(false);
     }
@@ -102,6 +149,13 @@ export function ConfigCozinha() {
                 ? 'Loja aberta — clientes podem comprar'
                 : 'Loja fechada — cardápio visível sem compra'}
             </p>
+            {abertura ? (
+              <p className="mt-1 text-caption text-on-surface-variant">
+                Última abertura do caixa: {formatarMoeda(abertura.fundo_troco)}{' '}
+                em {horaAbertura(abertura.createdAt)}
+                {abertura.observacao ? ` · ${abertura.observacao}` : ''}
+              </p>
+            ) : null}
           </div>
           <button
             type="button"
@@ -125,6 +179,14 @@ export function ConfigCozinha() {
           </button>
         </div>
       )}
+
+      <AberturaCaixaDrawer
+        open={abrindoCaixa}
+        busy={busy}
+        sugestao={abertura?.fundo_troco}
+        onClose={() => setAbrindoCaixa(false)}
+        onConfirmar={(dados) => void handleAbrirCaixa(dados)}
+      />
 
       <ul className="flex flex-col gap-3">
         <li>

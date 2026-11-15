@@ -440,8 +440,16 @@ export type ConfigTelaPedidos = {
   visualizacao: VisualizacaoTelaPedidos;
 };
 
+export type AberturaCaixa = {
+  fundo_troco: number;
+  observacao: string | null;
+  createdAt: string;
+};
+
 export type ConfigCozinha = {
   ativa: boolean;
+  /** Só na resposta de abrir a cozinha com o caixa informado. */
+  abertura?: AberturaCaixa | null;
 };
 
 export type ListarTelaPedidosPublicoDados = {

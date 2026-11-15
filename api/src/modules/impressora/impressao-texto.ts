@@ -217,6 +217,8 @@ type RelatorioDiaInput = {
   data: string;
   faturamento: number;
   pagamentos: PagamentoRelatorio[];
+  /** Dinheiro no caixa em cada abertura da cozinha no dia. */
+  aberturasCaixa?: Array<{ valor: number; em: Date }>;
   pedidos: number;
   pedidosGratuitos: number;
   valorGratuito: number;
@@ -270,6 +272,18 @@ export function formatarRelatorioDia(input: RelatorioDiaInput): string {
   impressao += alinharLinha('GRATUITOS ', ` ${input.pedidosGratuitos}`, '.') + '\n';
   impressao +=
     alinharLinha('VALOR GRATUITO ', ` ${formatarMoeda(input.valorGratuito)}`, '.') + '\n';
+  if (input.aberturasCaixa?.length) {
+    impressao += `${linhaSeparadora('-')}\n`;
+    impressao += 'ABERTURA DO CAIXA (TROCO)\n';
+    input.aberturasCaixa.forEach((ab) => {
+      const hora = ab.em.toLocaleTimeString('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      impressao += alinharLinha(`${hora} `, ` ${formatarMoeda(ab.valor)}`, '.') + '\n';
+    });
+  }
   impressao += `${linhaSeparadora('-')}\n`;
   impressao += 'PAGAMENTOS\n';
   if (input.pagamentos.length === 0) {

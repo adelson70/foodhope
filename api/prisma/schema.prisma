@@ -286,6 +286,18 @@ model ConfigTelaPedidos {
   @@map("config_tela_pedidos")
 }
 
+/// Dinheiro no caixa ao abrir a cozinha (fundo de troco). Uma linha por abertura.
+model AberturaCaixa {
+  id         String   @id @default(uuid())
+  fundoTroco Decimal  @map("fundo_troco") @db.Decimal(10, 2)
+  observacao String?
+  operadorId String?  @map("operador_id")
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("abertura_caixa")
+}
+
 model ConfigCozinha {
   id        String   @id @default("default")
   ativa     Boolean  @default(true)

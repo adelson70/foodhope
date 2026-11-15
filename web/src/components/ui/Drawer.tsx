@@ -2,6 +2,7 @@ import {
   useEffect,
   useId,
   useRef,
+  useSyncExternalStore,
   type PointerEvent,
   type ReactNode,
 } from 'react';
@@ -21,9 +22,26 @@ type DrawerProps = {
   /**
    * `full` (padrão): tela toda no celular, à direita no desktop.
    * `sheet`: sobe de baixo com a altura do conteúdo (até 90% da tela).
+   * `dialog`: `sheet` no celular e modal centralizado no desktop (lg).
    */
-  variant?: 'full' | 'sheet';
+  variant?: 'full' | 'sheet' | 'dialog';
 };
+
+const DESKTOP_QUERY = '(min-width: 1024px)';
+
+function assinarDesktop(onChange: () => void) {
+  const mql = window.matchMedia(DESKTOP_QUERY);
+  mql.addEventListener('change', onChange);
+  return () => mql.removeEventListener('change', onChange);
+}
+
+function useDesktop(): boolean {
+  return useSyncExternalStore(
+    assinarDesktop,
+    () => window.matchMedia(DESKTOP_QUERY).matches,
+    () => false,
+  );
+}
 
 // Drawers abertos, do mais antigo ao mais recente: o Esc fecha só o de cima.
 const drawersAbertos: symbol[] = [];
@@ -48,6 +66,7 @@ export function Drawer({
   const arrastoRef = useRef<{ id: number; y: number; t: number } | null>(null);
   useScrollFocusedIntoView(bodyRef);
   const titleId = useId();
+  const desktop = useDesktop();
   // Ref: o efeito não reinicia (e não muda a ordem da pilha) quando onClose muda.
   const onCloseRef = useRef(onClose);
   useEffect(() => {
@@ -78,7 +97,8 @@ export function Drawer({
 
   if (!mounted) return null;
 
-  const sheet = variant === 'sheet';
+  const modal = variant === 'dialog' && desktop;
+  const sheet = variant === 'sheet' || (variant === 'dialog' && !desktop);
 
   function iniciarArrasto(event: PointerEvent<HTMLDivElement>) {
     if (!sheet || exiting || !panelRef.current) return;
@@ -123,7 +143,7 @@ export function Drawer({
     <div
       className={cn(
         'fixed inset-0 z-50 flex justify-center overflow-hidden',
-        sheet ? 'items-end' : 'lg:justify-end',
+        modal ? 'items-center p-4' : sheet ? 'items-end' : 'lg:justify-end',
       )}
     >
       <button
@@ -131,8 +151,8 @@ export function Drawer({
         aria-label="Fechar drawer"
         className={cn(
           'absolute inset-0',
-          sheet ? 'bg-black/45' : 'bg-operator-bg/80',
-          sheet
+          sheet || modal ? 'bg-black/45' : 'bg-operator-bg/80',
+          sheet || modal
             ? exiting
               ? 'sheet-overlay-exit'
               : 'sheet-overlay-enter'
@@ -151,16 +171,22 @@ export function Drawer({
         className={cn(
           'relative z-10 flex w-full max-w-md flex-col',
           'bg-operator-surface border-x border-operator-border shadow-card',
-          sheet
-            ? 'max-h-[90dvh] rounded-t-2xl border-t'
-            : 'h-dvh pt-[env(safe-area-inset-top)]',
-          sheet
+          modal
+            ? 'max-h-[85dvh] rounded-2xl border'
+            : sheet
+              ? 'max-h-[90dvh] rounded-t-2xl border-t'
+              : 'h-dvh pt-[env(safe-area-inset-top)]',
+          modal
             ? exiting
-              ? 'sheet-exit'
-              : 'sheet-enter'
-            : exiting
-              ? 'drawer-exit'
-              : 'drawer-enter',
+              ? 'dialog-exit'
+              : 'dialog-enter'
+            : sheet
+              ? exiting
+                ? 'sheet-exit'
+                : 'sheet-enter'
+              : exiting
+                ? 'drawer-exit'
+                : 'drawer-enter',
         )}
         onAnimationEnd={onExitAnimationEnd}
       >
@@ -208,7 +234,7 @@ export function Drawer({
           ref={bodyRef}
           className={cn(
             'min-h-0 overflow-y-auto overscroll-y-contain px-4 py-4',
-            sheet ? 'shrink' : 'flex-1',
+            sheet || modal ? 'shrink' : 'flex-1',
           )}
         >
           {children}
