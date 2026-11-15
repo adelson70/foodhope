@@ -27,7 +27,8 @@ import {
   pedidoService,
   socket,
 } from '../../../services';
-import type { Pedido } from '../../../services/types';
+import type { Pedido, PedidoImpressao } from '../../../services/types';
+import { ImpressaoFilaAviso } from './ImpressaoFilaAviso';
 import { PedidoCriarDrawer } from './PedidoCriarDrawer';
 import { PedidoDetalheDrawer } from './PedidoDetalheDrawer';
 import { PedidosDataFiltro } from './PedidosDataFiltro';
@@ -245,6 +246,21 @@ export function Pedidos() {
   }, []);
 
   useEffect(() => {
+    function onPedidoImpressao(impressao: PedidoImpressao) {
+      if (!impressao?.id) return;
+      const aplicar = (pedido: Pedido) =>
+        pedido.id === impressao.id ? { ...pedido, ...impressao } : pedido;
+      setPedidos((atual) => atual.map(aplicar));
+      setPedidoDetalhe((atual) => (atual ? aplicar(atual) : atual));
+    }
+
+    socket.on('pedido:impressao', onPedidoImpressao);
+    return () => {
+      socket.off('pedido:impressao', onPedidoImpressao);
+    };
+  }, []);
+
+  useEffect(() => {
     function onPedidoDeletado(payload: { id?: string }) {
       if (!payload?.id) return;
       const id = payload.id;
@@ -386,6 +402,7 @@ export function Pedidos() {
   return (
     <div className="flex flex-col gap-4">
       <PedidosHeader onNovo={() => setDrawerOpen(true)} />
+      <ImpressaoFilaAviso />
       <PedidosSearch value={buscaInput} onChange={setBuscaInput} />
       <PedidosDataFiltro
         value={data}

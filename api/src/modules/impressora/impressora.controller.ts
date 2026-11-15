@@ -4,6 +4,7 @@ import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs
 import { ConfigurarImpressoraDto, DefinirIpPonteDto } from './dto/configurar.dto.js';
 import { ImpressoraService } from './impressora.service.js';
 import { PonteService } from './ponte.service.js';
+import { FilaImpressaoStatusService } from './fila-impressao-status.service.js';
 import { Roles } from '../../common/decorator/roles.decorator.js';
 
 @ApiTags('Impressora')
@@ -14,7 +15,15 @@ export class ImpressoraController {
   constructor(
     private readonly impressora: ImpressoraService,
     private readonly ponte: PonteService,
+    private readonly filaStatus: FilaImpressaoStatusService,
   ) {}
+
+  @Get('fila')
+  @Roles('ADMIN', 'OPERADOR')
+  @ApiOperation({ summary: 'Cupons esperando na fila, estado da ponte e pedidos não impressos' })
+  async fila() {
+    return { dados: await this.filaStatus.resumo() };
+  }
 
   @Get('ponte')
   @ApiOperation({ summary: 'Estado da ponte ESP32 (conexão, autorização e impressora encontrada)' })

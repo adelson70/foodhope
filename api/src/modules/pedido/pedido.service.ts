@@ -30,6 +30,11 @@ import type { AuthUser } from '../../infra/auth/auth.guard.js';
 import { CozinhaService } from '../cozinha/cozinha.service.js';
 import { PushService } from '../../infra/push/push.service.js';
 import { nomeItemComVariacao, resolverPrecoItem } from './preco-item.js';
+import {
+  EVENTO_PEDIDO_IMPRESSAO,
+  FilaImpressaoStatusService,
+  filtroNaoImpressos,
+} from '../impressora/fila-impressao-status.service.js';
 
 /** Itens com produto e o meio de pagamento do checkout online (InfinitePay), quando houver. */
 const INCLUDE_PEDIDO = {
@@ -52,6 +57,7 @@ export class PedidoService {
     private readonly websocket: WebsocketGateway,
     private readonly cozinha: CozinhaService,
     private readonly push: PushService,
+    private readonly filaStatus: FilaImpressaoStatusService,
   ) {}
 
   async listarPedido(dto: ListarDto) {
@@ -434,7 +440,7 @@ export class PedidoService {
       });
 
       if (pedidoCompleto.criadoAgora) {
-        await this.enfileirarImpressao(
+        pedidoCompleto.pedido.impressaoPendente = await this.enfileirarImpressao(
           pedidoCompleto.pedido,
           dto.cliente,
           opcoes?.atrasoImpressaoMs ?? 0,
@@ -727,10 +733,43 @@ export class PedidoService {
     return [...grupos.values()];
   }
 
-  /** `pedidoId` vai no job para o worker descartar o cupom de pedido excluído. */
-  private async enfileirarImpressao(pedidoCompleto: any, cliente: ClientePedido, atrasoMs = 0) {
+  /**
+   * Enfileira os cupons do pedido e devolve quantos foram. `pedidoId` vai no job para o worker
+   * descartar o cupom de pedido excluído e registrar no pedido se imprimiu ou falhou.
+   */
+  private async enfileirarImpressao(
+    pedidoCompleto: any,
+    cliente: ClientePedido,
+    atrasoMs = 0,
+  ): Promise<number> {
     const pedidoId = (pedidoCompleto as { id?: string }).id;
     const opcoesJob = atrasoMs > 0 ? { delay: atrasoMs } : undefined;
+    const cupons = this.montarCupons(pedidoCompleto, cliente);
+    if (cupons.length === 0) return 0;
+
+    // O contador sobe antes de o job existir: o worker nunca o vê abaixo do real.
+    if (pedidoId) {
+      const pedido = await this.prismaWrite.pedido.update({
+        where: { id: pedidoId },
+        data: { impressaoPendente: { increment: cupons.length }, impressaoFalhou: false },
+        select: { id: true, impressaoPendente: true, impressaoFalhou: true, impressoEm: true },
+      });
+      this.websocket.emitirParaOperadores(EVENTO_PEDIDO_IMPRESSAO, pedido);
+    }
+    await this.filaImpressao.addBulk(
+      cupons.map((texto) => ({
+        name: 'imprimir-pedido',
+        data: { texto, pedidoId },
+        opts: opcoesJob,
+      })),
+    );
+    this.filaStatus.avisar();
+    return cupons.length;
+  }
+
+  /** Textos dos cupons do pedido, na ordem de impressão. */
+  private montarCupons(pedidoCompleto: any, cliente: ClientePedido): string[] {
+    const cupons: string[] = [];
     const itens = Array.isArray(pedidoCompleto.itens) ? pedidoCompleto.itens : [];
     const soIgnoraveis =
       itens.length > 0 &&
@@ -739,7 +778,7 @@ export class PedidoService {
       );
 
     if (soIgnoraveis) {
-      return;
+      return cupons;
     }
 
     const acompanhamentos = itens.filter(
@@ -776,11 +815,7 @@ export class PedidoService {
         [...itensPrincipais, ...resumoImprimirSeparado, ...acompanhamentos],
         cliente,
       );
-      await this.filaImpressao.add(
-        'imprimir-pedido',
-        { texto: textoPrincipal, pedidoId },
-        opcoesJob,
-      );
+      cupons.push(textoPrincipal);
     }
 
     for (let indice = 0; indice < gruposSeparados.length; indice += 1) {
@@ -800,12 +835,9 @@ export class PedidoService {
         metaExtra:
           totalCuponsSeparados > 1 ? `CUPOM ${indice + 1} DE ${totalCuponsSeparados}` : undefined,
       });
-      await this.filaImpressao.add(
-        'imprimir-pedido',
-        { texto: textoSeparado, pedidoId },
-        opcoesJob,
-      );
+      cupons.push(textoSeparado);
     }
+    return cupons;
   }
 
   private cabecalhoCupom(
@@ -907,6 +939,27 @@ export class PedidoService {
     }
   }
 
+  /** Reenvia, em ordem, os pedidos recentes (e ainda não prontos) cujo cupom esgotou as tentativas. */
+  async reimprimirNaoImpressos() {
+    const pedidos = await this.prismaWrite.pedido.findMany({
+      where: filtroNaoImpressos(),
+      include: INCLUDE_PEDIDO,
+      orderBy: { numero: 'asc' },
+    });
+    for (const pedido of pedidos) {
+      await this.enfileirarImpressao(this.formatarPedido(pedido), {
+        primeiro_nome: pedido.nome_completo,
+      });
+    }
+    return {
+      mensagem:
+        pedidos.length > 0
+          ? `${pedidos.length} pedido(s) enviado(s) para impressão`
+          : 'Nenhum pedido pendente de impressão',
+      dados: { quantidade: pedidos.length },
+    };
+  }
+
   async deletarPedido(id: string) {
     try {
       await this.prismaWrite.pedido.delete({ where: { id } });
@@ -933,6 +986,7 @@ export class PedidoService {
           .filter((job) => (job.data as { pedidoId?: string })?.pedidoId === pedidoId)
           .map((job) => job.remove()),
       );
+      this.filaStatus.avisar();
     } catch (erro) {
       console.error('Erro ao descartar impressões pendentes do pedido:', erro);
     }

@@ -298,6 +298,11 @@ export type Pedido = {
   meio_pagamento?: string | null;
   parcelas?: number | null;
   clientRequestId?: string | null;
+  /** Cupons ainda na fila de impressão. */
+  impressaoPendente?: number;
+  /** Algum cupom esgotou as tentativas (volta a false ao reimprimir). */
+  impressaoFalhou?: boolean;
+  impressoEm?: string | null;
   pendingSync?: boolean;
   syncFailed?: boolean;
   syncError?: string;
@@ -399,6 +404,23 @@ export type EstadoPonte = {
   origem: string | null;
   statusEm: string | null;
   status: StatusPonte | null;
+};
+
+/** Evento `pedido:impressao`: estado de impressão de um pedido. */
+export type PedidoImpressao = Pick<
+  Pedido,
+  'id' | 'impressaoPendente' | 'impressaoFalhou' | 'impressoEm'
+>;
+
+export type ResumoFilaImpressao = {
+  usaPonte: boolean;
+  ponteConectada: boolean;
+  /** Fila pausada porque a ponte não alcança a impressora. */
+  impressoraFora: boolean;
+  /** Cupons ainda não impressos. */
+  esperando: number;
+  /** Pedidos recentes, não prontos, cujo cupom esgotou as tentativas. */
+  naoImpressos: number;
 };
 
 export type PortaImpressora = {

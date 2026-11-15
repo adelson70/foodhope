@@ -124,6 +124,23 @@ export const pedidoService = {
     );
   },
 
+  async reimprimirNaoImpressos(): Promise<
+    ApiResponse<{ quantidade: number }>
+  > {
+    return withMutationToast(
+      () =>
+        request(
+          api.post<ApiResponse<{ quantidade: number }>>(
+            '/pedido/reimprimir-nao-impressos',
+          ),
+        ),
+      {
+        success: 'Pedidos enviados para impressão',
+        error: 'Não foi possível reimprimir os pedidos',
+      },
+    );
+  },
+
   async deletar(id: string): Promise<ApiResponse<Record<string, never>>> {
     return withMutationToast(
       () =>

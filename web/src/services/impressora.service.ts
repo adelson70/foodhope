@@ -7,10 +7,15 @@ import type {
   DescobrirImpressorasDados,
   EstadoPonte,
   PortaImpressora,
+  ResumoFilaImpressao,
   TestarImpressoraDados,
 } from "./types";
 
 export const impressoraService = {
+  async fila(): Promise<ApiResponse<ResumoFilaImpressao>> {
+    return request(api.get<ApiResponse<ResumoFilaImpressao>>("/impressora/fila"));
+  },
+
   async estadoPonte(): Promise<ApiResponse<EstadoPonte>> {
     return request(api.get<ApiResponse<EstadoPonte>>("/impressora/ponte"));
   },

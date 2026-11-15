@@ -79,6 +79,12 @@ model Pedido {
   status_pagamento StatusPagamento @default(PAGO) @map("status_pagamento")
   clientRequestId  String?         @unique @map("client_request_id")
 
+  /// Cupons ainda na fila de impressão (sobe ao enfileirar, desce quando a impressora confirma).
+  impressaoPendente Int       @default(0) @map("impressao_pendente")
+  /// Algum cupom esgotou as tentativas; volta a false ao reimprimir.
+  impressaoFalhou   Boolean   @default(false) @map("impressao_falhou")
+  impressoEm        DateTime? @map("impresso_em")
+
   itens PedidoItem[]
   checkoutSessao CheckoutSessao?
   pushInscricoes PushPedido[]
@@ -90,6 +96,7 @@ model Pedido {
   @@index([nome_completo])
   @@index([prontoAt])
   @@index([status_pagamento])
+  @@index([impressaoFalhou])
   @@map("pedido")
 }
 

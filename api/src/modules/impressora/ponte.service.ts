@@ -54,6 +54,23 @@ export type EstadoPonte = {
 
 export const EVENTO_PONTE_STATUS = 'ponte:status';
 
+/** NACKs em que a impressora está desligada/fora da rede (não é defeito do cupom). */
+const NACK_IMPRESSORA_FORA = new Set([1, 2]);
+
+/**
+ * Ponte ou impressora sem energia/rede. A fila de impressão pausa em vez de gastar tentativa:
+ * o cupom espera o tempo que for preciso e sai na ordem quando o equipamento voltar.
+ */
+export class ImpressoraForaError extends Error {
+  constructor(
+    mensagem: string,
+    readonly motivo: 'ponte' | 'impressora',
+  ) {
+    super(mensagem);
+    this.name = 'ImpressoraForaError';
+  }
+}
+
 function hashToken(token: string) {
   return createHash('sha256').update(token).digest();
 }
@@ -220,7 +237,7 @@ export class PonteService implements OnApplicationBootstrap, OnModuleDestroy {
     this.ping = null;
     for (const [id, p] of this.pendentes) {
       clearTimeout(p.timer);
-      p.reject(new Error('A ponte ESP32 desconectou durante a impressão'));
+      p.reject(new ImpressoraForaError('A ponte ESP32 desconectou durante a impressão', 'ponte'));
       this.pendentes.delete(id);
     }
     this.logger.warn('Ponte ESP32 desconectada');
@@ -241,9 +258,17 @@ export class PonteService implements OnApplicationBootstrap, OnModuleDestroy {
       if (!p) return;
       clearTimeout(p.timer);
       this.pendentes.delete(id);
-      if (tipo === FRAME.ACK) p.resolve();
-      else
-        p.reject(new Error(ERROS_NACK[buf[CABECALHO]] ?? 'A ponte ESP32 não conseguiu imprimir'));
+      if (tipo === FRAME.ACK) {
+        p.resolve();
+        return;
+      }
+      const codigo = buf[CABECALHO];
+      const mensagem = ERROS_NACK[codigo] ?? 'A ponte ESP32 não conseguiu imprimir';
+      p.reject(
+        NACK_IMPRESSORA_FORA.has(codigo)
+          ? new ImpressoraForaError(mensagem, 'impressora')
+          : new Error(mensagem),
+      );
       return;
     }
 

@@ -73,6 +73,14 @@ export class PedidoController {
     return this.pedido.marcarPedidoPago(id);
   }
 
+  @Post('reimprimir-nao-impressos')
+  @ApiBearerAuth()
+  @Roles('ADMIN', 'OPERADOR')
+  @ApiOperation({ summary: 'Reimprime os pedidos recentes cujo cupom não foi impresso' })
+  async reimprimirNaoImpressos() {
+    return this.pedido.reimprimirNaoImpressos();
+  }
+
   @Post(':id/reimprimir')
   @ApiBearerAuth()
   @Roles('ADMIN', 'OPERADOR')

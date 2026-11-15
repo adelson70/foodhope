@@ -7,7 +7,7 @@ jest.mock('../../infra/database/prisma-read.service.js', () => ({ PrismaReadServ
 jest.mock('../../infra/database/prisma-write.service.js', () => ({ PrismaWriteService: class {} }));
 jest.mock('../../infra/websocket/websocket.gateway.js', () => ({ WebsocketGateway: class {} }));
 
-import { PonteService } from './ponte.service.js';
+import { ImpressoraForaError, PonteService } from './ponte.service.js';
 import { CABECALHO, FRAME, frame, TAMANHO_PEDACO } from './ponte-protocolo.js';
 
 const TOKEN = 'a'.repeat(64);
@@ -162,13 +162,18 @@ describe('PonteService (integração com WebSocket real)', () => {
     await ate(() => ponte.pronta);
 
     esp.responder = 'nack';
-    await expect(ponte.enviar(Buffer.from('x'), 5)).rejects.toThrow(/recusou a conexão/);
+    const nack = ponte.enviar(Buffer.from('x'), 5);
+    await expect(nack).rejects.toThrow(/recusou a conexão/);
+    // impressora desligada: a fila pausa em vez de gastar tentativa
+    await expect(nack).rejects.toMatchObject({ motivo: 'impressora' });
+    await expect(nack).rejects.toBeInstanceOf(ImpressoraForaError);
 
     esp.responder = 'mudo';
     const pendente = ponte.enviar(Buffer.from('y'), 6);
     await ate(() => esp.jobs.has(6));
     esp.ws.terminate();
     await expect(pendente).rejects.toThrow(/desconectou/);
+    await expect(pendente).rejects.toMatchObject({ motivo: 'ponte' });
     await ate(() => !ponte.estado().conectada);
   });
 

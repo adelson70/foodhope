@@ -81,6 +81,15 @@ export function PedidoCard({
                 Falha no sync
               </span>
             ) : null}
+            {!localPendente && pedido.impressaoFalhou ? (
+              <span className="rounded-full bg-danger/15 px-2 py-0.5 text-label-sm font-medium text-danger">
+                Não impresso
+              </span>
+            ) : !localPendente && (pedido.impressaoPendente ?? 0) > 0 ? (
+              <span className="rounded-full bg-secondary-container px-2 py-0.5 text-label-sm font-medium text-on-surface-variant">
+                Na fila de impressão
+              </span>
+            ) : null}
             {pronto ? (
               <span className="rounded-full bg-success/15 px-2 py-0.5 text-label-sm font-medium text-success">
                 Pronto
