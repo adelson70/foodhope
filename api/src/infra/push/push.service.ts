@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import { cert, getApps, initializeApp, type App, type ServiceAccount } from 'firebase-admin/app';
 import { getMessaging, type Messaging } from 'firebase-admin/messaging';
 
@@ -16,11 +16,21 @@ const TOKEN_INVALIDO = new Set([
  * Sem FIREBASE_SERVICE_ACCOUNT_BASE64 o envio fica desligado e só registra no log.
  */
 @Injectable()
-export class PushService {
+export class PushService implements OnApplicationBootstrap {
   private readonly logger = new Logger(PushService.name);
   private messaging: Messaging | null | undefined;
 
   constructor(private readonly prismaWrite: PrismaWriteService) {}
+
+  /**
+   * Aquece o Firebase no boot: o 1º envio pagava ~0,7 s de token OAuth e conexão.
+   * Um envio dryRun a um token inválido faz os dois sem entregar nada.
+   */
+  onApplicationBootstrap() {
+    const messaging = this.obterMessaging();
+    if (!messaging) return;
+    messaging.send({ token: 'aquecimento', data: { tipo: 'aquecimento' } }, true).catch(() => {});
+  }
 
   private obterMessaging(): Messaging | null {
     if (this.messaging !== undefined) return this.messaging;
