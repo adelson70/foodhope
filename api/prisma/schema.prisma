@@ -100,7 +100,7 @@ model Pedido {
   @@map("pedido")
 }
 
-// Token FCM do aparelho que pediu aviso de "pedido pronto". Apagado depois do envio.
+// Token FCM do aparelho que pediu aviso de "pedido pronto". Sai quando o FCM diz que morreu ou com o pedido.
 model PushPedido {
   id        String   @id @default(uuid())
   pedidoId  String   @map("pedido_id")

@@ -62,7 +62,7 @@ export class PushService implements OnApplicationBootstrap {
     this.logger.log(`Aparelho inscrito no pedido ${pedidoId} (${token.slice(0, 12)}…)`);
   }
 
-  /** Envia o aviso para os aparelhos inscritos no pedido e apaga as inscrições. */
+  /** Envia o aviso para os aparelhos inscritos no pedido. */
   async avisarPedidoPronto(pedidoId: string, numero: string) {
     const inscricoes = await this.prismaWrite.pushPedido.findMany({
       where: { pedidoId },
@@ -95,17 +95,22 @@ export class PushService implements OnApplicationBootstrap {
         this.logger.log(
           `Pedido ${numero} pronto: ${resposta.successCount} enviado(s), ${resposta.failureCount} falha(s).`,
         );
+        const mortos: string[] = [];
         resposta.responses.forEach((r, i) => {
-          if (!r.success && !TOKEN_INVALIDO.has(r.error?.code ?? '')) {
-            this.logger.warn(`Push falhou (${tokens[i].slice(0, 12)}…): ${r.error?.code}`);
-          }
+          if (r.success) return;
+          if (TOKEN_INVALIDO.has(r.error?.code ?? '')) mortos.push(tokens[i]);
+          else this.logger.warn(`Push falhou (${tokens[i].slice(0, 12)}…): ${r.error?.code}`);
         });
+        // Só sai o token morto (app desinstalado, permissão revogada). Os válidos
+        // ficam: pedido reaberto e marcado pronto de novo avisa outra vez.
+        if (mortos.length > 0) {
+          await this.prismaWrite.pushPedido.deleteMany({
+            where: { pedidoId, token: { in: mortos } },
+          });
+        }
       } catch (erro) {
         this.logger.error(`Falha ao enviar push do pedido ${numero}: ${String(erro)}`);
       }
     }
-
-    // O aviso é único por pedido: depois de tentar, as inscrições não servem mais.
-    await this.prismaWrite.pushPedido.deleteMany({ where: { pedidoId } });
   }
 }
