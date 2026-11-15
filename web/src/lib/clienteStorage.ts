@@ -105,6 +105,7 @@ export async function loadClienteLocal(
     sobrenome: perfil.sobrenome ?? '',
     contato: perfil.contato ?? '',
     cidade: perfil.cidade ?? '',
+    email: perfil.email ?? '',
   };
 }
 

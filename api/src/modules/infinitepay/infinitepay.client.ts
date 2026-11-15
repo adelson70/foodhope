@@ -22,6 +22,7 @@ export type CreateLinkInput = {
   webhook_url?: string;
   customer?: {
     name: string;
+    email?: string;
     phone_number?: string;
   };
 };

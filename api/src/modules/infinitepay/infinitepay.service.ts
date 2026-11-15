@@ -156,8 +156,11 @@ export class InfinitePayService {
       .join(' ');
 
     const telefone = dto.cliente.contato?.trim();
+    const email = dto.cliente.email?.trim();
+    // Com nome, e-mail e telefone a InfinitePay abre direto na etapa de pagamento.
     const customer = {
       name: nomeCliente,
+      ...(email ? { email } : {}),
       ...(telefone ? { phone_number: `+${telefone.replace(/^\+/, '')}` } : {}),
     };
 

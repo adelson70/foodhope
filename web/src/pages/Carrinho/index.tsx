@@ -73,6 +73,7 @@ export function Carrinho() {
       sobrenome: '',
       contato: '',
       cidade: '',
+      email: '',
     },
   });
 
@@ -96,6 +97,7 @@ export function Carrinho() {
         sobrenome: perfil.sobrenome,
         contato: perfil.contato,
         cidade: perfil.cidade,
+        email: perfil.email,
       });
     })();
 
@@ -198,6 +200,7 @@ export function Carrinho() {
       sobrenome: values.sobrenome,
       contato: onlyDigits(values.contato),
       cidade: values.cidade,
+      email: values.email,
     });
   }
 
@@ -361,6 +364,29 @@ export function Carrinho() {
                     {errors.cidade.message}
                   </p>
                 ) : null}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="carrinho-email">E-mail</Label>
+                <Input
+                  id="carrinho-email"
+                  type="email"
+                  inputMode="email"
+                  placeholder="seu@email.com"
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  disabled={lojaFechada}
+                  error={Boolean(errors.email)}
+                  {...register('email')}
+                />
+                {errors.email ? (
+                  <p className="px-1 text-caption text-danger">
+                    {errors.email.message}
+                  </p>
+                ) : (
+                  <p className="px-1 text-caption text-on-surface-variant">
+                    * O e-mail é para receber o comprovante de pagamento.
+                  </p>
+                )}
               </div>
 
               <p className="text-center text-caption text-on-surface-variant">

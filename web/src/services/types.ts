@@ -317,6 +317,7 @@ export type ClientePedidoInput = {
   sobrenome?: string;
   contato?: string;
   cidade?: string;
+  email?: string;
 };
 
 export type AdicionalPedidoInput = {

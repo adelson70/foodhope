@@ -12,6 +12,7 @@ import {
   ValidateIf,
   IsIn,
   IsUUID,
+  IsEmail,
 } from 'class-validator';
 
 export type TipoConsumoDto = 'LEVAR' | 'COMER_AQUI';
@@ -54,6 +55,15 @@ export class ClientePedido {
   @IsOptional()
   @IsString()
   cidade?: string;
+
+  @ApiPropertyOptional({
+    example: 'cliente@email.com',
+    description: 'E-mail do cliente (recebe o comprovante da InfinitePay)',
+  })
+  @Transform(emptyToUndefined)
+  @IsOptional()
+  @IsEmail({}, { message: 'Informe um e-mail válido' })
+  email?: string;
 }
 
 export class AdicionalPedidoDto {

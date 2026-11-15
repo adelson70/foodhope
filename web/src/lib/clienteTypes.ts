@@ -54,4 +54,5 @@ export type ClienteLocal = {
   sobrenome: string;
   contato: string;
   cidade: string;
+  email: string;
 };
