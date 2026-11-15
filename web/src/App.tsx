@@ -1,6 +1,7 @@
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { useEffect } from 'react';
 import { RouterProvider } from 'react-router-dom';
+import { AtivarNotificacoesPrompt } from './components/pwa/AtivarNotificacoesPrompt';
 import { InstalarAppPrompt } from './components/pwa/InstalarAppPrompt';
 import { Toaster } from './components/ui/Toaster';
 import { useCardapioCarrinhoRealtime } from './hooks/useCardapioCarrinhoRealtime';
@@ -70,6 +71,7 @@ function App() {
       <AppRealtime />
       <RouterProvider router={router} />
       <Toaster />
+      <AtivarNotificacoesPrompt />
       <InstalarAppPrompt />
     </PersistQueryClientProvider>
   );

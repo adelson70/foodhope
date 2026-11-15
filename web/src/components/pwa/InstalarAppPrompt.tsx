@@ -11,6 +11,10 @@ import {
   subscribeInstalacao,
   type NavegadorInstalacao,
 } from '../../lib/pwaInstall';
+import {
+  CONVITE_PUSH_DECIDIDO_EVENT,
+  isConvitePushDecidido,
+} from '../../lib/pushPedido';
 import { obterSessaoOperador } from '../../lib/sessaoOperador';
 import { router } from '../../routes';
 import { getToken } from '../../services';
@@ -83,6 +87,7 @@ function rotaSemPopup(pathname: string): boolean {
 async function podeOferecer(): Promise<boolean> {
   if (foiInstalado() || foiDispensadoRecentemente()) return false;
   if (rotaSemPopup(router.state.location.pathname)) return false;
+  if (!isConvitePushDecidido()) return false;
   if (getToken()) {
     const sessao = await obterSessaoOperador();
     if (sessao?.role === 'TOTEM') return false;
@@ -127,6 +132,12 @@ export function InstalarAppPrompt() {
     timers.push(setTimeout(() => void avaliar(false), ATRASO_MS));
     timers.push(setTimeout(() => void avaliar(true), ATRASO_INSTRUCOES_MS));
 
+    // Convite de notificação resolvido: tenta de novo (o prompt nativo já pode estar disponível).
+    const aposConvitePush = () => {
+      timers.push(setTimeout(() => void avaliar(false), 800));
+    };
+    window.addEventListener(CONVITE_PUSH_DECIDIDO_EVENT, aposConvitePush);
+
     const unsubscribe = subscribeInstalacao(() => {
       if (foiInstalado()) {
         setAberto(false);
@@ -143,6 +154,7 @@ export function InstalarAppPrompt() {
       cancelled = true;
       timers.forEach(clearTimeout);
       unsubscribe();
+      window.removeEventListener(CONVITE_PUSH_DECIDIDO_EVENT, aposConvitePush);
     };
   }, []);
 

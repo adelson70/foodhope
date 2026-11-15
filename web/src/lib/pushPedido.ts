@@ -2,6 +2,7 @@
 // Android: funciona no navegador e no app instalado. iOS (16.4+): só com o app
 // adicionado à tela de início; no Safari comum não existe Web Push.
 import { pedidoService } from '../services/pedido.service';
+import { loadPedidosLocais } from './clienteStorage';
 import { isDispositivoEquipe } from './dispositivoEquipe';
 import { isIos, isStandalone } from './pwaInstall';
 
@@ -83,4 +84,61 @@ export async function ativarAvisoPedido(
   if (!token) return 'indisponivel';
   await pedidoService.inscreverPush(pedidoId, token);
   return 'ativo';
+}
+
+/** Pedidos locais mais antigos que isso não recebem mais aviso. */
+const JANELA_PEDIDOS_MS = 1000 * 60 * 60 * 24;
+
+/**
+ * Com a permissão já dada, inscreve o aparelho nos pedidos recentes dele. A API
+ * ignora os que já estão prontos. Chamado ao abrir o app e ao ativar o aviso.
+ */
+export async function inscreverPedidosRecentes(): Promise<void> {
+  if (estadoPush() !== 'ativo') return;
+  const limite = Date.now() - JANELA_PEDIDOS_MS;
+  const recentes = (await loadPedidosLocais()).filter(
+    (p) => new Date(p.createdAt).getTime() >= limite,
+  );
+  if (recentes.length === 0) return;
+
+  const token = await obterTokenFcm();
+  if (!token) return;
+  await Promise.allSettled(
+    recentes.map((p) => pedidoService.inscreverPush(p.id, token)),
+  );
+}
+
+const DISPENSADO_KEY = 'foodhope-notificacao-dispensada-em';
+const DISPENSA_MS = 1000 * 60 * 60 * 24 * 3;
+
+export function notificacaoDispensadaRecentemente(): boolean {
+  try {
+    const em = Number(localStorage.getItem(DISPENSADO_KEY));
+    return Number.isFinite(em) && em > 0 && Date.now() - em < DISPENSA_MS;
+  } catch {
+    return false;
+  }
+}
+
+export function dispensarNotificacao(): void {
+  try {
+    localStorage.setItem(DISPENSADO_KEY, String(Date.now()));
+  } catch {
+    return;
+  }
+}
+
+/**
+ * O convite de notificação vem antes do de instalar: até ele ser decidido
+ * (não aparece ou foi fechado), o de instalar espera.
+ */
+export const CONVITE_PUSH_DECIDIDO_EVENT = 'foodhope:convite-push-decidido';
+let convitePushDecidido = false;
+export function isConvitePushDecidido(): boolean {
+  return convitePushDecidido;
+}
+export function marcarConvitePushDecidido(): void {
+  if (convitePushDecidido) return;
+  convitePushDecidido = true;
+  window.dispatchEvent(new Event(CONVITE_PUSH_DECIDIDO_EVENT));
 }
