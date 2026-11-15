@@ -36,6 +36,12 @@ const INCLUDE_PEDIDO = {
   checkoutSessao: { select: { captureMethod: true, installments: true } },
 } satisfies Prisma.PedidoInclude;
 
+/**
+ * Pedido lançado pelo painel (ADMIN/OPERADOR) espera antes de imprimir: se foi lançado errado
+ * e excluído nesse intervalo, o cupom não sai.
+ */
+const ATRASO_IMPRESSAO_PAINEL_MS = 15_000;
+
 @Injectable()
 export class PedidoService {
   constructor(
@@ -203,6 +209,7 @@ export class PedidoService {
     }
 
     let status_pagamento: 'PAGO' | 'NAO_PAGO' | 'GRATUITO';
+    let atrasoImpressaoMs = 0;
 
     if (user.role === 'TOTEM') {
       await this.cozinha.assertAberta();
@@ -216,11 +223,12 @@ export class PedidoService {
         throw new BadRequestException('Informe o status de pagamento do pedido.');
       }
       status_pagamento = dto.status_pagamento;
+      atrasoImpressaoMs = ATRASO_IMPRESSAO_PAINEL_MS;
     } else {
       throw new BadRequestException('Operação não autorizada');
     }
 
-    return this.criarPedidoPago(dto, status_pagamento);
+    return this.criarPedidoPago(dto, status_pagamento, undefined, { atrasoImpressaoMs });
   }
 
   /** `checkoutSessaoId`: liga o pedido ao checkout já na criação, para o meio de pagamento ir junto no evento. */
@@ -228,6 +236,7 @@ export class PedidoService {
     dto: CriarPedidoDto,
     status_pagamento: 'PAGO' | 'NAO_PAGO' | 'GRATUITO',
     checkoutSessaoId?: string,
+    opcoes?: { atrasoImpressaoMs?: number },
   ) {
     try {
       const clientRequestId = dto.client_request_id?.trim() || undefined;
@@ -423,7 +432,11 @@ export class PedidoService {
       });
 
       if (pedidoCompleto.criadoAgora) {
-        await this.enfileirarImpressao(pedidoCompleto.pedido, dto.cliente);
+        await this.enfileirarImpressao(
+          pedidoCompleto.pedido,
+          dto.cliente,
+          opcoes?.atrasoImpressaoMs ?? 0,
+        );
         this.websocket.emitirParaOperadores('novo-pedido', pedidoCompleto.pedido);
       }
 
@@ -698,7 +711,10 @@ export class PedidoService {
     return [...grupos.values()];
   }
 
-  private async enfileirarImpressao(pedidoCompleto: any, cliente: ClientePedido) {
+  /** `pedidoId` vai no job para o worker descartar o cupom de pedido excluído. */
+  private async enfileirarImpressao(pedidoCompleto: any, cliente: ClientePedido, atrasoMs = 0) {
+    const pedidoId = (pedidoCompleto as { id?: string }).id;
+    const opcoesJob = atrasoMs > 0 ? { delay: atrasoMs } : undefined;
     const itens = Array.isArray(pedidoCompleto.itens) ? pedidoCompleto.itens : [];
     const soIgnoraveis =
       itens.length > 0 &&
@@ -744,9 +760,11 @@ export class PedidoService {
         [...itensPrincipais, ...resumoImprimirSeparado, ...acompanhamentos],
         cliente,
       );
-      await this.filaImpressao.add('imprimir-pedido', {
-        texto: textoPrincipal,
-      });
+      await this.filaImpressao.add(
+        'imprimir-pedido',
+        { texto: textoPrincipal, pedidoId },
+        opcoesJob,
+      );
     }
 
     for (let indice = 0; indice < gruposSeparados.length; indice += 1) {
@@ -766,9 +784,11 @@ export class PedidoService {
         metaExtra:
           totalCuponsSeparados > 1 ? `CUPOM ${indice + 1} DE ${totalCuponsSeparados}` : undefined,
       });
-      await this.filaImpressao.add('imprimir-pedido', {
-        texto: textoSeparado,
-      });
+      await this.filaImpressao.add(
+        'imprimir-pedido',
+        { texto: textoSeparado, pedidoId },
+        opcoesJob,
+      );
     }
   }
 
@@ -874,6 +894,7 @@ export class PedidoService {
   async deletarPedido(id: string) {
     try {
       await this.prismaWrite.pedido.delete({ where: { id } });
+      await this.descartarImpressoesPendentes(id);
       this.websocket.emitirParaOperadores('pedido:deletado', { id });
       this.websocket.emitirParaMonitores('pedido:deletado', { id });
       return { mensagem: 'Pedido deletado com sucesso', dados: {} };
@@ -884,6 +905,20 @@ export class PedidoService {
       }
 
       throw new InternalServerErrorException('Não foi possível deletar o pedido. Tente novamente.');
+    }
+  }
+
+  /** Tira da fila os cupons ainda no atraso; o worker também confere se o pedido existe. */
+  private async descartarImpressoesPendentes(pedidoId: string) {
+    try {
+      const atrasados = await this.filaImpressao.getDelayed();
+      await Promise.all(
+        atrasados
+          .filter((job) => (job.data as { pedidoId?: string })?.pedidoId === pedidoId)
+          .map((job) => job.remove()),
+      );
+    } catch (erro) {
+      console.error('Erro ao descartar impressões pendentes do pedido:', erro);
     }
   }
 }
