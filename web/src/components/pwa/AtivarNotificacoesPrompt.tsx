@@ -29,14 +29,21 @@ export function AtivarNotificacoesPrompt() {
   const [ativando, setAtivando] = useState(false);
 
   useEffect(() => {
-    // Permissão já dada: confirma o token do aparelho ao abrir e ao voltar para o app.
-    let ultima = Date.now();
-    void registrarDispositivo().catch(() => {});
+    // Permissão já dada: confirma o token do aparelho ao abrir e ao voltar para o
+    // app. Até dar certo tenta a cada volta; depois, no máximo a cada 10 min.
+    let ultimoOk = 0;
+    function registrar() {
+      registrarDispositivo()
+        .then(() => {
+          ultimoOk = Date.now();
+        })
+        .catch(() => {});
+    }
+    registrar();
     function aoVoltar() {
       if (document.visibilityState !== 'visible') return;
-      if (Date.now() - ultima < INTERVALO_REGISTRO_MS) return;
-      ultima = Date.now();
-      void registrarDispositivo().catch(() => {});
+      if (Date.now() - ultimoOk < INTERVALO_REGISTRO_MS) return;
+      registrar();
     }
     document.addEventListener('visibilitychange', aoVoltar);
 
