@@ -11,6 +11,7 @@ import { infinitepayService } from '../../services';
 import type { Pedido, TipoConsumo } from '../../services/types';
 import { useCarrinhoStore } from '../../stores/carrinho.store';
 import { PedidoConfirmadoCheck } from './PedidoConfirmadoCheck';
+import { AvisoPedidoPronto } from './AvisoPedidoPronto';
 import { nomeItemPedido } from '../../lib/produtoVariacao';
 
 type ConfirmadoLocationState = {
@@ -50,6 +51,8 @@ export function PedidoConfirmado() {
   const temQueryCheckout = Boolean(orderNsu && transactionNsu && slug);
 
   const [numero, setNumero] = useState<string | null>(stateNumero ?? null);
+  // Só o pedido do cliente (checkout online) tem id aqui; o do totem não pede aviso.
+  const [pedidoId, setPedidoId] = useState<string | null>(null);
   const [pendingSync, setPendingSync] = useState(statePending);
   const [erro, setErro] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState(temQueryCheckout);
@@ -85,6 +88,7 @@ export function PedidoConfirmado() {
         await persistirPedidoLocal(pedido, itens);
         clear();
         setNumero(String(pedido.numero));
+        setPedidoId(pedido.id);
       } catch {
         if (!cancelled) {
           setErro('Não foi possível confirmar o pagamento.');
@@ -225,6 +229,8 @@ export function PedidoConfirmado() {
         </p>
         <p className="mt-1 text-title-md text-primary">#{numero}</p>
       </div>
+
+      {pedidoId ? <AvisoPedidoPronto pedidoId={pedidoId} /> : null}
 
       <div className="flex w-full flex-col gap-3">
         <Link to="/" className="w-full">

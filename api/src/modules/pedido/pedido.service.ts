@@ -28,6 +28,7 @@ import {
 } from '../impressora/impressao-texto.js';
 import type { AuthUser } from '../../infra/auth/auth.guard.js';
 import { CozinhaService } from '../cozinha/cozinha.service.js';
+import { PushService } from '../../infra/push/push.service.js';
 import { nomeItemComVariacao, resolverPrecoItem } from './preco-item.js';
 
 /** Itens com produto e o meio de pagamento do checkout online (InfinitePay), quando houver. */
@@ -50,6 +51,7 @@ export class PedidoService {
     @InjectQueue('fila-impressao') private filaImpressao: Queue,
     private readonly websocket: WebsocketGateway,
     private readonly cozinha: CozinhaService,
+    private readonly push: PushService,
   ) {}
 
   async listarPedido(dto: ListarDto) {
@@ -487,6 +489,17 @@ export class PedidoService {
     }
   }
 
+  /** Pedido já pronto não guarda o token: o aviso já passou (a tela mostra pelo socket). */
+  async inscreverPush(id: string, token: string) {
+    const pedido = await this.prismaRead.pedido.findUnique({
+      where: { id },
+      select: { prontoAt: true },
+    });
+    if (!pedido) throw new NotFoundException('Pedido não encontrado.');
+    if (!pedido.prontoAt) await this.push.inscrever(id, token);
+    return { mensagem: 'Aviso ativado', dados: { pronto: Boolean(pedido.prontoAt) } };
+  }
+
   async marcarPedidoPronto(id: string) {
     try {
       const pedido = await this.prismaRead.pedido.findUnique({
@@ -523,6 +536,9 @@ export class PedidoService {
         prontoAt: pedidoCompleto.prontoAt,
       });
       this.websocket.emitirParaMonitores('pedido:saiu', pedidoCompleto);
+      void this.push
+        .avisarPedidoPronto(pedidoCompleto.id, String(pedidoCompleto.numero))
+        .catch((erro) => console.error('Erro ao enviar push de pedido pronto:', erro));
 
       return {
         mensagem: 'Pedido marcado como pronto',

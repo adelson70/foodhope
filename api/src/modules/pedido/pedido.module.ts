@@ -6,10 +6,11 @@ import { PedidoService } from './pedido.service.js';
 import { InfraJwtModule } from '../../infra/auth/jwt.module.js';
 import { BullModule } from '@nestjs/bullmq';
 import { CozinhaModule } from '../cozinha/cozinha.module.js';
+import { PushModule } from '../../infra/push/push.module.js';
 import { FILA_IMPRESSAO } from '../impressora/fila-impressao.js';
 
 @Module({
-  imports: [InfraJwtModule, CozinhaModule, BullModule.registerQueue(FILA_IMPRESSAO)],
+  imports: [InfraJwtModule, CozinhaModule, PushModule, BullModule.registerQueue(FILA_IMPRESSAO)],
 
   controllers: [PedidoController],
 

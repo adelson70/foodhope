@@ -16,6 +16,7 @@ import { Auth } from '../../common/decorator/auth-mode.decorator.js';
 import { Roles } from '../../common/decorator/roles.decorator.js';
 import { CriarPedidoDto } from './dto/criar.dto.js';
 import { ListarDto } from './dto/listar.dto.js';
+import { InscreverPushDto } from './dto/push.dto.js';
 import type { AuthUser } from '../../infra/auth/auth.guard.js';
 
 @ApiTags('Pedidos')
@@ -47,6 +48,13 @@ export class PedidoController {
       throw new BadRequestException('Operação não autorizada');
     }
     return this.pedido.criarPedido(dto, req.user);
+  }
+
+  @Post(':id/push')
+  @Auth('jwt-or-visitor')
+  @ApiOperation({ summary: 'Pede aviso por push quando o pedido ficar pronto' })
+  async inscreverPush(@Param('id') id: string, @Body() dto: InscreverPushDto) {
+    return this.pedido.inscreverPush(id, dto.token);
   }
 
   @Post(':id/pronto')

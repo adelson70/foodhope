@@ -26,6 +26,26 @@ variable "VITE_GIT_SHA" {
   default = "dev"
 }
 
+variable "VITE_FIREBASE_API_KEY" {
+  default = ""
+}
+
+variable "VITE_FIREBASE_PROJECT_ID" {
+  default = ""
+}
+
+variable "VITE_FIREBASE_MESSAGING_SENDER_ID" {
+  default = ""
+}
+
+variable "VITE_FIREBASE_APP_ID" {
+  default = ""
+}
+
+variable "VITE_FIREBASE_VAPID_KEY" {
+  default = ""
+}
+
 group "default" {
   targets = ["api", "web"]
 }
@@ -56,6 +76,11 @@ target "web" {
     VITE_SITE_URL    = VITE_SITE_URL
     VITE_APP_VERSION = VITE_APP_VERSION
     VITE_GIT_SHA     = VITE_GIT_SHA
+    VITE_FIREBASE_API_KEY = VITE_FIREBASE_API_KEY
+    VITE_FIREBASE_PROJECT_ID = VITE_FIREBASE_PROJECT_ID
+    VITE_FIREBASE_MESSAGING_SENDER_ID = VITE_FIREBASE_MESSAGING_SENDER_ID
+    VITE_FIREBASE_APP_ID = VITE_FIREBASE_APP_ID
+    VITE_FIREBASE_VAPID_KEY = VITE_FIREBASE_VAPID_KEY
   }
   cache-from = [
     "type=gha,scope=web",

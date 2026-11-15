@@ -81,6 +81,7 @@ model Pedido {
 
   itens PedidoItem[]
   checkoutSessao CheckoutSessao?
+  pushInscricoes PushPedido[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -90,6 +91,19 @@ model Pedido {
   @@index([prontoAt])
   @@index([status_pagamento])
   @@map("pedido")
+}
+
+// Token FCM do aparelho que pediu aviso de "pedido pronto". Apagado depois do envio.
+model PushPedido {
+  id        String   @id @default(uuid())
+  pedidoId  String   @map("pedido_id")
+  token     String   @db.Text
+  createdAt DateTime @default(now())
+
+  pedido Pedido @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+
+  @@unique([pedidoId, token])
+  @@map("push_pedido")
 }
 
 model Categoria {
