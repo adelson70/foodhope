@@ -13,6 +13,8 @@ import { router } from '../../routes';
 import { getToken } from '../../services';
 
 const ATRASO_MS = 1500;
+/** Ao voltar para o app, refaz a inscrição no máximo uma vez por este intervalo. */
+const INTERVALO_REINSCRICAO_MS = 30_000;
 
 function rotaSemConvite(pathname: string): boolean {
   return isRotaEquipe(pathname) || pathname.startsWith('/painel');
@@ -27,8 +29,17 @@ export function AtivarNotificacoesPrompt() {
   const [ativando, setAtivando] = useState(false);
 
   useEffect(() => {
-    // Permissão já dada: só garante a inscrição nos pedidos recentes.
+    // Permissão já dada: garante a inscrição nos pedidos recentes, ao abrir e ao
+    // voltar para o app (PWA retomado do segundo plano não remonta).
+    let ultima = Date.now();
     void inscreverPedidosRecentes().catch(() => {});
+    function aoVoltar() {
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - ultima < INTERVALO_REINSCRICAO_MS) return;
+      ultima = Date.now();
+      void inscreverPedidosRecentes().catch(() => {});
+    }
+    document.addEventListener('visibilitychange', aoVoltar);
 
     const timer = setTimeout(() => {
       if (
@@ -42,7 +53,10 @@ export function AtivarNotificacoesPrompt() {
       }
       setAberto(true);
     }, ATRASO_MS);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', aoVoltar);
+    };
   }, []);
 
   const fechar = useCallback(() => {

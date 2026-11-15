@@ -49,6 +49,7 @@ export class PushService {
       create: { pedidoId, token },
       update: {},
     });
+    this.logger.log(`Aparelho inscrito no pedido ${pedidoId} (${token.slice(0, 12)}…)`);
   }
 
   /** Envia o aviso para os aparelhos inscritos no pedido e apaga as inscrições. */
@@ -57,7 +58,10 @@ export class PushService {
       where: { pedidoId },
       select: { token: true },
     });
-    if (inscricoes.length === 0) return;
+    if (inscricoes.length === 0) {
+      this.logger.log(`Pedido ${numero} pronto: nenhum aparelho inscrito.`);
+      return;
+    }
 
     const messaging = this.obterMessaging();
     if (messaging) {
@@ -78,6 +82,9 @@ export class PushService {
             headers: { Urgency: 'high', TTL: String(60 * 60) },
           },
         });
+        this.logger.log(
+          `Pedido ${numero} pronto: ${resposta.successCount} enviado(s), ${resposta.failureCount} falha(s).`,
+        );
         resposta.responses.forEach((r, i) => {
           if (!r.success && !TOKEN_INVALIDO.has(r.error?.code ?? '')) {
             this.logger.warn(`Push falhou (${tokens[i].slice(0, 12)}…): ${r.error?.code}`);
