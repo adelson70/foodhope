@@ -1,7 +1,10 @@
 import { Check, Trash2 } from 'lucide-react';
 
 import { Button } from '../../../components/ui';
-import { pedidoPendentePagamento } from '../../../lib/statusPagamento';
+import {
+  pedidoPendentePagamento,
+  rotuloMeioPagamento,
+} from '../../../lib/statusPagamento';
 import { rotuloTipoConsumo } from '../../../lib/tipoConsumo';
 import type { Pedido } from '../../../services/types';
 import { PedidoStatusPagamentoBadge } from './PedidoStatusPagamentoBadge';
@@ -39,6 +42,11 @@ export function PedidoCard({
   const pronto = pedidoEstaPronto(pedido);
   const pendentePagamento = pedidoPendentePagamento(pedido.status_pagamento);
   const localPendente = Boolean(pedido.pendingSync || pedido.syncFailed);
+  // Meio só para pedido pago já no servidor; `undefined` = resposta antiga sem o campo.
+  const mostrarMeio =
+    !localPendente &&
+    (pedido.status_pagamento ?? 'PAGO') === 'PAGO' &&
+    pedido.meio_pagamento !== undefined;
 
   return (
     <article className="rounded-xl border border-operator-border bg-operator-card p-4">
@@ -61,9 +69,7 @@ export function PedidoCard({
             </span>
             <PedidoStatusPagamentoBadge
               status={pedido.status_pagamento}
-              meio={pedido.meio_pagamento}
-              parcelas={pedido.parcelas}
-              mostrarMeio={!pedido.pendingSync && !pedido.syncFailed}
+              mostrarMeio={false}
             />
             {pedido.pendingSync ? (
               <span className="rounded-full bg-primary-container/40 px-2 py-0.5 text-label-sm font-medium text-on-surface">
@@ -108,13 +114,20 @@ export function PedidoCard({
         ) : null}
       </div>
       <div className="mt-3 flex items-center justify-between gap-3">
-        <p className="text-body-md font-medium text-on-surface">
-          {localPendente
-            ? pedido.totalEstimado != null
-              ? formatarMoeda(pedido.totalEstimado)
-              : '—'
-            : formatarMoeda(totalPedido(pedido))}
-        </p>
+        <div className="flex min-w-0 items-center gap-2">
+          <p className="text-body-md font-medium text-on-surface">
+            {localPendente
+              ? pedido.totalEstimado != null
+                ? formatarMoeda(pedido.totalEstimado)
+                : '—'
+              : formatarMoeda(totalPedido(pedido))}
+          </p>
+          {mostrarMeio ? (
+            <span className="rounded-full border border-operator-border px-2 py-0.5 text-label-sm font-medium text-on-surface">
+              {rotuloMeioPagamento(pedido.meio_pagamento, pedido.parcelas)}
+            </span>
+          ) : null}
+        </div>
         <div className="flex items-center gap-2">
           {pendentePagamento && !localPendente ? (
             <Button

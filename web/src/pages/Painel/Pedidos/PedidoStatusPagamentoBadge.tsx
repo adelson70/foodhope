@@ -35,7 +35,7 @@ export function PedidoStatusPagamentoBadge({
       )}
     >
       {rotuloStatusPagamento(efetivo)}
-      {mostrarMeio && efetivo === 'PAGO'
+      {mostrarMeio && efetivo === 'PAGO' && meio !== undefined
         ? ` · ${rotuloMeioPagamento(meio, parcelas)}`
         : null}
     </span>
