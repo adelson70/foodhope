@@ -237,6 +237,32 @@
   animation: select-enter 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Campo com erro: tremidinha ao aparecer (e de novo a cada envio inválido). */
+.input-shake {
+  animation: input-shake 400ms ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .input-shake {
+    animation: none;
+  }
+}
+
+@keyframes input-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-6px);
+  }
+  40%,
+  80% {
+    transform: translateX(6px);
+  }
+}
+
 .list-item-enter {
   animation: list-item-enter 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }

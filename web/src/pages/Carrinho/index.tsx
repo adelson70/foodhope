@@ -192,6 +192,15 @@ export function Carrinho() {
     window.location.assign(response.dados.url);
   }
 
+  // Campos que já estavam com erro tremem de novo a cada tentativa de envio.
+  function tremerCamposComErro() {
+    document.querySelectorAll<HTMLElement>('.input-shake').forEach((el) => {
+      el.classList.remove('input-shake');
+      void el.offsetWidth; // força o navegador a reiniciar a animação
+      el.classList.add('input-shake');
+    });
+  }
+
   async function onSubmit(values: CheckoutClienteValues) {
     if (itens.length === 0 || lojaFechada || semConexaoCheckout) return;
 
@@ -291,7 +300,7 @@ export function Carrinho() {
           ) : (
             <form
               className="flex flex-col gap-4"
-              onSubmit={handleSubmit(onSubmit)}
+              onSubmit={handleSubmit(onSubmit, tremerCamposComErro)}
               noValidate
             >
               <h3 className="text-subtitle-md text-on-surface">Seus dados</h3>

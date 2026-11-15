@@ -97,7 +97,7 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
       <div
         className={cn(
           'input-focus-ring flex w-full items-center gap-2 rounded-xl border bg-operator-bg py-1.5 pr-3 pl-1.5 transition-all duration-200',
-          error ? 'border-danger' : 'border-operator-border',
+          error ? 'border-danger input-shake' : 'border-operator-border',
           disabled && 'cursor-not-allowed opacity-50',
         )}
       >
