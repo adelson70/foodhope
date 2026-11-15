@@ -73,14 +73,25 @@ self.addEventListener('push', (event) => {
     dados = {}
   }
 
+  // vibrate/renotify/requireInteraction: o Android trata como alerta e mostra
+  // flutuando. O badge precisa ser monocromático com fundo transparente (o Android
+  // só usa o alfa; ícone colorido opaco vira um quadrado branco).
+  const opcoes: NotificationOptions & {
+    vibrate?: number[]
+    renotify?: boolean
+  } = {
+    body: dados.corpo || 'Seu pedido está pronto para retirada.',
+    icon: '/icon-192.png',
+    badge: '/badge-96.png',
+    tag: `pedido-${dados.pedidoId || 'pronto'}`,
+    renotify: true,
+    requireInteraction: true,
+    vibrate: [300, 120, 300, 120, 300],
+    data: { url: dados.url || '/pedidos' },
+  }
+
   event.waitUntil(
-    self.registration.showNotification(dados.titulo || 'Food Hope', {
-      body: dados.corpo || 'Seu pedido está pronto para retirada.',
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
-      tag: dados.pedidoId ? `pedido-${dados.pedidoId}` : undefined,
-      data: { url: dados.url || '/pedidos' },
-    }),
+    self.registration.showNotification(dados.titulo || 'Food Hope', opcoes),
   )
 })
 
