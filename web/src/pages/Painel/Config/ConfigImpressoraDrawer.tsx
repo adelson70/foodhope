@@ -34,7 +34,7 @@ import type {
   PortaImpressora,
 } from "../../../services/types";
 import { PonteEsp32Card } from "./PonteEsp32Card";
-import { WifiUsbEsp32 } from "./WifiUsbEsp32";
+import { WifiEsp32 } from "./WifiEsp32";
 
 type ConfigImpressoraDrawerProps = {
   open: boolean;
@@ -403,7 +403,7 @@ export function ConfigImpressoraDrawer({
           {modo === "ponte" ? (
             <>
               <PonteEsp32Card disabled={bloqueado} onEstado={onEstadoPonte} />
-              <WifiUsbEsp32 disabled={bloqueado} />
+              <WifiEsp32 disabled={bloqueado} />
               <p className="px-1 text-caption text-on-surface-variant">
                 O ESP32 fica no restaurante, na mesma rede da impressora, e
                 recebe os cupons do servidor por conexão segura. Teste antes de

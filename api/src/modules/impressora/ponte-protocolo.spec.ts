@@ -59,7 +59,11 @@ describe('ponte-protocolo', () => {
       uptime: 3600,
       mac: '24:6F:28:AA:BB:0C',
       versao: '1.0.0',
+      wifi: null,
     });
+    const novo = lerStatus(Buffer.concat([p, Buffer.from('1.1.0\0Food Hope ')]));
+    expect(novo?.versao).toBe('1.1.0');
+    expect(novo?.wifi).toBe('Food Hope ');
     expect(lerStatus(Buffer.alloc(10))).toBeNull();
   });
 

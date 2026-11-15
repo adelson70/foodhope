@@ -4,7 +4,10 @@ import { KeyRound, Usb, Wifi } from "lucide-react";
 import { Button, Input, Label, Select } from "../../../components/ui";
 import { cn } from "../../../lib/cn";
 
-// Web Serial (Chrome/Edge no computador). Tipos mínimos para não depender de @types extras.
+// Configura o Wi-Fi do ESP32 pela USB (Web Serial). Pelo celular, sem computador, use o app
+// "ESP BLE Provisioning" (ver DEPLOY.md). Respostas do firmware começam com "@".
+
+// ---------- Web Serial (Chrome/Edge no computador) ----------
 type PortaSerial = {
   open(o: { baudRate: number }): Promise<void>;
   close(): Promise<void>;
@@ -26,26 +29,62 @@ function serialDoNavegador(): SerialNav | null {
 }
 
 // CP210x, CH340, FTDI e USB nativo da Espressif
-const FILTROS = [0x10c4, 0x1a86, 0x0403, 0x303a].map((usbVendorId) => ({
+const FILTROS_USB = [0x10c4, 0x1a86, 0x0403, 0x303a].map((usbVendorId) => ({
   usbVendorId,
 }));
 
-type Rede = { ssid: string; rssi: number };
-type Etapa =
-  | "inicio"
-  | "conectando"
-  | "procurando"
-  | "escolher"
-  | "gravando"
-  | "ok"
-  | "erro";
-
-/** Conexão serial com o firmware da ponte: linhas que começam com "@" são respostas. */
-class Esp32Usb {
+/** Linhas "@..." recebidas, com espera por uma resposta específica. */
+class Linhas {
   private linhas: string[] = [];
   private ouvintes = new Set<() => void>();
-  private leitor: ReadableStreamDefaultReader<Uint8Array> | null = null;
+  private resto = "";
 
+  receber(texto: string) {
+    this.resto += texto;
+    const partes = this.resto.split(/\r?\n/);
+    this.resto = partes.pop() ?? "";
+    for (const l of partes) if (l.startsWith("@")) this.linhas.push(l);
+    this.ouvintes.forEach((f) => f());
+  }
+
+  esperar(teste: (l: string) => boolean, ms: number): Promise<string[]> {
+    return new Promise((resolve, reject) => {
+      const verificar = () => {
+        const i = this.linhas.findIndex(teste);
+        if (i < 0) return;
+        const lidas = this.linhas.splice(0, i + 1);
+        fim();
+        resolve(lidas);
+      };
+      const timer = setTimeout(() => {
+        fim();
+        reject(new Error("O ESP32 não respondeu."));
+      }, ms);
+      const fim = () => {
+        clearTimeout(timer);
+        this.ouvintes.delete(verificar);
+      };
+      this.ouvintes.add(verificar);
+      verificar();
+    });
+  }
+
+  descartar() {
+    this.linhas = [];
+  }
+}
+
+interface ConexaoEsp32 {
+  readonly via: "usb";
+  readonly linhas: Linhas;
+  enviar(texto: string): Promise<void>;
+  fechar(): Promise<void>;
+}
+
+class Esp32Usb implements ConexaoEsp32 {
+  readonly via = "usb" as const;
+  readonly linhas = new Linhas();
+  private leitor: ReadableStreamDefaultReader<Uint8Array> | null = null;
   private porta: PortaSerial;
 
   constructor(porta: PortaSerial) {
@@ -63,18 +102,13 @@ class Esp32Usb {
 
   private async ler() {
     const dec = new TextDecoder();
-    let resto = "";
     this.leitor = this.porta.readable?.getReader() ?? null;
     if (!this.leitor) return;
     try {
       for (;;) {
         const { value, done } = await this.leitor.read();
         if (done) break;
-        resto += dec.decode(value, { stream: true });
-        const partes = resto.split(/\r?\n/);
-        resto = partes.pop() ?? "";
-        for (const l of partes) if (l.startsWith("@")) this.linhas.push(l);
-        this.ouvintes.forEach((f) => f());
+        this.linhas.receber(dec.decode(value, { stream: true }));
       }
     } catch {
       // porta fechada ou cabo removido
@@ -88,33 +122,6 @@ class Esp32Usb {
     w.releaseLock();
   }
 
-  /** Espera uma linha que satisfaça `teste`; devolve as linhas consumidas até ela. */
-  esperar(teste: (l: string) => boolean, ms: number): Promise<string[]> {
-    return new Promise((resolve, reject) => {
-      const verificar = () => {
-        const i = this.linhas.findIndex(teste);
-        if (i < 0) return;
-        const lidas = this.linhas.splice(0, i + 1);
-        fim();
-        resolve(lidas);
-      };
-      const timer = setTimeout(() => {
-        fim();
-        reject(new Error("O ESP32 não respondeu pela USB."));
-      }, ms);
-      const fim = () => {
-        clearTimeout(timer);
-        this.ouvintes.delete(verificar);
-      };
-      this.ouvintes.add(verificar);
-      verificar();
-    });
-  }
-
-  descartar() {
-    this.linhas = [];
-  }
-
   async fechar() {
     await this.leitor?.cancel().catch(() => {});
     this.leitor?.releaseLock();
@@ -122,13 +129,23 @@ class Esp32Usb {
   }
 }
 
-export function WifiUsbEsp32({ disabled }: { disabled?: boolean }) {
+type Rede = { ssid: string; rssi: number };
+type Etapa =
+  | "inicio"
+  | "conectando"
+  | "procurando"
+  | "escolher"
+  | "gravando"
+  | "ok"
+  | "erro";
+
+export function WifiEsp32({ disabled }: { disabled?: boolean }) {
   const [etapa, setEtapa] = useState<Etapa>("inicio");
   const [mensagem, setMensagem] = useState<string | null>(null);
   const [redes, setRedes] = useState<Rede[]>([]);
   const [ssid, setSsid] = useState("");
   const [senha, setSenha] = useState("");
-  const esp = useRef<Esp32Usb | null>(null);
+  const esp = useRef<ConexaoEsp32 | null>(null);
   const serial = serialDoNavegador();
 
   useEffect(
@@ -138,20 +155,11 @@ export function WifiUsbEsp32({ disabled }: { disabled?: boolean }) {
     [],
   );
 
-  if (!serial) {
-    return (
-      <p className="px-1 text-caption text-on-surface-variant">
-        Para trocar o Wi-Fi do ESP32 pela USB, abra o painel no Chrome ou Edge
-        de um computador.
-      </p>
-    );
-  }
-
-  async function procurar(conexao: Esp32Usb) {
+  async function procurar(conexao: ConexaoEsp32) {
     setEtapa("procurando");
-    conexao.descartar();
+    conexao.linhas.descartar();
     await conexao.enviar("scan");
-    const linhas = await conexao.esperar((l) => l === "@fim", 30_000);
+    const linhas = await conexao.linhas.esperar((l) => l === "@fim", 30_000);
     const vistas = new Map<string, number>();
     for (const l of linhas) {
       const [tipo, nome, rssi] = l.split("\t");
@@ -171,7 +179,7 @@ export function WifiUsbEsp32({ disabled }: { disabled?: boolean }) {
     setEtapa("conectando");
     try {
       await esp.current?.fechar();
-      const porta = await serial!.requestPort({ filters: FILTROS });
+      const porta = await serial!.requestPort({ filters: FILTROS_USB });
       const conexao = new Esp32Usb(porta);
       await conexao.abrir();
       esp.current = conexao;
@@ -197,14 +205,15 @@ export function WifiUsbEsp32({ disabled }: { disabled?: boolean }) {
     setMensagem(null);
     setEtapa("gravando");
     try {
-      conexao.descartar();
+      conexao.linhas.descartar();
       await conexao.enviar(`wifi\t${ssid}\t${senha}`);
-      await conexao.esperar((l) => l === "@salvo", 5_000);
-      // reinicia e tenta a rede salva primeiro (até 20 s)
+      // o ESP32 testa a rede na hora (até ~20 s) e só grava se conectar
       const [resultado] = (
-        await conexao.esperar(
+        await conexao.linhas.esperar(
           (l) =>
-            l.startsWith("@wifi-ok") || l.startsWith(`@wifi-falhou\t${ssid}\t`),
+            l.startsWith("@wifi-ok") ||
+            l.startsWith(`@wifi-falhou\t${ssid}\t`) ||
+            l.startsWith("@erro"),
           45_000,
         )
       ).slice(-1);
@@ -212,13 +221,16 @@ export function WifiUsbEsp32({ disabled }: { disabled?: boolean }) {
         const [, rede, ip] = resultado.split("\t");
         setEtapa("ok");
         setMensagem(
-          `Conectado em "${rede}" (${ip}). Já pode tirar da USB e ligar na tomada perto da impressora.`,
+          `Conectado em "${rede}" (${ip}). O ESP32 reinicia sozinho e em cerca de 1 minuto aparece online aqui.`,
         );
         setSenha("");
       } else {
+        const [, , , texto] = resultado.split("\t");
         setEtapa("escolher");
         setMensagem(
-          `Não conectou em "${ssid}". Confira a senha (e se a rede é 2,4 GHz).`,
+          resultado.startsWith("@erro")
+            ? (resultado.split("\t")[1] ?? "O ESP32 recusou o pedido.")
+            : `Não conectou em "${ssid}": ${texto ?? "confira a senha"}.`,
         );
       }
     } catch (e) {
@@ -237,25 +249,36 @@ export function WifiUsbEsp32({ disabled }: { disabled?: boolean }) {
   return (
     <div className="space-y-3 rounded-xl border border-operator-border bg-operator-card p-4">
       <div className="flex items-center gap-2 text-body-md font-medium text-on-surface">
-        <Usb size={18} strokeWidth={1.75} />
-        Wi-Fi do ESP32 pela USB
+        <Wifi size={18} strokeWidth={1.75} />
+        Wi-Fi do ESP32
       </div>
 
       {etapa === "inicio" || etapa === "conectando" || etapa === "erro" ? (
         <>
           <p className="text-caption text-on-surface-variant">
-            Ligue o ESP32 neste computador com o cabo USB para escolher a rede
-            Wi-Fi do restaurante.
+            Pelo celular, com o ESP32 só na tomada: app{" "}
+            <b>ESP BLE Provisioning</b> (Android/iPhone) nos 2 primeiros minutos
+            depois de ligar. Por aqui: ligue o ESP32 na USB deste computador.
           </p>
-          <Button
-            type="button"
-            variant="secondary"
-            fullWidth
-            disabled={ocupado}
-            onClick={() => void conectar()}
-          >
-            {etapa === "conectando" ? "Conectando…" : "Conectar ESP32 pela USB"}
-          </Button>
+          {serial ? (
+            <Button
+              type="button"
+              variant="secondary"
+              fullWidth
+              disabled={ocupado}
+              onClick={() => void conectar()}
+            >
+              <Usb size={15} strokeWidth={2.25} />
+              {etapa === "conectando"
+                ? "Conectando…"
+                : "Conectar ESP32 pela USB"}
+            </Button>
+          ) : (
+            <p className="text-caption text-on-surface-variant">
+              Para configurar pela USB, abra o painel no Chrome ou Edge de um
+              computador.
+            </p>
+          )}
         </>
       ) : null}
 
@@ -316,7 +339,7 @@ export function WifiUsbEsp32({ disabled }: { disabled?: boolean }) {
               onClick={() => void gravar()}
             >
               <Wifi size={15} strokeWidth={2.25} />
-              {etapa === "gravando" ? "Conectando o ESP32…" : "Gravar Wi-Fi"}
+              {etapa === "gravando" ? "Testando a rede…" : "Conectar o ESP32"}
             </Button>
           </div>
         </>
@@ -327,12 +350,12 @@ export function WifiUsbEsp32({ disabled }: { disabled?: boolean }) {
           type="button"
           variant="secondary"
           fullWidth
-          onClick={() =>
-            esp.current &&
-            void procurar(esp.current).catch(() => setEtapa("erro"))
-          }
+          onClick={() => {
+            setMensagem(null);
+            setEtapa("inicio");
+          }}
         >
-          Trocar de rede de novo
+          Configurar de novo
         </Button>
       ) : null}
 

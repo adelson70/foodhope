@@ -192,6 +192,8 @@ export class PonteService implements OnApplicationBootstrap, OnModuleDestroy {
 
     ws.on('message', (dados, binario) => this.mensagem(ws, dados, binario));
     ws.on('pong', () => (this.vivo = true));
+    // o ESP32 também manda ping a cada 15 s (heartbeat): conta como sinal de vida
+    ws.on('ping', () => (this.vivo = true));
     ws.on('close', () => this.desconectado(ws));
     ws.on('error', (erro) => this.logger.warn(`Ponte: erro no socket: ${erro.message}`));
 

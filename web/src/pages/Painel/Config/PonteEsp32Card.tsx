@@ -232,7 +232,7 @@ export function PonteEsp32Card({ disabled, onEstado }: PonteEsp32CardProps) {
             rotulo="Wi-Fi"
             valor={
               status
-                ? `${status.rssi} dBm (${qualidadeSinal(status.rssi)})`
+                ? `${status.wifi ? `${status.wifi.trim() || status.wifi} · ` : ""}${status.rssi} dBm (${qualidadeSinal(status.rssi)})`
                 : "—"
             }
             destaque={status && status.rssi < -80 ? "erro" : undefined}

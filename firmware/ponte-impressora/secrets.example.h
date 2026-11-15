@@ -8,7 +8,7 @@
 #define WIFI_SSID_2 ""
 #define WIFI_PASSWORD_2 ""
 
-// (PORTAL_SENHA não é mais usada: o portal é aberto e só existe sem Wi-Fi.)
+// (PORTAL_SENHA não é mais usada: o portal é aberto e só existe quando pedido.)
 
 // API (mesmo valor de PONTE_IMPRESSORA_TOKEN no docker/.env). Gere com: openssl rand -hex 32
 #define PONTE_TOKEN ""
@@ -18,3 +18,4 @@
 #ifndef PONTE_HOST
 #define PONTE_HOST "foodhope-api.abjr.dev"
 #endif
+

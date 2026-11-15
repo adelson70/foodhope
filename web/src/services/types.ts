@@ -385,6 +385,8 @@ export type StatusPonte = {
   uptime: number;
   mac: string;
   versao: string;
+  /** Rede Wi-Fi do ESP32 (firmware 1.1.0+). */
+  wifi?: string | null;
 };
 
 export type EstadoPonte = {

@@ -36,6 +36,8 @@ export type StatusPonte = {
   uptime: number;
   mac: string;
   versao: string;
+  /** Rede Wi-Fi em que o ESP32 está (firmware 1.1.0+; null nos antigos). */
+  wifi: string | null;
 };
 
 export function frame(tipo: number, id: number, payload?: Uint8Array): Buffer {
@@ -79,6 +81,25 @@ function papelDe(byte: number): StatusPonte['papel'] {
 }
 
 /** payload: ip u32 | online u8 | papel u8 | rssi i8 | heap u32 | uptime u32 | mac[6] | versão utf8 */
+/** Depois do MAC: versão e, a partir da 1.1.0, um byte 0 seguido do nome da rede Wi-Fi. */
+function versaoEWifi(resto: Buffer): { versao: string; wifi: string | null } {
+  const zero = resto.indexOf(0);
+  const versao = (zero < 0 ? resto : resto.subarray(0, zero)).subarray(0, 32);
+  const wifi =
+    zero < 0
+      ? null
+      : resto
+          .subarray(zero + 1, zero + 1 + 32)
+          .toString('utf8')
+          .split('')
+          .filter((c) => c >= ' ' && c !== '\u007f')
+          .join('');
+  return {
+    versao: versao.toString('utf8').replace(/[^\x20-\x7e]/g, ''),
+    wifi: wifi || null,
+  };
+}
+
 export function lerStatus(payload: Buffer): StatusPonte | null {
   if (payload.length < TAMANHO_STATUS_MIN) return null;
   const ip = payload.readUInt32BE(0);
@@ -93,10 +114,7 @@ export function lerStatus(payload: Buffer): StatusPonte | null {
     heap: payload.readUInt32BE(7),
     uptime: payload.readUInt32BE(11),
     mac,
-    versao: payload
-      .subarray(21, 53)
-      .toString('utf8')
-      .replace(/[^\x20-\x7e]/g, ''),
+    ...versaoEWifi(payload.subarray(21)),
   };
 }
 

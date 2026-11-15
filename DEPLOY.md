@@ -130,17 +130,32 @@ impressora na porta 9100.
 - **Firmware:** `firmware/ponte-impressora/`. Copie `secrets.example.h` para `secrets.h`, preencha
   e grave:
   ```bash
-  arduino-cli compile --fqbn esp32:esp32:esp32 firmware/ponte-impressora
-  arduino-cli upload  --fqbn esp32:esp32:esp32 -p /dev/ttyUSB0 firmware/ponte-impressora
+  arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=huge_app firmware/ponte-impressora
+  arduino-cli upload  --fqbn esp32:esp32:esp32:PartitionScheme=huge_app -p /dev/ttyUSB0 firmware/ponte-impressora
   ```
+  A placa do restaurante já está com a partição `huge_app` (use a mesma ao regravar); a NVS fica no
+  mesmo lugar, então as redes e o IP da impressora salvos continuam.
 - **Plug and play:** o ESP32 tenta o Wi-Fi salvo, depois `WIFI_SSID` e depois `WIFI_SSID_2`. A
-  impressora é achada sozinha: primeiro testa o IP salvo, senão varre o /24 na porta 9100.
-- **Trocar o Wi-Fi (recomendado):** ligue o ESP32 na USB de um computador e, no painel (Chrome/Edge),
-  Ponte ESP32 → **Conectar ESP32 pela USB** → escolha a rede → senha → Gravar. Ele reinicia e
-  confirma o IP em ~5 s. Pela serial (115200): `scan`, `wifi<TAB>ssid<TAB>senha`, `portal`.
-- **Portal (reserva):** sem Wi-Fi, ou segurando BOOT 2 s ao ligar, abre a rede aberta
-  **FoodHope-Ponte** (http://192.168.77.1). Nesta placa os celulares veem a rede mas não associam
-  (o ESP32 recebe os probes, nenhum aparelho conecta), por isso a USB é o caminho principal.
+  impressora é achada sozinha: primeiro testa o IP salvo, senão varre o /24 na porta 9100 em lotes
+  de 6 (~16 s), intercalados com o WebSocket: a API nunca fica sem resposta durante a busca.
+- **Trocar o Wi-Fi (ESP32 só na tomada, sem servidor nem painel):** ligue o ESP32 na tomada e, no
+  celular ou notebook, entre na rede Wi-Fi aberta **FoodHope-Ponte**. A tela de configuração abre
+  sozinha (captive portal; se não abrir, acesse http://192.168.77.1). Escolha a rede do restaurante,
+  digite a senha e toque em Conectar: o ESP32 testa na hora e mostra "Conectado" ou o motivo
+  ("senha incorreta", "rede não encontrada"). Só grava se conectar; depois reinicia já na rede nova.
+  - **Toda vez que liga na tomada** a rede FoodHope-Ponte fica no ar por **2 min** (mais, com alguém
+    conectado nela) e **sempre que nenhuma rede conhecida conecta** (tenta as salvas a cada minuto).
+    A impressão não espera: o ESP32 entra no Wi-Fi salvo e conecta na API junto com o portal.
+    Logo depois de configurar ele reinicia **sem** o portal.
+  - Por que agora associa (antes os aparelhos viam a rede e não entravam): sem Bluetooth disputando
+    o rádio, potência do portal em 11 dBm (no máximo, picos de corrente derrubavam a associação nesta
+    placa), mesmo canal da rede conhecida (o AP não troca de canal ao conectar) e tentativas de Wi-Fi
+    pausadas enquanto alguém está no portal. Testado com o notebook: associou, DNS e redirecionamento
+    do captive portal certos (Android 302, iPhone 200, Windows/Linux 302).
+- **Pela USB:** painel no Chrome/Edge do computador → **Conectar ESP32 pela USB**. Comandos na
+  serial (115200): `estado`, `scan`, `wifi<TAB>ssid<TAB>senha` (testa e só grava se conectar),
+  `impressora` (procura de novo), `portal`.
+- **Portal por 5 min:** segurando BOOT 2 s ao ligar, ou `portal` pela USB.
 - **LED:** pisca rápido = sem Wi-Fi; médio = sem API; lento = sem impressora; aceso = pronto.
 - **Sem perder comanda:** a fila (`fila-impressao`) tenta 10 vezes com backoff exponencial a partir
   de 5 s (~40 min). Com a ponte fora do ar, cada job ainda espera até 30 s pela reconexão. O ESP32
